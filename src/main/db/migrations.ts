@@ -55,5 +55,20 @@ export const migrations: Migration[] = [
       INSERT INTO settings (id, created_at, updated_at)
       VALUES (1, datetime('now'), datetime('now'));
     `
+  },
+  {
+    id: 2,
+    name: 'app_state',
+    sql: `
+      -- Small key/value store for UI state that belongs to the workspace but
+      -- is not business data: tour progress, last opened project, view
+      -- preferences. Keeps such things out of the settings table, which is
+      -- the invoice-facing business profile.
+      CREATE TABLE app_state (
+        key        TEXT PRIMARY KEY,
+        value      TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `
   }
 ]

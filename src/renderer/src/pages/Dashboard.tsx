@@ -37,7 +37,7 @@ export function Dashboard(): React.JSX.Element {
       title={greeting()}
       description={today}
       actions={
-        <>
+        <div data-tour="dashboard-actions" className="flex items-center gap-2">
           <Button variant="secondary" size="md">
             <Clock size={14} strokeWidth={1.75} />
             Start timer
@@ -46,7 +46,7 @@ export function Dashboard(): React.JSX.Element {
             <Plus size={14} strokeWidth={1.75} />
             New project
           </Button>
-        </>
+        </div>
       }
     >
       <div className="mb-3 flex items-center gap-2 rounded-control border border-line bg-surface px-3 py-2">
@@ -57,6 +57,7 @@ export function Dashboard(): React.JSX.Element {
       </div>
 
       <motion.div
+        data-tour="dashboard-stats"
         variants={listVariants}
         initial="initial"
         animate="animate"

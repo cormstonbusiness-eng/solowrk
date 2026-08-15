@@ -48,10 +48,15 @@ function NavRow({ item }: { item: NavItem }): React.JSX.Element {
 
 export function Sidebar(): React.JSX.Element {
   return (
-    <nav className="flex w-[212px] shrink-0 flex-col border-r border-line bg-ground">
+    <nav
+      data-tour="sidebar"
+      className="flex w-[212px] shrink-0 flex-col border-r border-line bg-ground"
+    >
       <div className="flex-1 overflow-y-auto px-2.5 py-3">
         {navGroups.map((group) => (
-          <div key={group.label} className="mb-5">
+          // data-tour targets are derived from the group label, so adding a
+          // group cannot silently break a tour step that points at it.
+          <div key={group.label} data-tour={`nav-${group.label.toLowerCase()}`} className="mb-5">
             <p className="px-2.5 pb-1.5 text-[10px] font-medium tracking-[0.1em] text-faint uppercase">
               {group.label}
             </p>
@@ -64,7 +69,10 @@ export function Sidebar(): React.JSX.Element {
         ))}
       </div>
 
-      <div className="flex flex-col gap-0.5 border-t border-line px-2.5 py-2.5">
+      <div
+        data-tour="nav-footer"
+        className="flex flex-col gap-0.5 border-t border-line px-2.5 py-2.5"
+      >
         {footerNav.map((item) => (
           <NavRow key={item.path} item={item} />
         ))}

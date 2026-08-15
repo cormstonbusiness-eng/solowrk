@@ -3,6 +3,7 @@ import { mkdtemp, rm, stat, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Database } from '../db'
+import { migrations } from '../db/migrations'
 import { getSettings } from './settings'
 import { WORKSPACE_TREE, databasePath, isWorkspace, scaffoldWorkspace } from './workspace'
 
@@ -68,7 +69,8 @@ describe('workspace creation', () => {
     const second = new Database(databasePath(workspace))
     try {
       expect(getSettings(second).businessName).toBe('Kept')
-      expect(second.all('SELECT id FROM _migrations')).toHaveLength(1)
+      // Derived from the migration list so adding one does not break this test.
+      expect(second.all('SELECT id FROM _migrations')).toHaveLength(migrations.length)
     } finally {
       second.close()
     }

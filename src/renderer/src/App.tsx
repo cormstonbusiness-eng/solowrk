@@ -7,6 +7,7 @@ import { TitleBar } from '@/components/TitleBar'
 import { Sidebar } from '@/components/Sidebar'
 import { FirstRun } from '@/setup/FirstRun'
 import { WorkspaceContext } from '@/hooks/useWorkspace'
+import { TourProvider } from '@/tour/TourProvider'
 import { transition } from '@/lib/motion'
 import {
   Assistant,
@@ -59,12 +60,15 @@ function AnimatedRoutes(): React.JSX.Element {
 function Shell(): React.JSX.Element {
   return (
     <HashRouter>
-      <div className="flex min-h-0 flex-1">
-        <Sidebar />
-        <main className="min-w-0 flex-1 bg-ground">
-          <AnimatedRoutes />
-        </main>
-      </div>
+      {/* Inside the router: the tour navigates between routes as it goes. */}
+      <TourProvider>
+        <div className="flex min-h-0 flex-1">
+          <Sidebar />
+          <main className="min-w-0 flex-1 bg-ground">
+            <AnimatedRoutes />
+          </main>
+        </div>
+      </TourProvider>
     </HashRouter>
   )
 }

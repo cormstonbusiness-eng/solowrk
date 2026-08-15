@@ -12,6 +12,7 @@ import { session } from '../services/session'
 import { suggestedWorkspacePath } from '../services/config'
 import { inspectFolder } from '../services/workspace'
 import { updateSettings } from '../services/settings'
+import { getState, setState } from '../services/appState'
 
 type WindowGetter = () => BrowserWindow | null
 
@@ -83,7 +84,11 @@ const handlers: Handlers = {
 
   'settings:get': () => session.settings(),
 
-  'settings:update': (_getWindow, patch) => updateSettings(session.requireDb(), patch)
+  'settings:update': (_getWindow, patch) => updateSettings(session.requireDb(), patch),
+
+  'state:get': (_getWindow, { key }) => getState(session.requireDb(), key),
+
+  'state:set': (_getWindow, { key, value }) => setState(session.requireDb(), key, value)
 }
 
 export function registerIpcHandlers(getWindow: WindowGetter): void {

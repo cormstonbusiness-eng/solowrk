@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { Check, FolderOpen, Loader2 } from 'lucide-react'
+import { Check, Compass, FolderOpen, Loader2 } from 'lucide-react'
 import type { BusinessSettings, Settings as SettingsType } from '@shared/types'
 import { Page } from '@/components/Page'
 import { Card, CardHeader } from '@/components/ui/Card'
@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Field, MoneyInput, NumberInput, TextInput, Toggle } from '@/components/ui/Field'
 import { transition } from '@/lib/motion'
 import { useWorkspace } from '@/hooks/useWorkspace'
+import { useTour } from '@/tour/TourProvider'
 
 /**
  * Settings edits a local draft and saves explicitly. Auto-save would be fine
@@ -18,6 +19,7 @@ import { useWorkspace } from '@/hooks/useWorkspace'
 export function Settings(): React.JSX.Element {
   const queryClient = useQueryClient()
   const workspace = useWorkspace()
+  const tour = useTour()
   const { data: settings } = useQuery({
     queryKey: ['settings'],
     queryFn: () => window.solo.invoke('settings:get')
@@ -238,6 +240,22 @@ export function Settings(): React.JSX.Element {
                 />
               </Field>
             </div>
+          </div>
+        </Card>
+
+        <Card>
+          <CardHeader title="Help" />
+          <div className="flex items-center justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[13px] text-ink">Guided tour</p>
+              <p className="mt-0.5 text-[11px] text-faint">
+                Walk through the app again, section by section.
+              </p>
+            </div>
+            <Button variant="outline" onClick={tour.start} disabled={tour.isActive}>
+              <Compass size={14} strokeWidth={1.75} />
+              Replay tour
+            </Button>
           </div>
         </Card>
 

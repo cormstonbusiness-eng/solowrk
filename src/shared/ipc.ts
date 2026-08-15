@@ -47,6 +47,10 @@ export interface IpcContract {
 
   'settings:get': { req: void; res: Settings }
   'settings:update': { req: Partial<BusinessSettings>; res: Settings }
+
+  /** Small workspace-scoped UI flags — see app_state in the database. */
+  'state:get': { req: { key: string }; res: string | null }
+  'state:set': { req: { key: string; value: string }; res: void }
 }
 
 export type IpcChannel = keyof IpcContract
@@ -76,7 +80,9 @@ export const IPC_CHANNELS = [
   'workspace:adopt',
   'workspace:reveal',
   'settings:get',
-  'settings:update'
+  'settings:update',
+  'state:get',
+  'state:set'
 ] as const satisfies readonly IpcChannel[]
 
 export const IPC_EVENTS = ['window:stateChanged'] as const satisfies readonly IpcEvent[]
