@@ -4,6 +4,7 @@ import { readConfig, suggestedWorkspacePath, updateConfig } from './config'
 import { backupDatabase, backupIsDue } from './backup'
 import { databasePath, isWorkspace, scaffoldWorkspace } from './workspace'
 import { getSettings, updateSettings } from './settings'
+import { runRecurringInvoices } from './invoices'
 
 /**
  * Owns the currently open workspace: its path and its database connection.
@@ -85,6 +86,25 @@ class Session {
     this.workspacePath = path
     await updateConfig({ workspacePath: path })
     await this.runDailyBackup()
+    this.issueDueRetainers()
+  }
+
+  /**
+   * Generate any retainer invoices that have come due while the app was closed.
+   *
+   * They arrive as drafts, never sent — the point is that the freelancer does
+   * not have to remember, not that invoices leave without being seen. A failure
+   * here must not stop the workspace opening.
+   */
+  private issueDueRetainers(): void {
+    try {
+      const created = runRecurringInvoices(this.requireDb())
+      if (created.length > 0) {
+        console.log(`Issued ${created.length} recurring invoice draft(s)`)
+      }
+    } catch (error) {
+      console.error('Recurring invoices failed:', error)
+    }
   }
 
   /**

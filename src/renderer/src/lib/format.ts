@@ -54,6 +54,22 @@ export function describeDue(iso: string | null): { label: string; tone: 'danger'
   return { label: formatDate(iso), tone: 'muted' }
 }
 
+/** Running-clock display for a live timer: 01:23:45. */
+export function formatElapsed(seconds: number): string {
+  const pad = (value: number): string => String(value).padStart(2, '0')
+  return [Math.floor(seconds / 3600), Math.floor((seconds % 3600) / 60), seconds % 60]
+    .map(pad)
+    .join(':')
+}
+
+/** Settled duration for a logged entry: "3h 25m". */
+export function formatDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600)
+  const minutes = Math.round((seconds % 3600) / 60)
+  if (hours === 0) return `${minutes}m`
+  return minutes === 0 ? `${hours}h` : `${hours}h ${minutes}m`
+}
+
 /** `yyyy-mm-dd` for date inputs, which reject full ISO timestamps. */
 export function toDateInput(iso: string | null): string {
   return iso ? iso.slice(0, 10) : ''

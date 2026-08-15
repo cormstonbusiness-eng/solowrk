@@ -22,7 +22,8 @@ import {
   ProjectDetail,
   Projects,
   Settings,
-  Tasks
+  Tasks,
+  Time
 } from '@/pages'
 
 const queryClient = new QueryClient({
@@ -46,6 +47,7 @@ function AnimatedRoutes(): React.JSX.Element {
         <Route path="/projects" element={<Projects />} />
         <Route path="/projects/:id" element={<ProjectDetail />} />
         <Route path="/tasks" element={<Tasks />} />
+        <Route path="/time" element={<Time />} />
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/clients" element={<Clients />} />
         <Route path="/clients/:id" element={<ClientDetail />} />

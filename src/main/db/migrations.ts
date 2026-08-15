@@ -208,5 +208,135 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_documents_category ON documents(category);
       CREATE INDEX idx_documents_expiry   ON documents(expiry_at);
     `
+  },
+  {
+    id: 5,
+    name: 'money',
+    sql: `
+      -- Every amount in this migration is integer pence; every rate is basis
+      -- points (2000 = 20%). Dates are 'yyyy-mm-dd' so they compare and sort
+      -- as strings without timezone involvement.
+
+      CREATE TABLE quotes (
+        id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+        number               TEXT    NOT NULL UNIQUE,
+        client_id            INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+        project_id           INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+        status               TEXT    NOT NULL DEFAULT 'draft'
+                             CHECK (status IN ('draft','sent','accepted','declined','expired')),
+        issue_date           TEXT    NOT NULL,
+        valid_until          TEXT,
+        net                  INTEGER NOT NULL DEFAULT 0,
+        vat_rate             INTEGER NOT NULL DEFAULT 0,
+        vat                  INTEGER NOT NULL DEFAULT 0,
+        gross                INTEGER NOT NULL DEFAULT 0,
+        notes                TEXT    NOT NULL DEFAULT '',
+        accepted_at          TEXT,
+        -- Set when an accepted quote is turned into work.
+        converted_project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+        converted_invoice_id INTEGER,
+        pdf_path             TEXT,
+        created_at           TEXT    NOT NULL,
+        updated_at           TEXT    NOT NULL
+      );
+
+      CREATE TABLE quote_lines (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        quote_id    INTEGER NOT NULL REFERENCES quotes(id) ON DELETE CASCADE,
+        description TEXT    NOT NULL,
+        quantity    REAL    NOT NULL DEFAULT 1,
+        unit_price  INTEGER NOT NULL DEFAULT 0,
+        amount      INTEGER NOT NULL DEFAULT 0,
+        sort_order  REAL    NOT NULL DEFAULT 0
+      );
+
+      CREATE TABLE invoices (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        number            TEXT    NOT NULL UNIQUE,
+        client_id         INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+        project_id        INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+        -- 'overdue' is deliberately absent: it is derived from due_date and
+        -- today, so it can never go stale in the database.
+        status            TEXT    NOT NULL DEFAULT 'draft'
+                          CHECK (status IN ('draft','sent','paid','cancelled')),
+        issue_date        TEXT    NOT NULL,
+        due_date          TEXT    NOT NULL,
+        paid_at           TEXT,
+        net               INTEGER NOT NULL DEFAULT 0,
+        vat_rate          INTEGER NOT NULL DEFAULT 0,
+        vat               INTEGER NOT NULL DEFAULT 0,
+        gross             INTEGER NOT NULL DEFAULT 0,
+        notes             TEXT    NOT NULL DEFAULT '',
+        pdf_path          TEXT,
+        -- A retainer: this invoice is the template, and next_issue_on is when
+        -- the next copy is due. Generated copies carry parent_invoice_id and
+        -- recurrence 'none'.
+        recurrence        TEXT    NOT NULL DEFAULT 'none'
+                          CHECK (recurrence IN ('none','weekly','monthly','quarterly','yearly')),
+        next_issue_on     TEXT,
+        parent_invoice_id INTEGER REFERENCES invoices(id) ON DELETE SET NULL,
+        created_at        TEXT    NOT NULL,
+        updated_at        TEXT    NOT NULL
+      );
+
+      CREATE TABLE invoice_lines (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        invoice_id  INTEGER NOT NULL REFERENCES invoices(id) ON DELETE CASCADE,
+        description TEXT    NOT NULL,
+        quantity    REAL    NOT NULL DEFAULT 1,
+        unit_price  INTEGER NOT NULL DEFAULT 0,
+        amount      INTEGER NOT NULL DEFAULT 0,
+        -- Where the line came from, so time and expenses can be marked billed.
+        kind        TEXT    NOT NULL DEFAULT 'fixed'
+                    CHECK (kind IN ('fixed','time','expense')),
+        sort_order  REAL    NOT NULL DEFAULT 0
+      );
+
+      CREATE TABLE time_entries (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id      INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+        task_id         INTEGER REFERENCES tasks(id) ON DELETE SET NULL,
+        -- Full ISO timestamps: unlike dates, these are moments in time.
+        started_at      TEXT    NOT NULL,
+        -- NULL means the timer is still running.
+        ended_at        TEXT,
+        duration        INTEGER NOT NULL DEFAULT 0,
+        -- Snapshot of the rate when logged, so later rate changes do not
+        -- silently rewrite the value of work already done.
+        rate            INTEGER NOT NULL DEFAULT 0,
+        billable        INTEGER NOT NULL DEFAULT 1 CHECK (billable IN (0,1)),
+        notes           TEXT    NOT NULL DEFAULT '',
+        invoice_line_id INTEGER REFERENCES invoice_lines(id) ON DELETE SET NULL,
+        created_at      TEXT    NOT NULL,
+        updated_at      TEXT    NOT NULL
+      );
+
+      CREATE TABLE expenses (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        date            TEXT    NOT NULL,
+        vendor          TEXT    NOT NULL DEFAULT '',
+        description     TEXT    NOT NULL DEFAULT '',
+        category        TEXT    NOT NULL DEFAULT 'General',
+        net             INTEGER NOT NULL DEFAULT 0,
+        vat             INTEGER NOT NULL DEFAULT 0,
+        total           INTEGER NOT NULL DEFAULT 0,
+        receipt_file    TEXT,
+        project_id      INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+        rebillable      INTEGER NOT NULL DEFAULT 0 CHECK (rebillable IN (0,1)),
+        invoice_line_id INTEGER REFERENCES invoice_lines(id) ON DELETE SET NULL,
+        created_at      TEXT    NOT NULL,
+        updated_at      TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_invoices_client   ON invoices(client_id);
+      CREATE INDEX idx_invoices_status   ON invoices(status);
+      CREATE INDEX idx_invoices_due      ON invoices(due_date);
+      CREATE INDEX idx_invoice_lines_inv ON invoice_lines(invoice_id);
+      CREATE INDEX idx_quote_lines_quote ON quote_lines(quote_id);
+      CREATE INDEX idx_time_project      ON time_entries(project_id);
+      CREATE INDEX idx_time_started      ON time_entries(started_at);
+      CREATE INDEX idx_time_unbilled     ON time_entries(invoice_line_id);
+      CREATE INDEX idx_expenses_date     ON expenses(date);
+    `
   }
 ]

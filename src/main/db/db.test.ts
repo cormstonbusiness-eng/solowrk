@@ -55,6 +55,48 @@ describe('Database', () => {
     expect(after.businessName).toBe(before.businessName)
   })
 
+  it('supports nested transactions via savepoints', () => {
+    // Services compose: createInvoice opens a transaction and calls
+    // claimInvoiceNumber, which opens one of its own.
+    db.transaction(() => {
+      updateSettings(db, { businessName: 'Outer' })
+      db.transaction(() => updateSettings(db, { contactName: 'Inner' }))
+    })
+
+    expect(getSettings(db).businessName).toBe('Outer')
+    expect(getSettings(db).contactName).toBe('Inner')
+  })
+
+  it('rolls the whole nested transaction back when the outer one fails', () => {
+    updateSettings(db, { businessName: 'Before' })
+
+    expect(() =>
+      db.transaction(() => {
+        db.transaction(() => updateSettings(db, { businessName: 'Inner' }))
+        throw new Error('outer failure')
+      })
+    ).toThrow('outer failure')
+
+    expect(getSettings(db).businessName).toBe('Before')
+  })
+
+  it('lets the outer transaction survive a caught inner failure', () => {
+    db.transaction(() => {
+      updateSettings(db, { businessName: 'Kept' })
+      try {
+        db.transaction(() => {
+          updateSettings(db, { contactName: 'Discarded' })
+          throw new Error('inner failure')
+        })
+      } catch {
+        // Swallowed on purpose: the outer work should still commit.
+      }
+    })
+
+    expect(getSettings(db).businessName).toBe('Kept')
+    expect(getSettings(db).contactName).toBe('')
+  })
+
   it('rolls a failed transaction back', () => {
     updateSettings(db, { businessName: 'Before' })
     expect(() =>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Copy, Minus, Square, X } from 'lucide-react'
 import type { WindowState } from '@shared/ipc'
+import { Timer } from './Timer'
 import { cn } from '@/lib/utils'
 
 /**
@@ -56,6 +57,11 @@ export function TitleBar(): React.JSX.Element {
       <div className="flex items-center gap-2 pl-3">
         <div className="h-3 w-3 rounded-[3px] bg-accent" aria-hidden />
         <span className="text-[11px] font-medium tracking-[0.08em] text-muted uppercase">Solo</span>
+      </div>
+
+      {/* Centred so it reads as a status, not another control. */}
+      <div className="flex flex-1 justify-center">
+        <Timer />
       </div>
 
       <div className="flex items-center">

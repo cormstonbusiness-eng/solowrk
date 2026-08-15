@@ -33,6 +33,11 @@ export type Domain =
   | 'templates'
   | 'documents'
   | 'files'
+  | 'time'
+  | 'invoices'
+  | 'quotes'
+  | 'expenses'
+  | 'finance'
 
 export function invalidate(queryClient: QueryClient, domains: Domain[]): void {
   for (const domain of domains) {
@@ -42,6 +47,12 @@ export function invalidate(queryClient: QueryClient, domains: Domain[]): void {
   if (domains.includes('tasks')) {
     void queryClient.invalidateQueries({ queryKey: ['projects'] })
     void queryClient.invalidateQueries({ queryKey: ['project'] })
+  }
+
+  // Every money movement feeds the finance page, so callers never have to
+  // remember to name it alongside the domain they actually touched.
+  if (['invoices', 'expenses', 'time', 'quotes'].some((name) => domains.includes(name as Domain))) {
+    void queryClient.invalidateQueries({ queryKey: ['finance'] })
   }
 }
 

@@ -272,6 +272,228 @@ export type DocumentInput = Partial<
 /** Suggested categories, matching the folders the wizard creates. */
 export const DOCUMENT_CATEGORIES = ['Business', 'Contracts', 'Insurance', 'Tax']
 
+/* ------------------------------------------------------------------ *
+ * Time, quotes, invoices, expenses
+ * ------------------------------------------------------------------ */
+
+export interface TimeEntry {
+  id: number
+  projectId: number | null
+  taskId: number | null
+  startedAt: string
+  /** null while the timer is running. */
+  endedAt: string | null
+  /** Seconds. */
+  duration: number
+  rate: Pence
+  billable: boolean
+  notes: string
+  invoiceLineId: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TimeEntryWithContext extends TimeEntry {
+  projectName: string | null
+  projectColour: string | null
+  clientName: string | null
+  taskTitle: string | null
+}
+
+export interface RunningTimer {
+  entry: TimeEntryWithContext
+  /** Seconds elapsed at the moment the main process answered. */
+  elapsed: number
+}
+
+export type LineKind = 'fixed' | 'time' | 'expense'
+
+export interface DocumentLine {
+  id: number
+  description: string
+  quantity: number
+  unitPrice: Pence
+  amount: Pence
+  kind: LineKind
+  sortOrder: number
+}
+
+export type InvoiceStatus = 'draft' | 'sent' | 'paid' | 'cancelled'
+/** What the UI shows: the stored status, or `overdue` when derived. */
+export type InvoiceDisplayStatus = InvoiceStatus | 'overdue'
+
+export type Recurrence = 'none' | 'weekly' | 'monthly' | 'quarterly' | 'yearly'
+
+export const RECURRENCES: { value: Recurrence; label: string }[] = [
+  { value: 'none', label: 'Does not repeat' },
+  { value: 'weekly', label: 'Weekly' },
+  { value: 'monthly', label: 'Monthly' },
+  { value: 'quarterly', label: 'Quarterly' },
+  { value: 'yearly', label: 'Yearly' }
+]
+
+export interface Invoice {
+  id: number
+  number: string
+  clientId: number | null
+  projectId: number | null
+  status: InvoiceStatus
+  issueDate: string
+  dueDate: string
+  paidAt: string | null
+  net: Pence
+  vatRate: BasisPoints
+  vat: Pence
+  gross: Pence
+  notes: string
+  pdfPath: string | null
+  recurrence: Recurrence
+  nextIssueOn: string | null
+  parentInvoiceId: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface InvoiceWithContext extends Invoice {
+  clientName: string | null
+  projectName: string | null
+  lines: DocumentLine[]
+  /** Stored status, or 'overdue' when sent and past its due date. */
+  displayStatus: InvoiceDisplayStatus
+}
+
+export type QuoteStatus = 'draft' | 'sent' | 'accepted' | 'declined' | 'expired'
+
+export interface Quote {
+  id: number
+  number: string
+  clientId: number | null
+  projectId: number | null
+  status: QuoteStatus
+  issueDate: string
+  validUntil: string | null
+  net: Pence
+  vatRate: BasisPoints
+  vat: Pence
+  gross: Pence
+  notes: string
+  acceptedAt: string | null
+  convertedProjectId: number | null
+  convertedInvoiceId: number | null
+  pdfPath: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface QuoteWithContext extends Quote {
+  clientName: string | null
+  lines: DocumentLine[]
+}
+
+export interface Expense {
+  id: number
+  date: string
+  vendor: string
+  description: string
+  category: string
+  net: Pence
+  vat: Pence
+  total: Pence
+  receiptFile: string | null
+  projectId: number | null
+  rebillable: boolean
+  invoiceLineId: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ExpenseWithContext extends Expense {
+  projectName: string | null
+}
+
+export const EXPENSE_CATEGORIES = [
+  'Software',
+  'Hardware',
+  'Travel',
+  'Subsistence',
+  'Office',
+  'Marketing',
+  'Professional fees',
+  'Subcontractors',
+  'General'
+]
+
+/** Line item as edited in the builder, before it has an id. */
+export interface LineDraft {
+  id?: number
+  description: string
+  quantity: number
+  unitPrice: Pence
+  kind?: LineKind
+  /** Time entries this line bills, so they can be marked as invoiced. */
+  timeEntryIds?: number[]
+  expenseIds?: number[]
+}
+
+export interface InvoiceInput {
+  clientId: number | null
+  projectId?: number | null
+  issueDate?: string
+  dueDate?: string
+  notes?: string
+  status?: InvoiceStatus
+  recurrence?: Recurrence
+  lines: LineDraft[]
+}
+
+export interface QuoteInput {
+  clientId: number | null
+  projectId?: number | null
+  issueDate?: string
+  validUntil?: string | null
+  notes?: string
+  status?: QuoteStatus
+  lines: LineDraft[]
+}
+
+export type ExpenseInput = Partial<Omit<Expense, 'id' | 'createdAt' | 'updatedAt'>> & {
+  /** Absolute path of a receipt to copy into the workspace. */
+  receiptSourcePath?: string | null
+}
+
+/* Finance reporting */
+
+export interface FinanceSummary {
+  range: { from: string; to: string; label: string }
+  /** Invoices actually paid in the range. */
+  income: Pence
+  /** Sent, not yet paid, regardless of range. */
+  outstanding: Pence
+  overdue: Pence
+  expenses: Pence
+  profit: Pence
+  /** Suggested amount to hold back from profit for tax. */
+  setAside: Pence
+  vatCollected: Pence
+  hoursTracked: number
+  unbilledValue: Pence
+}
+
+export interface FinancePoint {
+  /** 'yyyy-mm-dd' for daily, 'yyyy-mm' for monthly. */
+  bucket: string
+  income: Pence
+  expenses: Pence
+}
+
+export interface ClientTotal {
+  clientId: number
+  clientName: string
+  colour: string
+  invoiced: Pence
+  paid: Pence
+}
+
 /** Palette offered in colour pickers, matching the app's semantic colours. */
 export const COLOUR_CHOICES = [
   '#6E56CF',

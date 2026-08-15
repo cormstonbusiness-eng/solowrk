@@ -12,10 +12,24 @@ import type {
   Category,
   Client,
   ClientInput,
+  ClientTotal,
   DocumentInput,
   DocumentRecord,
+  ExpenseInput,
+  ExpenseWithContext,
   FileEntry,
+  FinancePoint,
+  FinanceSummary,
   FolderInspection,
+  InvoiceInput,
+  InvoiceStatus,
+  InvoiceWithContext,
+  QuoteInput,
+  QuoteStatus,
+  QuoteWithContext,
+  RunningTimer,
+  TimeEntry,
+  TimeEntryWithContext,
   Note,
   Project,
   ProjectInput,
@@ -29,6 +43,7 @@ import type {
   WorkspaceSetup,
   WorkspaceStatus
 } from './types'
+import type { Period } from './taxYear'
 
 export interface WindowState {
   isMaximized: boolean
@@ -135,6 +150,98 @@ export interface IpcContract {
   'documents:update': { req: { id: number; patch: Partial<DocumentInput> }; res: DocumentRecord }
   'documents:delete': { req: { id: number }; res: void }
   'documents:expiring': { req: { days?: number } | void; res: DocumentRecord[] }
+
+  /** Hands a pre-filled draft to the OS mail client. Never sends anything. */
+  'shell:mailto': { req: { to: string; subject: string; body: string }; res: void }
+
+  'time:running': { req: void; res: RunningTimer | null }
+  'time:start': {
+    req: { projectId: number | null; taskId?: number | null; notes?: string }
+    res: RunningTimer
+  }
+  'time:stop': { req: { id: number }; res: TimeEntryWithContext }
+  'time:list': {
+    req: { from?: string; to?: string; projectId?: number; unbilledOnly?: boolean } | void
+    res: TimeEntryWithContext[]
+  }
+  'time:create': {
+    req: {
+      projectId: number | null
+      taskId?: number | null
+      startedAt: string
+      duration: number
+      notes?: string
+      billable?: boolean
+    }
+    res: TimeEntryWithContext
+  }
+  'time:update': { req: { id: number; patch: Partial<TimeEntry> }; res: TimeEntryWithContext }
+  'time:delete': { req: { id: number }; res: void }
+  /** Billable, un-invoiced time for a project, with what it is worth. */
+  'time:unbilled': {
+    req: { projectId: number }
+    res: { entries: TimeEntryWithContext[]; seconds: number; value: number }
+  }
+
+  'invoices:list': {
+    req: { clientId?: number; status?: InvoiceStatus; from?: string; to?: string } | void
+    res: InvoiceWithContext[]
+  }
+  'invoices:get': { req: { id: number }; res: InvoiceWithContext }
+  'invoices:create': { req: InvoiceInput; res: InvoiceWithContext }
+  'invoices:update': {
+    req: { id: number; patch: Partial<InvoiceInput> & { status?: InvoiceStatus } }
+    res: InvoiceWithContext
+  }
+  'invoices:delete': { req: { id: number }; res: void }
+  /** Renders the PDF into the workspace and returns its relative path. */
+  'invoices:pdf': { req: { id: number }; res: string }
+  'invoices:overdue': { req: void; res: InvoiceWithContext[] }
+  /** Pre-drafted chase email for an overdue invoice. */
+  'invoices:chaser': { req: { id: number }; res: { subject: string; body: string; to: string } }
+
+  'quotes:list': { req: { status?: QuoteStatus } | void; res: QuoteWithContext[] }
+  'quotes:get': { req: { id: number }; res: QuoteWithContext }
+  'quotes:create': { req: QuoteInput; res: QuoteWithContext }
+  'quotes:update': { req: { id: number; patch: Partial<QuoteInput> }; res: QuoteWithContext }
+  'quotes:delete': { req: { id: number }; res: void }
+  'quotes:pdf': { req: { id: number }; res: string }
+  'quotes:convert': {
+    req: {
+      id: number
+      createProject: boolean
+      projectName?: string
+      depositPercent?: number
+    }
+    res: { projectId: number | null; invoiceId: number | null }
+  }
+
+  'expenses:list': {
+    req: { from?: string; to?: string; projectId?: number; unbilledOnly?: boolean } | void
+    res: ExpenseWithContext[]
+  }
+  'expenses:create': { req: ExpenseInput; res: ExpenseWithContext }
+  'expenses:update': { req: { id: number; patch: ExpenseInput }; res: ExpenseWithContext }
+  'expenses:delete': { req: { id: number }; res: void }
+
+  'finance:summary': { req: { period: Period; reference?: string }; res: FinanceSummary }
+  'finance:series': {
+    req: { period: Period; reference?: string }
+    res: FinancePoint[]
+  }
+  'finance:topClients': { req: { period: Period; reference?: string }; res: ClientTotal[] }
+  'finance:profitability': {
+    req: void
+    res: {
+      projectId: number
+      projectName: string
+      colour: string
+      budget: number | null
+      invoiced: number
+      trackedValue: number
+      hours: number
+    }[]
+  }
 }
 
 export type IpcChannel = keyof IpcContract
@@ -207,7 +314,39 @@ export const IPC_CHANNELS = [
   'documents:add',
   'documents:update',
   'documents:delete',
-  'documents:expiring'
+  'documents:expiring',
+  'shell:mailto',
+  'time:running',
+  'time:start',
+  'time:stop',
+  'time:list',
+  'time:create',
+  'time:update',
+  'time:delete',
+  'time:unbilled',
+  'invoices:list',
+  'invoices:get',
+  'invoices:create',
+  'invoices:update',
+  'invoices:delete',
+  'invoices:pdf',
+  'invoices:overdue',
+  'invoices:chaser',
+  'quotes:list',
+  'quotes:get',
+  'quotes:create',
+  'quotes:update',
+  'quotes:delete',
+  'quotes:pdf',
+  'quotes:convert',
+  'expenses:list',
+  'expenses:create',
+  'expenses:update',
+  'expenses:delete',
+  'finance:summary',
+  'finance:series',
+  'finance:topClients',
+  'finance:profitability'
 ] as const satisfies readonly IpcChannel[]
 
 export const IPC_EVENTS = ['window:stateChanged'] as const satisfies readonly IpcEvent[]

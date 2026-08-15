@@ -50,6 +50,42 @@ import {
   listDocuments,
   updateDocument
 } from '../services/documents'
+import { getSettings } from '../services/settings'
+import {
+  createEntry,
+  deleteEntry,
+  getRunning,
+  listEntries,
+  startTimer,
+  stopTimer,
+  unbilledFor,
+  updateEntry
+} from '../services/time'
+import {
+  createInvoice,
+  deleteInvoice,
+  getInvoice,
+  listInvoices,
+  overdueInvoices,
+  updateInvoice
+} from '../services/invoices'
+import {
+  convertQuote,
+  createQuote,
+  deleteQuote,
+  getQuote,
+  listQuotes,
+  updateQuote
+} from '../services/quotes'
+import {
+  createExpense,
+  deleteExpense,
+  listExpenses,
+  updateExpense
+} from '../services/expenses'
+import { projectProfitability, series, summary, topClients } from '../services/finance'
+import { writePdf } from '../services/pdf'
+import { rangeFor } from '@shared/taxYear'
 import { updateSettings } from '../services/settings'
 import { getState, setState } from '../services/appState'
 
@@ -204,7 +240,176 @@ const handlers: Handlers = {
     addDocument(session.requireDb(), session.requirePath(), input),
   'documents:update': (_g, { id, patch }) => updateDocument(session.requireDb(), id, patch),
   'documents:delete': (_g, { id }) => deleteDocument(session.requireDb(), id),
-  'documents:expiring': (_g, args) => expiringDocuments(session.requireDb(), args?.days ?? 45)
+  'documents:expiring': (_g, args) => expiringDocuments(session.requireDb(), args?.days ?? 45),
+
+  'shell:mailto': (_g, { to, subject, body }) => {
+    // Opens the user's mail client with a draft. Sending stays their decision.
+    const url = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(
+      subject
+    )}&body=${encodeURIComponent(body)}`
+    void shell.openExternal(url)
+  },
+
+  'time:running': () => getRunning(session.requireDb()),
+  'time:start': (_g, input) => startTimer(session.requireDb(), input),
+  'time:stop': (_g, { id }) => stopTimer(session.requireDb(), id),
+  'time:list': (_g, filter) => listEntries(session.requireDb(), filter ?? {}),
+  'time:create': (_g, input) => createEntry(session.requireDb(), input),
+  'time:update': (_g, { id, patch }) => updateEntry(session.requireDb(), id, patch),
+  'time:delete': (_g, { id }) => deleteEntry(session.requireDb(), id),
+  'time:unbilled': (_g, { projectId }) => unbilledFor(session.requireDb(), projectId),
+
+  'invoices:list': (_g, filter) => listInvoices(session.requireDb(), filter ?? {}),
+  'invoices:get': (_g, { id }) => getInvoice(session.requireDb(), id),
+  'invoices:create': (_g, input) => createInvoice(session.requireDb(), input),
+  'invoices:update': (_g, { id, patch }) => updateInvoice(session.requireDb(), id, patch),
+  'invoices:delete': (_g, { id }) => deleteInvoice(session.requireDb(), id),
+  'invoices:overdue': () => overdueInvoices(session.requireDb()),
+
+  'invoices:pdf': async (_g, { id }) => {
+    const db = session.requireDb()
+    const invoice = getInvoice(db, id)
+    const client = invoice.clientId ? getClient(db, invoice.clientId) : null
+
+    const path = await writePdf(
+      session.requirePath(),
+      {
+        kind: 'invoice',
+        number: invoice.number,
+        issueDate: invoice.issueDate,
+        secondaryDate: invoice.dueDate,
+        clientName: invoice.clientName,
+        clientAddress: client?.address ?? '',
+        lines: invoice.lines,
+        net: invoice.net,
+        vat: invoice.vat,
+        vatRate: invoice.vatRate,
+        gross: invoice.gross,
+        notes: invoice.notes
+      },
+      getSettings(db)
+    )
+
+    db.run('UPDATE invoices SET pdf_path = ? WHERE id = ?', [path, id])
+    return path
+  },
+
+  'invoices:chaser': (_g, { id }) => {
+    const db = session.requireDb()
+    return draftChaser(db, id)
+  },
+
+  'quotes:list': (_g, filter) => listQuotes(session.requireDb(), filter ?? {}),
+  'quotes:get': (_g, { id }) => getQuote(session.requireDb(), id),
+  'quotes:create': (_g, input) => createQuote(session.requireDb(), input),
+  'quotes:update': (_g, { id, patch }) => updateQuote(session.requireDb(), id, patch),
+  'quotes:delete': (_g, { id }) => deleteQuote(session.requireDb(), id),
+
+  'quotes:pdf': async (_g, { id }) => {
+    const db = session.requireDb()
+    const quote = getQuote(db, id)
+    const client = quote.clientId ? getClient(db, quote.clientId) : null
+
+    const path = await writePdf(
+      session.requirePath(),
+      {
+        kind: 'quote',
+        number: quote.number,
+        issueDate: quote.issueDate,
+        secondaryDate: quote.validUntil,
+        clientName: quote.clientName,
+        clientAddress: client?.address ?? '',
+        lines: quote.lines,
+        net: quote.net,
+        vat: quote.vat,
+        vatRate: quote.vatRate,
+        gross: quote.gross,
+        notes: quote.notes
+      },
+      getSettings(db)
+    )
+
+    db.run('UPDATE quotes SET pdf_path = ? WHERE id = ?', [path, id])
+    return path
+  },
+
+  'quotes:convert': async (_g, { id, createProject: withProject, projectName, depositPercent }) => {
+    const result = await convertQuote(session.requireDb(), session.requirePath(), id, {
+      createProject: withProject,
+      projectName,
+      depositPercent
+    })
+    return { projectId: result.projectId, invoiceId: result.invoiceId }
+  },
+
+  'expenses:list': (_g, filter) => listExpenses(session.requireDb(), filter ?? {}),
+  'expenses:create': (_g, input) =>
+    createExpense(session.requireDb(), session.requirePath(), input),
+  'expenses:update': (_g, { id, patch }) =>
+    updateExpense(session.requireDb(), session.requirePath(), id, patch),
+  'expenses:delete': (_g, { id }) => deleteExpense(session.requireDb(), id),
+
+  'finance:summary': (_g, { period, reference }) =>
+    summary(session.requireDb(), rangeFor(period, reference)),
+
+  'finance:series': (_g, { period, reference }) =>
+    series(
+      session.requireDb(),
+      rangeFor(period, reference),
+      // Day buckets for anything up to a quarter; a tax year of daily points
+      // is unreadable and mostly zeros.
+      period === 'year' ? 'month' : 'day'
+    ),
+
+  'finance:topClients': (_g, { period, reference }) =>
+    topClients(session.requireDb(), rangeFor(period, reference)),
+
+  'finance:profitability': () => projectProfitability(session.requireDb())
+}
+
+/**
+ * A chase email the user can read, edit and send themselves. Solo drafts it
+ * rather than sending it: an automated email to a client, in the user's name,
+ * is not a decision to take on their behalf.
+ */
+function draftChaser(
+  db: ReturnType<typeof session.requireDb>,
+  id: number
+): { subject: string; body: string; to: string } {
+  const invoice = getInvoice(db, id)
+  const settings = getSettings(db)
+  const client = invoice.clientId ? getClient(db, invoice.clientId) : null
+
+  const daysLate = Math.max(
+    0,
+    Math.round((Date.now() - new Date(invoice.dueDate).getTime()) / 86_400_000)
+  )
+  const amount = `£${(invoice.gross / 100).toLocaleString('en-GB', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  })}`
+
+  return {
+    to: client?.email ?? '',
+    subject: `Invoice ${invoice.number} — payment overdue`,
+    body: [
+      `Hi ${client?.contactName || client?.name || 'there'},`,
+      '',
+      `I hope you are well. Invoice ${invoice.number} for ${amount} was due on ` +
+        `${new Date(invoice.dueDate).toLocaleDateString('en-GB', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric'
+        })}` +
+        `${daysLate > 0 ? `, which is ${daysLate} day${daysLate === 1 ? '' : 's'} ago` : ''}.`,
+      '',
+      'Could you let me know when I can expect payment? If it has already been sent,',
+      'please ignore this note and accept my apologies.',
+      '',
+      'Many thanks,',
+      settings.contactName || settings.businessName
+    ].join('\n')
+  }
 }
 
 export function registerIpcHandlers(getWindow: WindowGetter): void {

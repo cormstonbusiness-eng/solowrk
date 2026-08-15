@@ -18,6 +18,8 @@ export type Params = SqlValue[]
 
 export class Database {
   private readonly db: DatabaseSync
+  /** Nesting level, so `transaction()` can compose — see below. */
+  private transactionDepth = 0
 
   constructor(public readonly file: string) {
     this.db = new DatabaseSync(file)
@@ -45,15 +47,38 @@ export class Database {
     this.db.exec(sql)
   }
 
-  /** Run `fn` in a transaction, rolling back if it throws. */
+  /**
+   * Run `fn` in a transaction, rolling back if it throws.
+   *
+   * Re-entrant. SQLite has no nested BEGIN, but services compose freely —
+   * `createInvoice` wraps its work in a transaction and calls
+   * `claimInvoiceNumber`, which needs one of its own. Nested calls use a
+   * SAVEPOINT, so an inner failure rolls back only its own work and the
+   * outermost call still decides whether the whole thing commits.
+   */
   transaction<T>(fn: () => T): T {
-    this.db.exec('BEGIN')
+    const depth = this.transactionDepth
+    const savepoint = `solo_sp_${depth}`
+
+    if (depth === 0) this.db.exec('BEGIN')
+    else this.db.exec(`SAVEPOINT ${savepoint}`)
+
+    this.transactionDepth = depth + 1
+
     try {
       const result = fn()
-      this.db.exec('COMMIT')
+      this.transactionDepth = depth
+      if (depth === 0) this.db.exec('COMMIT')
+      else this.db.exec(`RELEASE ${savepoint}`)
       return result
     } catch (error) {
-      this.db.exec('ROLLBACK')
+      this.transactionDepth = depth
+      if (depth === 0) {
+        this.db.exec('ROLLBACK')
+      } else {
+        this.db.exec(`ROLLBACK TO ${savepoint}`)
+        this.db.exec(`RELEASE ${savepoint}`)
+      }
       throw error
     }
   }

@@ -2,6 +2,7 @@ import {
   CalendarDays,
   ChartNoAxesCombined,
   CircleCheckBig,
+  Clock,
   FileText,
   FolderKanban,
   FolderOpen,
@@ -32,6 +33,7 @@ export const navGroups: NavGroup[] = [
       { label: 'Dashboard', path: '/', icon: LayoutDashboard },
       { label: 'Projects', path: '/projects', icon: FolderKanban },
       { label: 'Tasks', path: '/tasks', icon: CircleCheckBig },
+      { label: 'Time', path: '/time', icon: Clock },
       { label: 'Calendar', path: '/calendar', icon: CalendarDays }
     ]
   },
