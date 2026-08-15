@@ -64,9 +64,9 @@ to compile and `npm install` works on any machine. Queries are hand-written SQL 
 ## Status
 
 Phases 0 (shell, design system, animated routing), 1 (data layer, first-run wizard, settings),
-2 (clients, projects, tasks, notes, templates) and 3 (files, documents) are complete. Later phases
-add money, calendar, dashboard, the Claude assistant, and calendar sync. Sections not yet built
-say which phase builds them.
+2 (clients, projects, tasks, notes, templates), 3 (files, documents) and 4 (time, quotes,
+invoices, expenses, finance) are complete. Later phases add the calendar, the dashboard, the
+Claude assistant, and calendar sync. Sections not yet built say which phase builds them.
 
 ### Gotchas worth knowing
 
@@ -80,3 +80,11 @@ say which phase builds them.
 - **`File.path` does not exist.** Electron removed it, so a file dragged from Explorer is resolved
   through `window.solo.pathForFile(file)`, backed by `webUtils` in the preload.
 - **Deleting a file goes to the Recycle Bin** via `shell.trashItem`, never `unlink`.
+- **All money arithmetic goes through `src/shared/money.ts`**, and all tax-year logic through
+  `src/shared/taxYear.ts`. Both are shared by main and renderer so a total on screen is computed
+  by the code that stores it. Never compute VAT or a line total inline.
+- **Dates are `yyyy-mm-dd` strings, not `Date` objects.** Building a `Date` from one and reading
+  it back in UTC can shift a payment across the 6 April tax-year boundary.
+- **`Database.transaction` is re-entrant** (SAVEPOINT when nested), because services compose and
+  SQLite has no nested `BEGIN`.
+- **Invoice `overdue` is derived, never stored** — see `displayStatus()` in `services/invoices.ts`.
