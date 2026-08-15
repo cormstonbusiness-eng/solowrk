@@ -1,0 +1,74 @@
+import { NavLink, useLocation } from 'react-router-dom'
+import { motion } from 'motion/react'
+import { transition } from '@/lib/motion'
+import { footerNav, navGroups, type NavItem } from '@/lib/nav'
+import { cn } from '@/lib/utils'
+
+/**
+ * A single shared `layoutId` on the active pill means the highlight physically
+ * slides between destinations instead of blinking out and back in. It is the
+ * detail that makes navigation feel continuous.
+ */
+function ActivePill(): React.JSX.Element {
+  return (
+    <motion.span
+      layoutId="nav-active-pill"
+      transition={transition.layout}
+      className="absolute inset-0 rounded-control bg-raised"
+      aria-hidden
+    />
+  )
+}
+
+function NavRow({ item }: { item: NavItem }): React.JSX.Element {
+  const { pathname } = useLocation()
+  const isActive = pathname === item.path
+  const Icon = item.icon
+
+  return (
+    <NavLink
+      to={item.path}
+      className={cn(
+        'relative flex items-center gap-2.5 rounded-control px-2.5 py-[7px]',
+        'text-[13px] transition-colors duration-150',
+        isActive ? 'text-ink' : 'text-muted hover:text-ink'
+      )}
+    >
+      {isActive && <ActivePill />}
+      {/* Sits above the pill so the label never gets painted over. */}
+      <Icon
+        size={16}
+        strokeWidth={1.75}
+        className={cn('relative z-10 shrink-0', isActive && 'text-accent')}
+      />
+      <span className="relative z-10 truncate">{item.label}</span>
+    </NavLink>
+  )
+}
+
+export function Sidebar(): React.JSX.Element {
+  return (
+    <nav className="flex w-[212px] shrink-0 flex-col border-r border-line bg-ground">
+      <div className="flex-1 overflow-y-auto px-2.5 py-3">
+        {navGroups.map((group) => (
+          <div key={group.label} className="mb-5">
+            <p className="px-2.5 pb-1.5 text-[10px] font-medium tracking-[0.1em] text-faint uppercase">
+              {group.label}
+            </p>
+            <div className="flex flex-col gap-0.5">
+              {group.items.map((item) => (
+                <NavRow key={item.path} item={item} />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-0.5 border-t border-line px-2.5 py-2.5">
+        {footerNav.map((item) => (
+          <NavRow key={item.path} item={item} />
+        ))}
+      </div>
+    </nav>
+  )
+}

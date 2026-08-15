@@ -1,0 +1,29 @@
+appId: com.solo.app
+productName: Solo
+copyright: Copyright © 2026
+
+directories:
+  buildResources: resources
+  output: release
+
+files:
+  - out/**/*
+  - package.json
+
+# Solo stores everything in the user's chosen workspace folder, so nothing
+# user-facing is bundled here — the installer only carries the app itself.
+asar: true
+
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  artifactName: ${productName}-Setup-${version}.${ext}
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  perMachine: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Solo

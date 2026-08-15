@@ -1,0 +1,138 @@
+@import 'tailwindcss';
+
+/* ------------------------------------------------------------------------
+   Solo design tokens.
+
+   One accent hue, used only for primary actions, active navigation and focus
+   rings. Everything else is a neutral step. If a new colour is needed, add a
+   token here rather than a hex value in a component.
+   ------------------------------------------------------------------------ */
+
+@theme {
+  /* Surfaces, darkest to lightest */
+  --color-ground: #0a0a0b;
+  --color-surface: #141416;
+  --color-raised: #1c1c1f;
+  --color-overlay: #232327;
+  --color-hover: #2a2a2f;
+
+  /* Lines */
+  --color-line: #26262a;
+  --color-line-strong: #35353b;
+
+  /* Text */
+  --color-ink: #ededef;
+  --color-muted: #8a8a93;
+  --color-faint: #5a5a63;
+
+  /* Accent */
+  --color-accent: #6e56cf;
+  --color-accent-hover: #7c66dd;
+  --color-accent-press: #5d47b8;
+  --color-accent-ink: #ffffff;
+
+  /* Semantic — paid / due / overdue / in-progress */
+  --color-success: #30a46c;
+  --color-warning: #f5a623;
+  --color-danger: #e5484d;
+  --color-info: #3b82f6;
+
+  /* Typography */
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
+
+  /* Radii — 10px on cards, 8px on controls */
+  --radius-control: 8px;
+  --radius-card: 10px;
+  --radius-panel: 14px;
+
+  /* Motion. Durations and easing live here so every animation in the app
+     pulls from the same scale instead of inventing its own. */
+  --ease-solo: cubic-bezier(0.32, 0.72, 0, 1);
+  --duration-press: 150ms;
+  --duration-page: 220ms;
+  --duration-modal: 320ms;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    background-color: var(--color-ground);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden; /* the app shell scrolls its own panes */
+  }
+
+  /* The whole app is a desktop window, not a document — kill the browser
+     affordances that give it away. */
+  ::selection {
+    background-color: color-mix(in oklab, var(--color-accent) 40%, transparent);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line-strong);
+    border: 3px solid transparent;
+    background-clip: content-box;
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-faint);
+    background-clip: content-box;
+  }
+}
+
+@layer utilities {
+  /* Electron drag regions for the custom titlebar. */
+  .drag-region {
+    -webkit-app-region: drag;
+  }
+
+  .no-drag {
+    -webkit-app-region: no-drag;
+  }
+
+  /* Tabular figures for money columns, so digits line up in tables. */
+  .numeric {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* Respect the OS setting. Motion's <MotionConfig reducedMotion="user"> handles
+   component animation; this covers CSS transitions we write by hand. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
