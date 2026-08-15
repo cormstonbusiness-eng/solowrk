@@ -6,7 +6,6 @@ import {
   FolderKanban,
   FolderOpen,
   ReceiptText,
-  Settings as SettingsIcon,
   Sparkles,
   Users
 } from 'lucide-react'
@@ -14,6 +13,7 @@ import { Page } from '@/components/Page'
 import { Placeholder } from '@/components/Placeholder'
 
 export { Dashboard } from './Dashboard'
+export { Settings } from './Settings'
 
 export function Projects(): React.JSX.Element {
   return (
@@ -127,19 +127,6 @@ export function Assistant(): React.JSX.Element {
         phase="Phase 7"
         summary="Runs the Claude Agent SDK against your existing Claude subscription, with tools that can read your files and draft real work — every change confirmed by you first."
         features={['Your subscription', 'File access', 'App actions', 'Confirm before write']}
-      />
-    </Page>
-  )
-}
-
-export function Settings(): React.JSX.Element {
-  return (
-    <Page title="Settings" description="Business details, workspace and appearance.">
-      <Placeholder
-        icon={SettingsIcon}
-        phase="Phase 1"
-        summary="Your business name and address, VAT status, default rate, currency and the workspace folder Solo files everything into."
-        features={['Business details', 'VAT & tax year', 'Workspace folder', 'Backups']}
       />
     </Page>
   )

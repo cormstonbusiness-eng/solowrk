@@ -1,6 +1,17 @@
-import { app, ipcMain, type BrowserWindow } from 'electron'
+import {
+  app,
+  dialog,
+  ipcMain,
+  shell,
+  type BrowserWindow,
+  type OpenDialogOptions
+} from 'electron'
 import type { IpcChannel, IpcContract } from '@shared/ipc'
 import { readWindowState } from './window'
+import { session } from '../services/session'
+import { suggestedWorkspacePath } from '../services/config'
+import { inspectFolder } from '../services/workspace'
+import { updateSettings } from '../services/settings'
 
 type WindowGetter = () => BrowserWindow | null
 
@@ -41,7 +52,38 @@ const handlers: Handlers = {
     getWindow()?.close()
   },
 
-  'window:state': (getWindow) => readWindowState(getWindow())
+  'window:state': (getWindow) => readWindowState(getWindow()),
+
+  'workspace:status': () => session.restore(),
+
+  'workspace:browse': async (getWindow, { startIn }) => {
+    const window = getWindow()
+    const options: OpenDialogOptions = {
+      title: 'Choose a folder for your Solo workspace',
+      defaultPath: startIn ?? suggestedWorkspacePath(),
+      buttonLabel: 'Use this folder',
+      properties: ['openDirectory', 'createDirectory']
+    }
+    const result = window
+      ? await dialog.showOpenDialog(window, options)
+      : await dialog.showOpenDialog(options)
+
+    return result.canceled ? null : (result.filePaths[0] ?? null)
+  },
+
+  'workspace:inspect': (_getWindow, { path }) => inspectFolder(path),
+
+  'workspace:create': (_getWindow, setup) => session.create(setup),
+
+  'workspace:adopt': (_getWindow, { path }) => session.adopt(path),
+
+  'workspace:reveal': () => {
+    void shell.openPath(session.requirePath())
+  },
+
+  'settings:get': () => session.settings(),
+
+  'settings:update': (_getWindow, patch) => updateSettings(session.requireDb(), patch)
 }
 
 export function registerIpcHandlers(getWindow: WindowGetter): void {

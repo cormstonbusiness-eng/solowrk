@@ -3,6 +3,7 @@ import { app, shell, BrowserWindow } from 'electron'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc'
 import { broadcastWindowState } from './ipc/window'
+import { session } from './services/session'
 
 /** Matches `--ground` in the renderer theme so there is no white flash on launch. */
 const GROUND = '#0A0A0B'
@@ -82,3 +83,7 @@ void app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit()
 })
+
+// Close the database cleanly so WAL is checkpointed rather than left for the
+// next launch to recover.
+app.on('before-quit', () => session.close())

@@ -9,6 +9,7 @@ real folder tree you own, not a cloud service.
 ```powershell
 npm install
 npm run dev          # launch with hot reload
+npm test             # Vitest — business logic and path safety
 npm run typecheck    # main + renderer
 npm run build        # production bundles into out/
 npm run build:win    # NSIS installer into release/
@@ -31,6 +32,22 @@ src/
   shared/     types shared across the process boundary (IPC contract)
 ```
 
+## Data
+
+SQLite comes from Electron's bundled Node (`node:sqlite`), not a native module, so there is nothing
+to compile and `npm install` works on any machine. Queries are hand-written SQL behind a small
+`Database` wrapper in `src/main/db/`.
+
+- **Money is integer pence, never a float.** Percentages are basis points (2000 = 20%). Pounds only
+  exist at the UI edge — see `MoneyInput`.
+- **Migrations are append-only.** Add to the array in `src/main/db/migrations.ts`; never edit one
+  that has shipped, because a user's database has already run it. Each phase adds its own.
+- **The workspace is the unit of portability.** Everything lives inside the user's chosen folder,
+  including the database. The only state outside it is a pointer file in `userData` recording where
+  that folder is.
+- **`resolveInWorkspace()` in `src/main/services/workspace.ts` is the containment boundary** for
+  every file operation, including the AI's tools later. It is tested accordingly.
+
 ## Conventions worth keeping
 
 - **IPC is declared once.** Add a channel to `IpcContract` in `src/shared/ipc.ts`; the handler map
@@ -46,6 +63,6 @@ src/
 
 ## Status
 
-Phase 0 (shell, design system, animated routing) is complete. Later phases add the SQLite data
-layer and first-run wizard, then clients/projects/tasks, files, money, calendar, dashboard, the
+Phases 0 (shell, design system, animated routing) and 1 (data layer, first-run wizard, settings)
+are complete. Later phases add clients/projects/tasks, files, money, calendar, dashboard, the
 Claude assistant, and calendar sync. Sections not yet built say which phase builds them.

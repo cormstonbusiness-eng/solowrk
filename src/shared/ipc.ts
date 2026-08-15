@@ -7,6 +7,14 @@
  * here, it isn't reachable from the renderer.
  */
 
+import type {
+  BusinessSettings,
+  FolderInspection,
+  Settings,
+  WorkspaceSetup,
+  WorkspaceStatus
+} from './types'
+
 export interface WindowState {
   isMaximized: boolean
   isFocused: boolean
@@ -27,6 +35,18 @@ export interface IpcContract {
   'window:toggleMaximize': { req: void; res: boolean }
   'window:close': { req: void; res: void }
   'window:state': { req: void; res: WindowState }
+
+  'workspace:status': { req: void; res: WorkspaceStatus }
+  /** Opens a native folder picker. Resolves to null if the user cancels. */
+  'workspace:browse': { req: { startIn?: string }; res: string | null }
+  'workspace:inspect': { req: { path: string }; res: FolderInspection }
+  'workspace:create': { req: WorkspaceSetup; res: WorkspaceStatus }
+  'workspace:adopt': { req: { path: string }; res: WorkspaceStatus }
+  /** Reveal the workspace folder in Explorer. */
+  'workspace:reveal': { req: void; res: void }
+
+  'settings:get': { req: void; res: Settings }
+  'settings:update': { req: Partial<BusinessSettings>; res: Settings }
 }
 
 export type IpcChannel = keyof IpcContract
@@ -48,7 +68,15 @@ export const IPC_CHANNELS = [
   'window:minimize',
   'window:toggleMaximize',
   'window:close',
-  'window:state'
+  'window:state',
+  'workspace:status',
+  'workspace:browse',
+  'workspace:inspect',
+  'workspace:create',
+  'workspace:adopt',
+  'workspace:reveal',
+  'settings:get',
+  'settings:update'
 ] as const satisfies readonly IpcChannel[]
 
 export const IPC_EVENTS = ['window:stateChanged'] as const satisfies readonly IpcEvent[]

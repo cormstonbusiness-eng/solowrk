@@ -1,8 +1,13 @@
+import { useEffect, useMemo, useState } from 'react'
 import { HashRouter, Route, Routes, useLocation } from 'react-router-dom'
-import { AnimatePresence, MotionConfig } from 'motion/react'
+import { AnimatePresence, MotionConfig, motion } from 'motion/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import type { WorkspaceStatus } from '@shared/types'
 import { TitleBar } from '@/components/TitleBar'
 import { Sidebar } from '@/components/Sidebar'
+import { FirstRun } from '@/setup/FirstRun'
+import { WorkspaceContext } from '@/hooks/useWorkspace'
+import { transition } from '@/lib/motion'
 import {
   Assistant,
   Calendar,
@@ -51,23 +56,88 @@ function AnimatedRoutes(): React.JSX.Element {
   )
 }
 
-export function App(): React.JSX.Element {
+function Shell(): React.JSX.Element {
   return (
-    // reducedMotion="user" is the single switch that honours the OS setting for
-    // every Motion component in the app.
+    <HashRouter>
+      <div className="flex min-h-0 flex-1">
+        <Sidebar />
+        <main className="min-w-0 flex-1 bg-ground">
+          <AnimatedRoutes />
+        </main>
+      </div>
+    </HashRouter>
+  )
+}
+
+/**
+ * Startup has three outcomes: a workspace opens and we show the app, no
+ * workspace is configured (or the folder has gone) and we show the wizard, or
+ * the main process failed and we say so rather than hanging on a blank screen.
+ */
+export function App(): React.JSX.Element {
+  const [status, setStatus] = useState<WorkspaceStatus | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    window.solo
+      .invoke('workspace:status')
+      .then(setStatus)
+      .catch((cause: unknown) =>
+        setError(cause instanceof Error ? cause.message : 'Solo could not start')
+      )
+  }, [])
+
+  const workspace = useMemo(() => ({ status, setStatus }), [status])
+
+  return (
     <MotionConfig reducedMotion="user">
       <QueryClientProvider client={queryClient}>
-        <HashRouter>
+        <WorkspaceContext.Provider value={workspace}>
           <div className="flex h-full flex-col bg-ground">
             <TitleBar />
-            <div className="flex min-h-0 flex-1">
-              <Sidebar />
-              <main className="min-w-0 flex-1 bg-ground">
-                <AnimatedRoutes />
-              </main>
-            </div>
+
+            <AnimatePresence mode="wait">
+              {error ? (
+                <motion.div
+                  key="error"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="grid flex-1 place-items-center px-6 text-center"
+                >
+                  <div>
+                    <p className="text-[14px] text-ink">Solo could not start</p>
+                    <p className="mt-1 text-[12px] text-muted">{error}</p>
+                  </div>
+                </motion.div>
+              ) : !status ? (
+                // Deliberately blank: startup is near-instant, and a spinner
+                // that flashes for 80ms reads as jank rather than progress.
+                <motion.div key="loading" className="flex-1" />
+              ) : status.state === 'ready' ? (
+                <motion.div
+                  key="shell"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={transition.page}
+                  className="flex min-h-0 flex-1"
+                >
+                  <Shell />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="setup"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={transition.page}
+                  className="min-h-0 flex-1"
+                >
+                  <FirstRun status={status} onReady={setStatus} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        </HashRouter>
+        </WorkspaceContext.Provider>
       </QueryClientProvider>
     </MotionConfig>
   )
