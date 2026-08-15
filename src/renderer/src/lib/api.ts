@@ -24,7 +24,15 @@ export const keys = {
  * projects, its client's project list and the task list. Rather than making
  * every mutation reason about that, mutations name the domains they touched.
  */
-export type Domain = 'clients' | 'projects' | 'tasks' | 'categories' | 'notes' | 'templates'
+export type Domain =
+  | 'clients'
+  | 'projects'
+  | 'tasks'
+  | 'categories'
+  | 'notes'
+  | 'templates'
+  | 'documents'
+  | 'files'
 
 export function invalidate(queryClient: QueryClient, domains: Domain[]): void {
   for (const domain of domains) {

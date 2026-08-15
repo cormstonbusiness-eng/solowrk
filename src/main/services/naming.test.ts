@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { toFolderName, uniqueFolderName } from './naming'
+import { splitExtension, toFolderName, uniqueFileName, uniqueFolderName } from './naming'
 
 describe('toFolderName', () => {
   it('leaves an ordinary name alone', () => {
@@ -63,5 +63,41 @@ describe('uniqueFolderName', () => {
 
   it('sanitises before checking for a clash', () => {
     expect(uniqueFolderName('Acme/Ltd', ['Acme Ltd'])).toBe('Acme Ltd 2')
+  })
+})
+
+describe('splitExtension', () => {
+  it('splits on the last dot', () => {
+    expect(splitExtension('report.pdf')).toEqual(['report', '.pdf'])
+    expect(splitExtension('report.final.pdf')).toEqual(['report.final', '.pdf'])
+  })
+
+  it('treats a leading dot as a dotfile, not an extension', () => {
+    expect(splitExtension('.gitignore')).toEqual(['.gitignore', ''])
+  })
+
+  it('handles a name with no extension', () => {
+    expect(splitExtension('README')).toEqual(['README', ''])
+  })
+})
+
+describe('uniqueFileName', () => {
+  it('keeps the extension when de-duplicating', () => {
+    // The bug this guards against is "report.pdf 2", which Windows would treat
+    // as a file with no extension.
+    expect(uniqueFileName('report.pdf', ['report.pdf'])).toBe('report 2.pdf')
+    expect(uniqueFileName('report.pdf', ['report.pdf', 'report 2.pdf'])).toBe('report 3.pdf')
+  })
+
+  it('returns the name unchanged when nothing clashes', () => {
+    expect(uniqueFileName('invoice.pdf', [])).toBe('invoice.pdf')
+  })
+
+  it('sanitises illegal characters in the stem', () => {
+    expect(uniqueFileName('Q1: report.pdf', [])).toBe('Q1 report.pdf')
+  })
+
+  it('compares case-insensitively', () => {
+    expect(uniqueFileName('Report.pdf', ['report.pdf'])).toBe('Report 2.pdf')
   })
 })

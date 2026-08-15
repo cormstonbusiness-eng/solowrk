@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import {
   IPC_CHANNELS,
   IPC_EVENTS,
@@ -22,6 +22,18 @@ const api = {
       return Promise.reject(new Error(`Blocked IPC channel: ${channel}`))
     }
     return ipcRenderer.invoke(channel, payload) as Promise<IpcResponse<C>>
+  },
+
+  /**
+   * Absolute path of a File dropped from Explorer.
+   *
+   * Electron removed the non-standard `File.path` property, so this is the only
+   * way to learn where a dropped file came from. It reads a path the user has
+   * just handed us by dragging; it grants no ability to read that file — the
+   * import still goes through a validated IPC channel in main.
+   */
+  pathForFile(file: File): string {
+    return webUtils.getPathForFile(file)
   },
 
   /** Subscribe to a pushed event. Returns an unsubscribe function. */

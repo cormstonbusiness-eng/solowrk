@@ -1,11 +1,4 @@
-import {
-  CalendarDays,
-  ChartNoAxesCombined,
-  FileText,
-  FolderOpen,
-  ReceiptText,
-  Sparkles
-} from 'lucide-react'
+import { CalendarDays, ChartNoAxesCombined, ReceiptText, Sparkles } from 'lucide-react'
 import { Page } from '@/components/Page'
 import { Placeholder } from '@/components/Placeholder'
 
@@ -14,6 +7,8 @@ export { Settings } from './Settings'
 export { Projects, ProjectDetail } from './Projects'
 export { Tasks } from './Tasks'
 export { Clients, ClientDetail } from './Clients'
+export { Files } from './Files'
+export { Documents } from './Documents'
 
 export function Calendar(): React.JSX.Element {
   return (
@@ -49,32 +44,6 @@ export function Finance(): React.JSX.Element {
         phase="Phase 4"
         summary="Income against spending by day, month and UK tax year, with a set-aside figure so the tax bill is never a surprise."
         features={['Day / month / year', 'UK tax year', 'Tax set-aside', 'Top clients']}
-      />
-    </Page>
-  )
-}
-
-export function Files(): React.JSX.Element {
-  return (
-    <Page title="Files" description="Your workspace on disk, browsable in here.">
-      <Placeholder
-        icon={FolderOpen}
-        phase="Phase 3"
-        summary="A browser over the real folder tree. Drag files in, open them in Explorer, and know exactly where everything lives — no cloud in the loop."
-        features={['Drag & drop', 'Open in Explorer', 'Tagging', 'Search']}
-      />
-    </Page>
-  )
-}
-
-export function Documents(): React.JSX.Element {
-  return (
-    <Page title="Documents" description="Contracts, insurance, certificates, tax.">
-      <Placeholder
-        icon={FileText}
-        phase="Phase 3"
-        summary="Business paperwork with categories and expiry dates, so a lapsing insurance policy raises a flag on the dashboard before it lapses."
-        features={['Categories', 'Expiry reminders', 'Search', 'Quick preview']}
       />
     </Page>
   )

@@ -63,10 +63,10 @@ to compile and `npm install` works on any machine. Queries are hand-written SQL 
 
 ## Status
 
-Phases 0 (shell, design system, animated routing), 1 (data layer, first-run wizard, settings) and
-2 (clients, projects, tasks, notes, templates) are complete. Later phases add files, money,
-calendar, dashboard, the Claude assistant, and calendar sync. Sections not yet built say which
-phase builds them.
+Phases 0 (shell, design system, animated routing), 1 (data layer, first-run wizard, settings),
+2 (clients, projects, tasks, notes, templates) and 3 (files, documents) are complete. Later phases
+add money, calendar, dashboard, the Claude assistant, and calendar sync. Sections not yet built
+say which phase builds them.
 
 ### Gotchas worth knowing
 
@@ -75,4 +75,8 @@ phase builds them.
   *and* Vitest, then crashes the bundled main process on launch — always start the app after
   touching service imports.
 - **Folder names go through `toFolderName()`.** Windows rejects `<>:"/\|?*`, reserved device names
-  like `CON`, and trailing dots. Never build a path from a user string directly.
+  like `CON`, and trailing dots. Never build a path from a user string directly. Filenames use
+  `uniqueFileName()` so de-duplication keeps the extension (`report 2.pdf`, not `report.pdf 2`).
+- **`File.path` does not exist.** Electron removed it, so a file dragged from Explorer is resolved
+  through `window.solo.pathForFile(file)`, backed by `webUtils` in the preload.
+- **Deleting a file goes to the Recycle Bin** via `shell.trashItem`, never `unlink`.

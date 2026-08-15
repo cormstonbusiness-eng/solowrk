@@ -237,6 +237,41 @@ export interface TaskFilter {
   dueBefore?: string
 }
 
+/* ------------------------------------------------------------------ *
+ * Files and documents
+ * ------------------------------------------------------------------ */
+
+export interface FileEntry {
+  name: string
+  /** Relative to the workspace root — the only kind of path the renderer sees. */
+  path: string
+  isDirectory: boolean
+  size: number
+  modifiedAt: string
+  extension: string
+}
+
+export interface DocumentRecord {
+  id: number
+  title: string
+  category: string
+  file: string
+  tags: string[]
+  notes: string
+  /** Renewal date for insurance, certificates and licences. */
+  expiryAt: string | null
+  clientId: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type DocumentInput = Partial<
+  Omit<DocumentRecord, 'id' | 'file' | 'createdAt' | 'updatedAt'>
+>
+
+/** Suggested categories, matching the folders the wizard creates. */
+export const DOCUMENT_CATEGORIES = ['Business', 'Contracts', 'Insurance', 'Tax']
+
 /** Palette offered in colour pickers, matching the app's semantic colours. */
 export const COLOUR_CHOICES = [
   '#6E56CF',

@@ -12,6 +12,9 @@ import type {
   Category,
   Client,
   ClientInput,
+  DocumentInput,
+  DocumentRecord,
+  FileEntry,
   FolderInspection,
   Note,
   Project,
@@ -110,6 +113,28 @@ export interface IpcContract {
     res: Template
   }
   'templates:delete': { req: { id: number }; res: void }
+
+  /** All paths are relative to the workspace root and validated in main. */
+  'files:list': { req: { path: string }; res: FileEntry[] }
+  'files:createFolder': { req: { parent: string; name: string }; res: string }
+  'files:rename': { req: { path: string; name: string }; res: string }
+  /** Sends to the Recycle Bin, not an unlink. */
+  'files:trash': { req: { path: string }; res: void }
+  'files:open': { req: { path: string }; res: void }
+  'files:reveal': { req: { path: string }; res: void }
+  /** `sources` are absolute paths from a picker or an Explorer drag. */
+  'files:import': { req: { destination: string; sources: string[] }; res: string[] }
+  /** Native picker; returns absolute paths, or an empty array if cancelled. */
+  'files:pick': { req: { multiple?: boolean } | void; res: string[] }
+
+  'documents:list': { req: { search?: string; category?: string } | void; res: DocumentRecord[] }
+  'documents:add': {
+    req: DocumentInput & { sourcePath: string }
+    res: DocumentRecord
+  }
+  'documents:update': { req: { id: number; patch: Partial<DocumentInput> }; res: DocumentRecord }
+  'documents:delete': { req: { id: number }; res: void }
+  'documents:expiring': { req: { days?: number } | void; res: DocumentRecord[] }
 }
 
 export type IpcChannel = keyof IpcContract
@@ -169,7 +194,20 @@ export const IPC_CHANNELS = [
   'notes:delete',
   'templates:list',
   'templates:fromProject',
-  'templates:delete'
+  'templates:delete',
+  'files:list',
+  'files:createFolder',
+  'files:rename',
+  'files:trash',
+  'files:open',
+  'files:reveal',
+  'files:import',
+  'files:pick',
+  'documents:list',
+  'documents:add',
+  'documents:update',
+  'documents:delete',
+  'documents:expiring'
 ] as const satisfies readonly IpcChannel[]
 
 export const IPC_EVENTS = ['window:stateChanged'] as const satisfies readonly IpcEvent[]

@@ -45,6 +45,36 @@ export function toFolderName(input: string): string {
 }
 
 /**
+ * Split "report.final.pdf" into ["report.final", ".pdf"]. A leading dot means a
+ * dotfile, not an extension, so ".gitignore" keeps its whole name.
+ */
+export function splitExtension(fileName: string): [string, string] {
+  const dot = fileName.lastIndexOf('.')
+  if (dot <= 0) return [fileName, '']
+  return [fileName.slice(0, dot), fileName.slice(dot)]
+}
+
+/**
+ * Free filename in a folder, keeping the extension intact — "report.pdf"
+ * becomes "report 2.pdf" rather than "report.pdf 2", which would break the
+ * file's association with its application.
+ */
+export function uniqueFileName(desired: string, taken: Iterable<string>): string {
+  const existing = new Set(Array.from(taken, (name) => name.toLowerCase()))
+  const [rawStem, extension] = splitExtension(desired)
+  const stem = toFolderName(rawStem)
+
+  if (!existing.has(`${stem}${extension}`.toLowerCase())) return `${stem}${extension}`
+
+  for (let suffix = 2; suffix < 1000; suffix += 1) {
+    const candidate = `${stem} ${suffix}${extension}`
+    if (!existing.has(candidate.toLowerCase())) return candidate
+  }
+
+  return `${stem} ${Date.now()}${extension}`
+}
+
+/**
  * Append a numeric suffix until the name is free, so two clients called "Acme"
  * get "Acme" and "Acme 2" instead of sharing a folder.
  */

@@ -181,5 +181,32 @@ export const migrations: Migration[] = [
         ('Admin',     '#F5A623', 4, datetime('now'), datetime('now')),
         ('Client',    '#E5484D', 5, datetime('now'), datetime('now'));
     `
+  },
+  {
+    id: 4,
+    name: 'documents',
+    sql: `
+      -- Business paperwork. The file itself lives in the workspace under
+      -- Documents\\<category>; this table adds the things a filesystem cannot
+      -- hold: what it is, when it expires, and how to find it again.
+      CREATE TABLE documents (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        title      TEXT    NOT NULL,
+        category   TEXT    NOT NULL DEFAULT 'Business',
+        file       TEXT    NOT NULL,
+        -- Comma-separated, lower-cased on write. A tags table would be the
+        -- textbook answer, but tags here are a search aid, not a relation.
+        tags       TEXT    NOT NULL DEFAULT '',
+        notes      TEXT    NOT NULL DEFAULT '',
+        -- Renewal date for insurance, certificates, licences. Drives reminders.
+        expiry_at  TEXT,
+        client_id  INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+        created_at TEXT    NOT NULL,
+        updated_at TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_documents_category ON documents(category);
+      CREATE INDEX idx_documents_expiry   ON documents(expiry_at);
+    `
   }
 ]

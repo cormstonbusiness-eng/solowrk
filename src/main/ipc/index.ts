@@ -34,6 +34,22 @@ import {
 } from '../services/categories'
 import { createNote, deleteNote, listNotes, readNote, writeNote } from '../services/notes'
 import { deleteTemplate, listTemplates, templateFromProject } from '../services/templates'
+import {
+  createFolder,
+  importFiles,
+  listDirectory,
+  openEntry,
+  renameEntry,
+  revealEntry,
+  trashEntry
+} from '../services/files'
+import {
+  addDocument,
+  deleteDocument,
+  expiringDocuments,
+  listDocuments,
+  updateDocument
+} from '../services/documents'
 import { updateSettings } from '../services/settings'
 import { getState, setState } from '../services/appState'
 
@@ -157,7 +173,38 @@ const handlers: Handlers = {
   'templates:list': () => listTemplates(session.requireDb()),
   'templates:fromProject': (_g, { projectId, name, description }) =>
     templateFromProject(session.requireDb(), projectId, name, description),
-  'templates:delete': (_g, { id }) => deleteTemplate(session.requireDb(), id)
+  'templates:delete': (_g, { id }) => deleteTemplate(session.requireDb(), id),
+
+  'files:list': (_g, { path }) => listDirectory(session.requirePath(), path),
+  'files:createFolder': (_g, { parent, name }) =>
+    createFolder(session.requirePath(), parent, name),
+  'files:rename': (_g, { path, name }) => renameEntry(session.requirePath(), path, name),
+  'files:trash': (_g, { path }) => trashEntry(session.requirePath(), path),
+  'files:open': (_g, { path }) => openEntry(session.requirePath(), path),
+  'files:reveal': (_g, { path }) => revealEntry(session.requirePath(), path),
+  'files:import': (_g, { destination, sources }) =>
+    importFiles(session.requirePath(), destination, sources),
+
+  'files:pick': async (getWindow, args) => {
+    const window = getWindow()
+    const options: OpenDialogOptions = {
+      title: 'Choose files',
+      buttonLabel: 'Add',
+      properties: args?.multiple === false ? ['openFile'] : ['openFile', 'multiSelections']
+    }
+    const result = window
+      ? await dialog.showOpenDialog(window, options)
+      : await dialog.showOpenDialog(options)
+
+    return result.canceled ? [] : result.filePaths
+  },
+
+  'documents:list': (_g, args) => listDocuments(session.requireDb(), args ?? {}),
+  'documents:add': (_g, input) =>
+    addDocument(session.requireDb(), session.requirePath(), input),
+  'documents:update': (_g, { id, patch }) => updateDocument(session.requireDb(), id, patch),
+  'documents:delete': (_g, { id }) => deleteDocument(session.requireDb(), id),
+  'documents:expiring': (_g, args) => expiringDocuments(session.requireDb(), args?.days ?? 45)
 }
 
 export function registerIpcHandlers(getWindow: WindowGetter): void {
