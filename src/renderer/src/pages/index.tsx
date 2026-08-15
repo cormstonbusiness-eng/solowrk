@@ -1,45 +1,19 @@
 import {
   CalendarDays,
   ChartNoAxesCombined,
-  CircleCheckBig,
   FileText,
-  FolderKanban,
   FolderOpen,
   ReceiptText,
-  Sparkles,
-  Users
+  Sparkles
 } from 'lucide-react'
 import { Page } from '@/components/Page'
 import { Placeholder } from '@/components/Placeholder'
 
 export { Dashboard } from './Dashboard'
 export { Settings } from './Settings'
-
-export function Projects(): React.JSX.Element {
-  return (
-    <Page title="Projects" description="Every job, its files, its budget and its state.">
-      <Placeholder
-        icon={FolderKanban}
-        phase="Phase 2"
-        summary="Projects belong to a client, own a folder on disk, and carry their own tasks, notes, time and budget."
-        features={['Project list & detail', 'Folder scaffolding', 'Templates', 'Budget tracking']}
-      />
-    </Page>
-  )
-}
-
-export function Tasks(): React.JSX.Element {
-  return (
-    <Page title="Tasks" description="Colour-coded, categorised, dated.">
-      <Placeholder
-        icon={CircleCheckBig}
-        phase="Phase 2"
-        summary="Board and list views over the same tasks, with categories you colour yourself, due dates, priorities and subtasks."
-        features={['Board & list', 'Colour categories', 'Due dates', 'Subtasks', 'Drag to reorder']}
-      />
-    </Page>
-  )
-}
+export { Projects, ProjectDetail } from './Projects'
+export { Tasks } from './Tasks'
+export { Clients, ClientDetail } from './Clients'
 
 export function Calendar(): React.JSX.Element {
   return (
@@ -49,19 +23,6 @@ export function Calendar(): React.JSX.Element {
         phase="Phase 5, synced in phase 8"
         summary="A local calendar first — month, week and day views with task due dates alongside events. Google and Teams meetings sync in later."
         features={['Month / week / day', 'Drag to reschedule', 'Reminders', 'Google & Teams']}
-      />
-    </Page>
-  )
-}
-
-export function Clients(): React.JSX.Element {
-  return (
-    <Page title="Clients" description="Who you work for, and everything attached to them.">
-      <Placeholder
-        icon={Users}
-        phase="Phase 2"
-        summary="Each client holds contacts, default rate, payment terms and VAT details, plus every project, invoice and document filed against them."
-        features={['Contacts', 'Default rates', 'Lifetime value', 'Linked records']}
       />
     </Page>
   )

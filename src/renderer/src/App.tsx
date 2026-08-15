@@ -12,12 +12,14 @@ import { transition } from '@/lib/motion'
 import {
   Assistant,
   Calendar,
+  ClientDetail,
   Clients,
   Dashboard,
   Documents,
   Files,
   Finance,
   Invoices,
+  ProjectDetail,
   Projects,
   Settings,
   Tasks
@@ -42,9 +44,11 @@ function AnimatedRoutes(): React.JSX.Element {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/projects" element={<Projects />} />
+        <Route path="/projects/:id" element={<ProjectDetail />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/clients" element={<Clients />} />
+        <Route path="/clients/:id" element={<ClientDetail />} />
         <Route path="/invoices" element={<Invoices />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/files" element={<Files />} />

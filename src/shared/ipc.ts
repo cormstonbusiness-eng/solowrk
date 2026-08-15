@@ -9,8 +9,20 @@
 
 import type {
   BusinessSettings,
+  Category,
+  Client,
+  ClientInput,
   FolderInspection,
+  Note,
+  Project,
+  ProjectInput,
+  ProjectSummary,
   Settings,
+  TaskFilter,
+  TaskInput,
+  TaskStatus,
+  TaskWithContext,
+  Template,
   WorkspaceSetup,
   WorkspaceStatus
 } from './types'
@@ -51,6 +63,53 @@ export interface IpcContract {
   /** Small workspace-scoped UI flags — see app_state in the database. */
   'state:get': { req: { key: string }; res: string | null }
   'state:set': { req: { key: string; value: string }; res: void }
+
+  'clients:list': { req: { includeArchived?: boolean } | void; res: Client[] }
+  'clients:get': { req: { id: number }; res: Client }
+  'clients:create': { req: ClientInput; res: Client }
+  'clients:update': { req: { id: number; patch: Partial<ClientInput> }; res: Client }
+  'clients:delete': { req: { id: number }; res: void }
+
+  'projects:list': {
+    req: { clientId?: number; includeArchived?: boolean } | void
+    res: ProjectSummary[]
+  }
+  'projects:get': { req: { id: number }; res: Project }
+  'projects:create': { req: ProjectInput; res: Project }
+  'projects:update': { req: { id: number; patch: Partial<ProjectInput> }; res: Project }
+  'projects:delete': { req: { id: number }; res: void }
+  /** Open the project's folder in Explorer. */
+  'projects:reveal': { req: { id: number }; res: void }
+
+  'tasks:list': { req: TaskFilter | void; res: TaskWithContext[] }
+  'tasks:create': { req: TaskInput; res: TaskWithContext }
+  'tasks:update': { req: { id: number; patch: Partial<TaskInput> }; res: TaskWithContext }
+  'tasks:move': {
+    req: { id: number; status: TaskStatus; projectId: number | null; beforeId: number | null }
+    res: TaskWithContext
+  }
+  'tasks:delete': { req: { id: number }; res: void }
+
+  'categories:list': { req: void; res: Category[] }
+  'categories:create': { req: { name: string; colour: string }; res: Category }
+  'categories:update': {
+    req: { id: number; patch: { name?: string; colour?: string } }
+    res: Category
+  }
+  'categories:delete': { req: { id: number }; res: void }
+
+  'notes:list': { req: { projectId: number }; res: Note[] }
+  'notes:create': { req: { projectId: number; title: string }; res: Note }
+  'notes:read': { req: { id: number }; res: string }
+  'notes:write': { req: { id: number; content: string }; res: void }
+  'notes:delete': { req: { id: number }; res: void }
+
+  'templates:list': { req: void; res: Template[] }
+  'templates:fromProject': {
+    req: { projectId: number; name: string; description?: string }
+    res: Template
+  }
+  'templates:delete': { req: { id: number }; res: void }
 }
 
 export type IpcChannel = keyof IpcContract
@@ -82,7 +141,35 @@ export const IPC_CHANNELS = [
   'settings:get',
   'settings:update',
   'state:get',
-  'state:set'
+  'state:set',
+  'clients:list',
+  'clients:get',
+  'clients:create',
+  'clients:update',
+  'clients:delete',
+  'projects:list',
+  'projects:get',
+  'projects:create',
+  'projects:update',
+  'projects:delete',
+  'projects:reveal',
+  'tasks:list',
+  'tasks:create',
+  'tasks:update',
+  'tasks:move',
+  'tasks:delete',
+  'categories:list',
+  'categories:create',
+  'categories:update',
+  'categories:delete',
+  'notes:list',
+  'notes:create',
+  'notes:read',
+  'notes:write',
+  'notes:delete',
+  'templates:list',
+  'templates:fromProject',
+  'templates:delete'
 ] as const satisfies readonly IpcChannel[]
 
 export const IPC_EVENTS = ['window:stateChanged'] as const satisfies readonly IpcEvent[]

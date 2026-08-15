@@ -85,6 +85,170 @@ export interface FolderInspection {
   writable: boolean
 }
 
+/* ------------------------------------------------------------------ *
+ * Clients, projects and tasks
+ * ------------------------------------------------------------------ */
+
+export interface Client {
+  id: number
+  name: string
+  contactName: string
+  email: string
+  phone: string
+  address: string
+  vatNumber: string
+  /** null means "fall back to the rate in Settings". */
+  defaultRate: Pence | null
+  paymentTermsDays: number | null
+  notes: string
+  colour: string
+  /** Relative to the workspace root. */
+  folder: string
+  archived: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type ProjectStatus = 'planned' | 'active' | 'on_hold' | 'completed' | 'cancelled'
+
+export const PROJECT_STATUSES: { value: ProjectStatus; label: string; colour: string }[] = [
+  { value: 'planned', label: 'Planned', colour: '#8a8a93' },
+  { value: 'active', label: 'Active', colour: '#3B82F6' },
+  { value: 'on_hold', label: 'On hold', colour: '#F5A623' },
+  { value: 'completed', label: 'Completed', colour: '#30A46C' },
+  { value: 'cancelled', label: 'Cancelled', colour: '#E5484D' }
+]
+
+export interface Project {
+  id: number
+  clientId: number | null
+  name: string
+  description: string
+  status: ProjectStatus
+  rate: Pence | null
+  budget: Pence | null
+  startsOn: string | null
+  dueOn: string | null
+  colour: string
+  folder: string
+  archived: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+/** A project with the joined bits the list and detail views need. */
+export interface ProjectSummary extends Project {
+  clientName: string | null
+  taskCount: number
+  openTaskCount: number
+}
+
+export interface Category {
+  id: number
+  name: string
+  colour: string
+  sortOrder: number
+}
+
+export type TaskStatus = 'todo' | 'doing' | 'done'
+
+export const TASK_STATUSES: { value: TaskStatus; label: string }[] = [
+  { value: 'todo', label: 'To do' },
+  { value: 'doing', label: 'In progress' },
+  { value: 'done', label: 'Done' }
+]
+
+/** 0 none, 1 normal, 2 high, 3 urgent. */
+export const PRIORITIES: { value: number; label: string; colour: string }[] = [
+  { value: 0, label: 'None', colour: '#5a5a63' },
+  { value: 1, label: 'Normal', colour: '#8a8a93' },
+  { value: 2, label: 'High', colour: '#F5A623' },
+  { value: 3, label: 'Urgent', colour: '#E5484D' }
+]
+
+export interface Task {
+  id: number
+  projectId: number | null
+  categoryId: number | null
+  parentId: number | null
+  title: string
+  notes: string
+  status: TaskStatus
+  priority: number
+  dueAt: string | null
+  sortOrder: number
+  completedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface TaskWithContext extends Task {
+  projectName: string | null
+  projectColour: string | null
+  categoryName: string | null
+  categoryColour: string | null
+  subtaskCount: number
+  subtaskDoneCount: number
+}
+
+export interface Note {
+  id: number
+  projectId: number
+  title: string
+  file: string
+  createdAt: string
+  updatedAt: string
+}
+
+/** What a template recreates when a project is made from it. */
+export interface TemplatePayload {
+  folders: string[]
+  tasks: { title: string; categoryId: number | null; priority: number; status: TaskStatus }[]
+}
+
+export interface Template {
+  id: number
+  name: string
+  description: string
+  payload: TemplatePayload
+  createdAt: string
+  updatedAt: string
+}
+
+/* Inputs — what the renderer sends when creating or editing. */
+
+export type ClientInput = Partial<
+  Omit<Client, 'id' | 'folder' | 'createdAt' | 'updatedAt'>
+> & { name: string }
+
+export type ProjectInput = Partial<
+  Omit<Project, 'id' | 'folder' | 'createdAt' | 'updatedAt'>
+> & { name: string; templateId?: number | null }
+
+export type TaskInput = Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>> & { title: string }
+
+export interface TaskFilter {
+  projectId?: number | null
+  categoryId?: number | null
+  status?: TaskStatus
+  /** Only top-level tasks when true — subtasks come back nested with their parent. */
+  topLevelOnly?: boolean
+  search?: string
+  dueBefore?: string
+}
+
+/** Palette offered in colour pickers, matching the app's semantic colours. */
+export const COLOUR_CHOICES = [
+  '#6E56CF',
+  '#3B82F6',
+  '#30A46C',
+  '#F5A623',
+  '#E5484D',
+  '#EC4899',
+  '#06B6D4',
+  '#8a8a93'
+]
+
 export const DEFAULT_BUSINESS: WorkspaceSetup['business'] = {
   businessName: '',
   contactName: '',

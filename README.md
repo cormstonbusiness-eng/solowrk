@@ -63,6 +63,16 @@ to compile and `npm install` works on any machine. Queries are hand-written SQL 
 
 ## Status
 
-Phases 0 (shell, design system, animated routing) and 1 (data layer, first-run wizard, settings)
-are complete. Later phases add clients/projects/tasks, files, money, calendar, dashboard, the
-Claude assistant, and calendar sync. Sections not yet built say which phase builds them.
+Phases 0 (shell, design system, animated routing), 1 (data layer, first-run wizard, settings) and
+2 (clients, projects, tasks, notes, templates) are complete. Later phases add files, money,
+calendar, dashboard, the Claude assistant, and calendar sync. Sections not yet built say which
+phase builds them.
+
+### Gotchas worth knowing
+
+- **Do not let `services/` modules import each other in a cycle.** `projects` imports `templates`,
+  so anything both need (like `PROJECT_FOLDERS`) lives in `workspace`. A cycle survives typecheck
+  *and* Vitest, then crashes the bundled main process on launch — always start the app after
+  touching service imports.
+- **Folder names go through `toFolderName()`.** Windows rejects `<>:"/\|?*`, reserved device names
+  like `CON`, and trailing dots. Never build a path from a user string directly.

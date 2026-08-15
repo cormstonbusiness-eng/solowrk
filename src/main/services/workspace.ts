@@ -27,6 +27,22 @@ export const WORKSPACE_TREE = [
   'Templates'
 ]
 
+/**
+ * The default working structure inside every project folder.
+ *
+ * Lives here rather than in projects.ts because templates.ts needs it too, and
+ * having projects and templates import from each other creates a cycle that
+ * survives typecheck and unit tests but crashes the bundled main process.
+ */
+export const PROJECT_FOLDERS = [
+  '00-Admin',
+  '01-Brief',
+  '02-Assets',
+  '03-Working',
+  '04-Deliverables',
+  '_notes'
+]
+
 export function databasePath(workspacePath: string): string {
   return join(workspacePath, APP_DIR, DB_FILENAME)
 }
