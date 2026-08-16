@@ -44,7 +44,25 @@ export interface Theme {
   fontMono: string
   /** Corner radius on cards, in pixels. Controls take 2px less. */
   radius: number
+  /** Set on seasonal themes: the window of the year they belong to. */
+  season?: { from: string; to: string }
   tokens: ThemeTokens
+}
+
+/**
+ * Whether a seasonal theme is in its window, as `mm-dd` strings.
+ *
+ * Handles a window that wraps the new year, which Christmas does — without
+ * that, a theme running from December to early January would be out of season
+ * for the whole of Christmas week.
+ */
+export function isInSeason(theme: Theme, today: string): boolean {
+  if (!theme.season) return false
+
+  const day = today.slice(5)
+  const { from, to } = theme.season
+
+  return from <= to ? day >= from && day <= to : day >= from || day <= to
 }
 
 /** Fonts are system stacks: bundling more webfonts would bloat the installer. */
@@ -133,13 +151,14 @@ export const THEMES: Theme[] = [
       ink: '#221a12',
       muted: '#6b5847',
       faint: '#9a8571',
-      accent: '#d2691e',
-      accentHover: '#b95a17',
-      accentPress: '#9c4b12',
+      accent: '#a8480c',
+      accentHover: '#8f3c09',
+      accentPress: '#763107',
       accentInk: '#ffffff',
       success: '#2f7d32',
       warning: '#b45309',
-      danger: '#c0392b',
+      // Cooled towards crimson so it cannot be read as the orange accent.
+      danger: '#c2185b',
       info: '#1f6feb'
     }
   },
@@ -229,8 +248,76 @@ export const THEMES: Theme[] = [
       accentInk: '#fbf9f4',
       success: '#3f7141',
       warning: '#9a6516',
-      danger: '#a63d34',
+      // Deepened to a crimson: against a brown accent, a rust red was
+      // indistinguishable at a glance.
+      danger: '#a01b3f',
       info: '#39628f'
+    }
+  },
+
+  {
+    id: 'halloween',
+    name: 'Halloween',
+    description: 'Pumpkin on near-black, with a purple cast. Seasonal, but genuinely usable.',
+    light: false,
+    fontSans: INTER,
+    fontMono: MONO,
+    radius: 10,
+    season: { from: '10-01', to: '11-02' },
+    tokens: {
+      ground: '#0c0910',
+      surface: '#151020',
+      raised: '#1d1629',
+      overlay: '#251c34',
+      hover: '#2f2440',
+      line: '#291f38',
+      lineStrong: '#3d2e52',
+      ink: '#f2ece2',
+      muted: '#9b8ba8',
+      faint: '#6b5c7a',
+      accent: '#f2761b',
+      accentHover: '#ff8a33',
+      accentPress: '#d16210',
+      accentInk: '#1a0d02',
+      success: '#5fbf6a',
+      warning: '#ffc53d',
+      // Pushed towards crimson so it cannot be mistaken for the orange accent —
+      // an overdue invoice and a primary button must never look alike.
+      danger: '#ff4d6d',
+      info: '#a78bfa'
+    }
+  },
+
+  {
+    id: 'christmas',
+    name: 'Christmas',
+    description: 'Pine and gold, with the reds and greens doing the work they already do.',
+    light: false,
+    fontSans: GEOMETRIC,
+    fontMono: MONO,
+    radius: 12,
+    season: { from: '12-01', to: '01-06' },
+    tokens: {
+      ground: '#0a1210',
+      surface: '#101b17',
+      raised: '#16241f',
+      overlay: '#1d2e28',
+      hover: '#25392f',
+      line: '#1f322a',
+      lineStrong: '#2f4a3d',
+      ink: '#f4f1e8',
+      muted: '#93a89b',
+      faint: '#63786c',
+      // Gold, so the accent sits apart from both the holly green of "paid" and
+      // the red of "overdue" — the two colours this theme is otherwise made of.
+      accent: '#d9a441',
+      accentHover: '#e8b757',
+      accentPress: '#b8862f',
+      accentInk: '#14100a',
+      success: '#2fa35b',
+      warning: '#e8b04b',
+      danger: '#e23b3b',
+      info: '#5aa7d8'
     }
   }
 ]

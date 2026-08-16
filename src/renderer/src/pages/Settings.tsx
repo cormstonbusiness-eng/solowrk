@@ -16,9 +16,10 @@ import { Page } from '@/components/Page'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, MoneyInput, NumberInput, TextInput, Toggle } from '@/components/ui/Field'
-import { THEMES } from '@shared/themes'
+import { THEMES, isInSeason } from '@shared/themes'
 import { useTheme } from '@/hooks/useTheme'
 import { cn } from '@/lib/utils'
+import { today as todayString } from '@shared/taxYear'
 import { formatDate } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { useWorkspace } from '@/hooks/useWorkspace'
@@ -545,6 +546,13 @@ function BusinessPlanCard(): React.JSX.Element {
  */
 function ThemeCard(): React.JSX.Element {
   const { themeId, setThemeId } = useTheme()
+  const today = todayString()
+
+  // In-season themes come first, so the Christmas one is not buried at the
+  // bottom of the list on the one day of the year anybody wants it.
+  const ordered = [...THEMES].sort(
+    (a, b) => Number(isInSeason(b, today)) - Number(isInSeason(a, today))
+  )
 
   return (
     <Card>
@@ -555,8 +563,9 @@ function ThemeCard(): React.JSX.Element {
       </p>
 
       <div className="grid grid-cols-3 gap-2.5">
-        {THEMES.map((theme) => {
+        {ordered.map((theme) => {
           const active = theme.id === themeId
+          const inSeason = isInSeason(theme, today)
 
           return (
             <button
@@ -635,7 +644,21 @@ function ThemeCard(): React.JSX.Element {
 
               <div className="flex items-start gap-2 border-t border-line p-2.5">
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[12.5px] font-medium text-ink">{theme.name}</p>
+                  <p className="flex items-center gap-1.5 truncate text-[12.5px] font-medium text-ink">
+                    {theme.name}
+                    {theme.season && (
+                      <span
+                        className={cn(
+                          'shrink-0 rounded-full border px-1.5 py-px text-[9.5px] font-normal',
+                          inSeason
+                            ? 'border-accent/40 text-accent'
+                            : 'border-line text-faint'
+                        )}
+                      >
+                        {inSeason ? 'In season' : 'Seasonal'}
+                      </span>
+                    )}
+                  </p>
                   <p className="mt-0.5 text-[11px] leading-snug text-faint">
                     {theme.description}
                   </p>
