@@ -344,7 +344,7 @@ export function ClientDetail(): React.JSX.Element {
         onClose={() => setConfirmDelete(false)}
         onConfirm={() => remove.mutate()}
         title={`Delete ${client.name}?`}
-        body="This removes the client and their projects from Solo. Their folder and every file inside it stays on disk untouched."
+        body="This removes the client and their projects from SoloWrk. Their folder and every file inside it stays on disk untouched."
       />
     </Page>
   )

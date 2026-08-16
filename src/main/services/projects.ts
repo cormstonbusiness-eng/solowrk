@@ -241,7 +241,7 @@ async function renameProjectFolder(
   }
 }
 
-/** Removes the project and its tasks from Solo. Files stay on disk. */
+/** Removes the project and its tasks from SoloWrk. Files stay on disk. */
 export function deleteProject(db: Database, id: number): void {
   db.run('DELETE FROM projects WHERE id = ?', [id])
 }

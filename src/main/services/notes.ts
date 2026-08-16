@@ -9,7 +9,7 @@ import { getProject } from './projects'
 /**
  * Notes are real markdown files inside the project's `_notes` folder. The
  * database stores only the path and title, so notes stay readable and editable
- * outside Solo — the point of keeping files on disk in the first place.
+ * outside SoloWrk — the point of keeping files on disk in the first place.
  */
 
 interface NoteRow extends Row {
@@ -75,7 +75,7 @@ export async function readNote(db: Database, workspacePath: string, id: number):
   try {
     return await readFile(resolveInWorkspace(workspacePath, row.file), 'utf8')
   } catch {
-    // Deleted or moved outside Solo — say so rather than showing a blank editor
+    // Deleted or moved outside SoloWrk — say so rather than showing a blank editor
     // that would overwrite nothing with nothing.
     return `> This note's file is missing from disk:\n> ${row.file}\n`
   }

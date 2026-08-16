@@ -66,11 +66,11 @@ export function FirstRun({
     if (!chosen) return
 
     const result = await inspect(chosen)
-    // Dropping Solo's folders into someone's busy Documents folder would be
+    // Dropping SoloWrk's folders into someone's busy Documents folder would be
     // rude, so a non-empty pick gets its own subfolder unless it is already a
     // workspace we can adopt.
     if (!result.hasExistingWorkspace && result.exists && !result.isEmpty) {
-      const nested = joinPath(chosen, 'Solo')
+      const nested = joinPath(chosen, 'SoloWrk')
       setPath(nested)
       await inspect(nested)
     } else {
@@ -188,19 +188,19 @@ function WelcomeStep({
       </div>
 
       <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em] text-ink">
-        {isMissing ? 'Your workspace has moved' : 'Welcome to Solo'}
+        {isMissing ? 'Your workspace has moved' : 'Welcome to SoloWrk'}
       </h1>
 
       <p className="mt-3 text-[14px] leading-relaxed text-muted">
         {isMissing ? (
           <>
-            Solo expected to find your workspace at{' '}
-            <span className="text-ink">{status.path}</span>, but it is not there. Point Solo at
+            SoloWrk expected to find your workspace at{' '}
+            <span className="text-ink">{status.path}</span>, but it is not there. Point SoloWrk at
             where it went, or start a new one.
           </>
         ) : (
           <>
-            Solo runs your freelance business from this PC. Projects, clients, time, invoices and
+            SoloWrk runs your freelance business from this PC. Projects, clients, time, invoices and
             documents all live in a folder you choose and control — no cloud account, no sync, no
             subscription holding your files.
           </>
@@ -243,10 +243,10 @@ function WorkspaceStep({
   return (
     <div>
       <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-ink">
-        Where should Solo keep your files?
+        Where should SoloWrk keep your files?
       </h1>
       <p className="mt-2 text-[13px] leading-relaxed text-muted">
-        Everything Solo stores goes here — including the database. Back this folder up, or point
+        Everything SoloWrk stores goes here — including the database. Back this folder up, or point
         your own cloud drive at it, and your whole business travels with it.
       </p>
 
@@ -271,15 +271,15 @@ function WorkspaceStep({
           >
             {blocked ? (
               <Notice tone="danger" icon={TriangleAlert}>
-                Solo cannot write to that folder. Choose another one.
+                SoloWrk cannot write to that folder. Choose another one.
               </Notice>
             ) : existing ? (
               <Notice tone="info" icon={Info}>
-                A Solo workspace already exists here. You can open it instead of creating a new one.
+                A SoloWrk workspace already exists here. You can open it instead of creating a new one.
               </Notice>
             ) : inspection?.exists ? (
               <Notice tone="muted" icon={Info}>
-                This folder exists and is empty. Solo will create its folders inside it.
+                This folder exists and is empty. SoloWrk will create its folders inside it.
               </Notice>
             ) : (
               <Notice tone="muted" icon={Info}>

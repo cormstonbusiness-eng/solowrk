@@ -56,7 +56,8 @@ export function TitleBar(): React.JSX.Element {
     >
       <div className="flex items-center gap-2 pl-3">
         <div className="h-3 w-3 rounded-[3px] bg-accent" aria-hidden />
-        <span className="text-[11px] font-medium tracking-[0.08em] text-muted uppercase">Solo</span>
+        {/* Not uppercased: the capital W is the whole point of the wordmark. */}
+        <span className="text-[11px] font-medium tracking-[0.06em] text-muted">SoloWrk</span>
       </div>
 
       {/* Centred so it reads as a status, not another control. */}

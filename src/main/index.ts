@@ -63,7 +63,9 @@ function createWindow(): BrowserWindow {
 }
 
 void app.whenReady().then(() => {
-  electronApp.setAppUserModelId('com.solo.app')
+  // Must match `appId` in electron-builder.yml, or Windows treats the pinned
+  // taskbar entry and the notifications as belonging to different apps.
+  electronApp.setAppUserModelId('com.solowrk.app')
 
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)

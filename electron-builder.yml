@@ -1,5 +1,5 @@
-appId: com.solo.app
-productName: Solo
+appId: com.solowrk.app
+productName: SoloWrk
 copyright: Copyright © 2026
 
 directories:
@@ -10,7 +10,7 @@ files:
   - out/**/*
   - package.json
 
-# Solo stores everything in the user's chosen workspace folder, so nothing
+# SoloWrk stores everything in the user's chosen workspace folder, so nothing
 # user-facing is bundled here — the installer only carries the app itself.
 asar: true
 
@@ -26,4 +26,4 @@ nsis:
   perMachine: false
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: Solo
+  shortcutName: SoloWrk

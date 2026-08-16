@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 /* ------------------------------------------------------------------------
-   Solo design tokens.
+   SoloWrk design tokens.
 
    One accent hue, used only for primary actions, active navigation and focus
    rings. Everything else is a neutral step. If a new colour is needed, add a

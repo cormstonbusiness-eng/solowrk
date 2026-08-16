@@ -179,7 +179,7 @@ async function renameClientFolder(
 }
 
 /**
- * Remove the client from Solo. Files are deliberately left on disk — deleting
+ * Remove the client from SoloWrk. Files are deliberately left on disk — deleting
  * a record should never destroy a client's work.
  */
 export function deleteClient(db: Database, id: number): void {

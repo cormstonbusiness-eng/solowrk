@@ -105,7 +105,7 @@ type Handlers = {
 
 const handlers: Handlers = {
   'app:info': () => ({
-    name: 'Solo',
+    name: 'SoloWrk',
     version: app.getVersion(),
     electron: process.versions.electron,
     chrome: process.versions.chrome,
@@ -135,7 +135,7 @@ const handlers: Handlers = {
   'workspace:browse': async (getWindow, { startIn }) => {
     const window = getWindow()
     const options: OpenDialogOptions = {
-      title: 'Choose a folder for your Solo workspace',
+      title: 'Choose a folder for your SoloWrk workspace',
       defaultPath: startIn ?? suggestedWorkspacePath(),
       buttonLabel: 'Use this folder',
       properties: ['openDirectory', 'createDirectory']
@@ -368,7 +368,7 @@ const handlers: Handlers = {
 }
 
 /**
- * A chase email the user can read, edit and send themselves. Solo drafts it
+ * A chase email the user can read, edit and send themselves. SoloWrk drafts it
  * rather than sending it: an automated email to a client, in the user's name,
  * is not a decision to take on their behalf.
  */

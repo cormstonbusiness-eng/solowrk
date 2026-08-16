@@ -80,7 +80,7 @@ export interface FolderInspection {
   path: string
   exists: boolean
   isEmpty: boolean
-  /** True when this folder already holds a Solo workspace we can adopt. */
+  /** True when this folder already holds a SoloWrk workspace we can adopt. */
   hasExistingWorkspace: boolean
   writable: boolean
 }

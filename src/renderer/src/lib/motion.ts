@@ -1,7 +1,7 @@
 import type { Transition, Variants } from 'motion/react'
 
 /**
- * Every animation in Solo pulls from this file. Components should not invent
+ * Every animation in SoloWrk pulls from this file. Components should not invent
  * their own durations or easing curves — if something needs a new one, add it
  * here so the whole app keeps a single sense of timing.
  *

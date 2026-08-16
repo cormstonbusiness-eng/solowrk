@@ -150,7 +150,7 @@ export function Documents(): React.JSX.Element {
           body={
             search || category
               ? 'Try a different search or category.'
-              : 'Add your insurance, contracts and certificates. Give them an expiry date and Solo will warn you before they lapse.'
+              : 'Add your insurance, contracts and certificates. Give them an expiry date and SoloWrk will warn you before they lapse.'
           }
           action={
             !search && !category ? (

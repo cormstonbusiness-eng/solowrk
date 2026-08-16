@@ -12,7 +12,7 @@ import { resolveInWorkspace } from './workspace'
  * for both the screen and the file, and gets real text layout, web fonts and
  * page breaks for free.
  *
- * The document is printed light-on-white: this is the one thing Solo produces
+ * The document is printed light-on-white: this is the one thing SoloWrk produces
  * that leaves the app, and a dark invoice would be unreadable and cost the
  * client a cartridge.
  */

@@ -74,7 +74,7 @@ class Session {
   /** Adopt an existing workspace folder — used when re-pointing after a move. */
   async adopt(path: string): Promise<WorkspaceStatus> {
     if (!(await isWorkspace(path))) {
-      throw new Error('That folder does not contain a Solo workspace')
+      throw new Error('That folder does not contain a SoloWrk workspace')
     }
     await this.open(path)
     return { state: 'ready', path }

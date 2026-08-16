@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 
 /**
  * Notes are plain `.md` files in the project's `_notes` folder. The editor is a
- * textarea by design: the file has to stay readable and editable outside Solo,
+ * textarea by design: the file has to stay readable and editable outside SoloWrk,
  * so a rich editor that wrote its own markup would defeat the point.
  */
 export function ProjectNotes({ projectId }: { projectId: number }): React.JSX.Element {

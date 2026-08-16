@@ -148,7 +148,7 @@ export const migrations: Migration[] = [
         id         INTEGER PRIMARY KEY AUTOINCREMENT,
         project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
         title      TEXT    NOT NULL,
-        -- The note's body lives in this .md file, readable outside Solo.
+        -- The note's body lives in this .md file, readable outside SoloWrk.
         file       TEXT    NOT NULL,
         created_at TEXT    NOT NULL,
         updated_at TEXT    NOT NULL

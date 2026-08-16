@@ -1,4 +1,4 @@
-# Solo
+# SoloWrk
 
 Freelance project and business management for Windows, running entirely on your own PC. Projects,
 tasks, clients, time, quotes, invoices, finance, documents and a calendar — with your files in a
@@ -87,4 +87,9 @@ Claude assistant, and calendar sync. Sections not yet built say which phase buil
   it back in UTC can shift a payment across the 6 April tax-year boundary.
 - **`Database.transaction` is re-entrant** (SAVEPOINT when nested), because services compose and
   SQLite has no nested `BEGIN`.
+- **The product is SoloWrk; the internals are still `solo`.** `solo.db`, `solo.config.json` and
+  `window.solo` keep the old spelling deliberately — renaming them would orphan every workspace
+  and pointer file already on disk. Rename the *display* name freely; leave those three alone.
+  `readConfig()` falls back to the pre-rename `%APPDATA%\solo` pointer for the same reason.
+- **`setAppUserModelId` in `src/main/index.ts` must match `appId`** in `electron-builder.yml`.
 - **Invoice `overdue` is derived, never stored** — see `displayStatus()` in `services/invoices.ts`.

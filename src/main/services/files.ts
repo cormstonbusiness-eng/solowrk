@@ -14,7 +14,7 @@ import { APP_DIR, resolveInWorkspace } from './workspace'
  * and the same guard will contain the AI's file tools in phase 7.
  */
 
-/** Folders Solo owns and the browser should not offer to edit. */
+/** Folders SoloWrk owns and the browser should not offer to edit. */
 const HIDDEN = new Set([APP_DIR.toLowerCase()])
 
 export async function listDirectory(

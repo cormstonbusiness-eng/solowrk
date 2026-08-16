@@ -422,7 +422,7 @@ export function ProjectDetail(): React.JSX.Element {
             <CardHeader title="Danger zone" />
             <div className="flex items-center justify-between gap-4">
               <p className="text-[12px] text-muted">
-                Removes the project and its tasks from Solo. Files stay on disk.
+                Removes the project and its tasks from SoloWrk. Files stay on disk.
               </p>
               <Button variant="danger" onClick={() => setConfirmDelete(true)}>
                 <Trash2 size={14} strokeWidth={1.75} />
@@ -475,7 +475,7 @@ export function ProjectDetail(): React.JSX.Element {
         onClose={() => setConfirmDelete(false)}
         onConfirm={() => remove.mutate()}
         title={`Delete ${project.name}?`}
-        body="The project, its tasks and its notes are removed from Solo. The folder and every file inside it stays on disk."
+        body="The project, its tasks and its notes are removed from SoloWrk. The folder and every file inside it stays on disk."
       />
     </Page>
   )
