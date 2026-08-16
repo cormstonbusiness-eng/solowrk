@@ -101,13 +101,47 @@ try {
   // Tests and typecheck first. Publishing a broken build is worse than not
   // publishing, because the updater will hand it to you automatically.
   run('npm', ['test'])
+
+  /**
+   * Create the draft release before building.
+   *
+   * electron-builder uploads assets in parallel, and each upload independently
+   * finds-or-creates the release it belongs to. With no release to find, two of
+   * them create one, and the assets end up split across a pair of releases
+   * sharing a tag — the installer and the feed on one, the blockmap orphaned on
+   * the other. That is reproducible, not a race you get away with.
+   *
+   * Creating it up front means every upload finds the same release.
+   */
+  run('gh', [
+    'release',
+    'create',
+    `v${next}`,
+    '--repo',
+    RELEASES_REPO,
+    '--draft',
+    '--title',
+    `${next}`,
+    '--notes',
+    `SoloWrk ${next}`
+  ])
+
   run('npx', ['electron-builder', '--win', '--publish', 'always'])
 } catch {
   // Put the version back so a failed release does not leave the number
   // advanced with nothing published against it.
   manifest.version = `${major}.${minor}.${patch}`
   writeFileSync(packagePath, `${JSON.stringify(manifest, null, 2)}\n`)
-  fail('Release failed. The version has been put back.')
+
+  // And take the draft with it, so a retry starts from nothing rather than
+  // finding a half-filled release from the attempt before.
+  try {
+    run('gh', ['release', 'delete', `v${next}`, '--repo', RELEASES_REPO, '--yes', '--cleanup-tag'])
+  } catch {
+    // It may never have been created. Nothing to tidy.
+  }
+
+  fail('Release failed. The version has been put back and the draft removed.')
 }
 
 /* -------------------------------------------------------------- publish */
