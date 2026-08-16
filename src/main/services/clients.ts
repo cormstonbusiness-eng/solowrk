@@ -20,6 +20,7 @@ interface ClientRow extends Row {
   notes: string
   colour: string
   folder: string
+  active: number
   archived: number
   created_at: string
   updated_at: string
@@ -39,6 +40,7 @@ function toClient(row: ClientRow): Client {
     notes: row.notes,
     colour: row.colour,
     folder: row.folder,
+    active: row.active === 1,
     archived: row.archived === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at

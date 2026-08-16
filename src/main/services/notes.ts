@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Database, Row } from '../db'
-import type { Note } from '@shared/types'
+import type { Note, NoteWithContext } from '@shared/types'
 import { uniqueFolderName } from './naming'
 import { resolveInWorkspace } from './workspace'
 import { getProject } from './projects'
@@ -14,9 +14,10 @@ import { getProject } from './projects'
 
 interface NoteRow extends Row {
   id: number
-  project_id: number
+  project_id: number | null
   title: string
   file: string
+  pinned: number
   created_at: string
   updated_at: string
 }
@@ -27,10 +28,14 @@ function toNote(row: NoteRow): Note {
     projectId: row.project_id,
     title: row.title,
     file: row.file,
+    pinned: row.pinned === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
 }
+
+/** Where standalone notes live — a notebook that belongs to no project. */
+export const NOTES_ROOT = 'Notes'
 
 export function listNotes(db: Database, projectId: number): Note[] {
   return db
@@ -38,17 +43,59 @@ export function listNotes(db: Database, projectId: number): Note[] {
     .map(toNote)
 }
 
+/**
+ * The standalone notebook: every note not attached to a project.
+ *
+ * Pinned first, then most recently edited — a notebook is used by reaching for
+ * what you were last writing, not by scrolling an alphabetical list.
+ */
+export function listStandaloneNotes(db: Database, search?: string): NoteWithContext[] {
+  const conditions = ['project_id IS NULL']
+  const params: string[] = []
+
+  if (search) {
+    conditions.push('title LIKE ?')
+    params.push(`%${search}%`)
+  }
+
+  return db
+    .all<NoteRow>(
+      `SELECT * FROM notes WHERE ${conditions.join(' AND ')}
+        ORDER BY pinned DESC, updated_at DESC`,
+      params
+    )
+    .map((row) => ({ ...toNote(row), projectName: null }))
+}
+
+/** Every note in the workspace, project and standalone, for search. */
+export function listAllNotes(db: Database, search?: string): NoteWithContext[] {
+  const where = search ? 'WHERE n.title LIKE ?' : ''
+  const params = search ? [`%${search}%`] : []
+
+  return db
+    .all<NoteRow & { project_name: string | null }>(
+      `SELECT n.*, p.name AS project_name
+         FROM notes n LEFT JOIN projects p ON p.id = n.project_id
+         ${where}
+        ORDER BY n.pinned DESC, n.updated_at DESC`,
+      params
+    )
+    .map((row) => ({ ...toNote(row), projectName: row.project_name }))
+}
+
 export async function createNote(
   db: Database,
   workspacePath: string,
-  projectId: number,
+  projectId: number | null,
   title: string
 ): Promise<Note> {
-  const project = getProject(db, projectId)
-  const notesFolder = join(project.folder, '_notes')
+  // A project note lives in that project's `_notes`; a standalone one lives in
+  // the workspace-level Notes folder. Both are real .md files either way.
+  const notesFolder =
+    projectId === null ? NOTES_ROOT : join(getProject(db, projectId).folder, '_notes')
 
   const taken = db
-    .all<Row & { file: string }>('SELECT file FROM notes WHERE project_id = ?', [projectId])
+    .all<Row & { file: string }>('SELECT file FROM notes WHERE project_id IS ?', [projectId])
     .map((r) => r.file.split('\\').pop()?.replace(/\.md$/, '') ?? '')
 
   const file = join(notesFolder, `${uniqueFolderName(title, taken)}.md`)
@@ -66,6 +113,16 @@ export async function createNote(
   const row = db.get<NoteRow>('SELECT * FROM notes WHERE id = last_insert_rowid()')
   if (!row) throw new Error('Note was not created')
   return toNote(row)
+}
+
+export function renameNote(db: Database, id: number, title: string): void {
+  // The file keeps its name: renaming it would break anything that has the
+  // path, and the title is what the app shows anyway.
+  db.run("UPDATE notes SET title = ?, updated_at = datetime('now') WHERE id = ?", [title, id])
+}
+
+export function setNotePinned(db: Database, id: number, pinned: boolean): void {
+  db.run('UPDATE notes SET pinned = ? WHERE id = ?', [pinned ? 1 : 0, id])
 }
 
 export async function readNote(db: Database, workspacePath: string, id: number): Promise<string> {

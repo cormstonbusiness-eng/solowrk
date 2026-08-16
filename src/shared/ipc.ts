@@ -10,6 +10,7 @@
 import type {
   AssistantEvent,
   AssistantStatus,
+  AssistantMode,
   BusinessSettings,
   CalendarEventWithContext,
   Campaign,
@@ -18,7 +19,11 @@ import type {
   ChatMessage,
   ContentPillar,
   Conversation,
+  GoalInput,
+  GoalProgress,
   MarketingSummary,
+  Note,
+  NoteWithContext,
   PermissionAnswer,
   Platform,
   PostFilter,
@@ -46,7 +51,6 @@ import type {
   RunningTimer,
   TimeEntry,
   TimeEntryWithContext,
-  Note,
   Project,
   ProjectInput,
   ProjectSummary,
@@ -93,6 +97,28 @@ export interface IpcContract {
 
   'settings:get': { req: void; res: Settings }
   'settings:update': { req: Partial<BusinessSettings>; res: Settings }
+  /** Copies an image into the workspace and records it as the business logo. */
+  'settings:setLogo': { req: { sourcePath: string }; res: Settings }
+  'settings:clearLogo': { req: void; res: Settings }
+  /** The logo as a data URL — the renderer cannot read the workspace itself. */
+  'settings:logo': { req: void; res: string | null }
+  /** App version, for the footer in Settings. */
+  'app:version': { req: void; res: string }
+
+  'goals:list': { req: { includeArchived?: boolean } | void; res: GoalProgress[] }
+  'goals:create': { req: GoalInput; res: GoalProgress }
+  'goals:update': { req: { id: number; patch: Partial<GoalInput> }; res: GoalProgress }
+  'goals:delete': { req: { id: number }; res: void }
+
+  /** The standalone notebook — notes not attached to a project. */
+  'notes:standalone': { req: { search?: string } | void; res: NoteWithContext[] }
+  'notes:createStandalone': { req: { title: string }; res: Note }
+  'notes:rename': { req: { id: number; title: string }; res: void }
+  'notes:pin': { req: { id: number; pinned: boolean }; res: void }
+
+  /** The markdown business plan folded into every assistant conversation. */
+  'ai:businessPlan': { req: void; res: { content: string; exists: boolean } }
+  'ai:saveBusinessPlan': { req: { content: string }; res: void }
 
   /** Small workspace-scoped UI flags — see app_state in the database. */
   'state:get': { req: { key: string }; res: string | null }
@@ -304,7 +330,7 @@ export interface IpcContract {
   'ai:newConversation': { req: { projectId?: number | null } | void; res: Conversation }
   'ai:deleteConversation': { req: { id: number }; res: void }
   /** Resolves when the turn finishes; progress arrives on the `ai:event` channel. */
-  'ai:send': { req: { conversationId: number; text: string }; res: void }
+  'ai:send': { req: { conversationId: number; text: string; mode?: AssistantMode }; res: void }
   'ai:interrupt': { req: void; res: void }
   /** The user's answer to a confirmation card. */
   'ai:permission': { req: PermissionAnswer; res: void }
@@ -344,6 +370,20 @@ export const IPC_CHANNELS = [
   'workspace:reveal',
   'settings:get',
   'settings:update',
+  'settings:setLogo',
+  'settings:clearLogo',
+  'settings:logo',
+  'app:version',
+  'goals:list',
+  'goals:create',
+  'goals:update',
+  'goals:delete',
+  'notes:standalone',
+  'notes:createStandalone',
+  'notes:rename',
+  'notes:pin',
+  'ai:businessPlan',
+  'ai:saveBusinessPlan',
   'state:get',
   'state:set',
   'clients:list',

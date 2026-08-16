@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { Check, ChevronRight, GripVertical } from 'lucide-react'
+import { Check, ChevronRight, GripVertical, Trash2 } from 'lucide-react'
 import type { TaskWithContext } from '@shared/types'
 import { PRIORITIES } from '@shared/types'
 import { Dot } from '@/components/ui/Empty'
@@ -14,13 +14,14 @@ const dueTone = {
 } as const
 
 /**
- * One task, used by both the list and the board. Colour comes from the
- * category, which is the thing the user actually assigns a colour to.
+ * One task, used by both the list and the board. The left edge carries its
+ * colour: the task's own if it has one, otherwise its category's.
  */
 export function TaskRow({
   task,
   onToggle,
   onOpen,
+  onDelete,
   showProject,
   dragHandle,
   dragging
@@ -28,6 +29,8 @@ export function TaskRow({
   task: TaskWithContext
   onToggle: () => void
   onOpen: () => void
+  /** Omit to hide the hover delete — the board uses drag, not deletion. */
+  onDelete?: () => void
   showProject?: boolean
   dragHandle?: React.ReactNode
   dragging?: boolean
@@ -35,11 +38,15 @@ export function TaskRow({
   const done = task.status === 'done'
   const due = describeDue(task.dueAt)
   const priority = PRIORITIES.find((p) => p.value === task.priority)
+  // The task's own colour wins over its category's — someone who colours one
+  // task red means that task, not everything in its category.
+  const stripe = task.colour || task.categoryColour || ''
 
   return (
     <motion.div
       layout
       transition={transition.layout}
+      style={stripe ? { borderLeftColor: stripe, borderLeftWidth: 2 } : undefined}
       className={cn(
         'group flex items-center gap-2.5 rounded-control border border-transparent bg-raised px-2.5 py-2',
         'transition-colors duration-150 hover:border-line-strong',
@@ -104,6 +111,21 @@ export function TaskRow({
 
         {task.dueAt && !done && (
           <span className={cn('text-[11px]', dueTone[due.tone])}>{due.label}</span>
+        )}
+
+        {onDelete && (
+          <button
+            type="button"
+            aria-label={`Delete ${task.title}`}
+            onClick={(event) => {
+              // The row opens the task; this must not do both.
+              event.stopPropagation()
+              onDelete()
+            }}
+            className="text-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger"
+          >
+            <Trash2 size={13} strokeWidth={1.75} />
+          </button>
         )}
 
         <ChevronRight

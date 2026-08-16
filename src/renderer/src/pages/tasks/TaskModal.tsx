@@ -6,7 +6,7 @@ import type { TaskInput, TaskStatus, TaskWithContext } from '@shared/types'
 import { PRIORITIES, TASK_STATUSES } from '@shared/types'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
-import { Select } from '@/components/ui/Select'
+import { ColourPicker, Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { keys, useInvalidate } from '@/lib/api'
 import { toDateInput } from '@/lib/format'
@@ -149,6 +149,21 @@ export function TaskModal({
               />
             </Field>
           </div>
+
+          <Field label="Colour" hint="Overrides the category's colour for this one task.">
+            <div className="flex items-center gap-3">
+              <ColourPicker value={draft.colour} onChange={(colour) => update('colour', colour)} />
+              {draft.colour && (
+                <button
+                  type="button"
+                  onClick={() => update('colour', '')}
+                  className="text-[11px] text-faint transition-colors hover:text-ink"
+                >
+                  Use the category's
+                </button>
+              )}
+            </div>
+          </Field>
 
           <div className="grid grid-cols-2 gap-3">
             <Field label="Project">

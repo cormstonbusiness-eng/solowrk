@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { ArrowLeft, ArrowRight, FolderOpen, Info, Loader2, TriangleAlert } from 'lucide-react'
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  FolderOpen,
+  Image as ImageIcon,
+  Info,
+  Loader2,
+  TriangleAlert
+} from 'lucide-react'
 import type { FolderInspection, WorkspaceSetup, WorkspaceStatus } from '@shared/types'
 import { DEFAULT_BUSINESS } from '@shared/types'
 import { Button } from '@/components/ui/Button'
@@ -39,6 +48,7 @@ export function FirstRun({
   onReady: (status: WorkspaceStatus) => void
 }): React.JSX.Element {
   const [step, setStep] = useState<Step>('welcome')
+  const [logoPath, setLogoPath] = useState<string | null>(null)
   const [direction, setDirection] = useState(1)
   const [path, setPath] = useState(status.suggestedPath)
   const [inspection, setInspection] = useState<FolderInspection | null>(null)
@@ -91,6 +101,18 @@ export function FirstRun({
     goTo('creating', 1)
     try {
       const result = await window.solo.invoke('workspace:create', { path, business })
+
+      // The logo can only be filed once the workspace and its database exist,
+      // so it is held until here rather than travelling with the setup payload.
+      if (logoPath) {
+        try {
+          await window.solo.invoke('settings:setLogo', { sourcePath: logoPath })
+        } catch {
+          // A logo that will not copy must not sink the whole setup — they can
+          // add it again from Settings in two clicks.
+        }
+      }
+
       // Let the success state land before the app swaps in behind it.
       await new Promise((resolve) => setTimeout(resolve, 700))
       onReady(result)
@@ -146,6 +168,8 @@ export function FirstRun({
 
             {step === 'business' && (
               <BusinessStep
+                logoPath={logoPath}
+                onLogo={setLogoPath}
                 business={business}
                 onChange={setBusiness}
                 onBack={() => goTo('workspace', -1)}
@@ -316,11 +340,15 @@ function WorkspaceStep({
 function BusinessStep({
   business,
   onChange,
+  logoPath,
+  onLogo,
   onBack,
   onCreate
 }: {
   business: WorkspaceSetup['business']
   onChange: (business: WorkspaceSetup['business']) => void
+  logoPath: string | null
+  onLogo: (path: string | null) => void
   onBack: () => void
   onCreate: () => void
 }): React.JSX.Element {
@@ -340,6 +368,36 @@ function BusinessStep({
       </p>
 
       <div className="mt-5 flex flex-col gap-3.5">
+        {/* Optional, and first: a logo is the one thing that makes the app feel
+            like yours rather than a demo, and it takes one click. */}
+        <div className="flex items-center gap-3 rounded-card border border-line bg-surface/40 p-3">
+          <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-control border border-line bg-raised">
+            {logoPath ? (
+              <Check size={16} strokeWidth={2} className="text-success" />
+            ) : (
+              <ImageIcon size={16} strokeWidth={1.5} className="text-faint" />
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[12.5px] text-ink">Your logo</p>
+            <p className="mt-0.5 truncate text-[11px] text-faint">
+              {logoPath
+                ? (logoPath.split(/[\\/]/).pop() ?? logoPath)
+                : 'Optional. Appears on your dashboard.'}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              const [file] = await window.solo.invoke('files:pick', { multiple: false })
+              if (file) onLogo(file)
+            }}
+          >
+            {logoPath ? 'Change' : 'Choose'}
+          </Button>
+        </div>
+
         <Field label="Trading name">
           <TextInput
             autoFocus

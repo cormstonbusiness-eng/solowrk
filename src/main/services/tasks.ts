@@ -11,6 +11,7 @@ interface TaskRow extends Row {
   status: string
   priority: number
   due_at: string | null
+  colour: string
   sort_order: number
   completed_at: string | null
   created_at: string
@@ -37,6 +38,7 @@ function toTask(row: TaskRow): Task {
     status: row.status as TaskStatus,
     priority: row.priority,
     dueAt: row.due_at,
+    colour: row.colour,
     sortOrder: row.sort_order,
     completedAt: row.completed_at,
     createdAt: row.created_at,
@@ -144,8 +146,8 @@ export function createTask(db: Database, input: TaskInput): TaskWithContext {
 
   db.run(
     `INSERT INTO tasks (project_id, category_id, parent_id, title, notes, status, priority,
-                        due_at, sort_order, completed_at, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+                        due_at, colour, sort_order, completed_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
     [
       projectId,
       input.categoryId ?? null,
@@ -155,6 +157,7 @@ export function createTask(db: Database, input: TaskInput): TaskWithContext {
       status,
       input.priority ?? 1,
       input.dueAt ?? null,
+      input.colour ?? '',
       input.sortOrder ?? nextSortOrder(db, projectId, status),
       status === 'done' ? new Date().toISOString() : null
     ]
@@ -174,6 +177,7 @@ const UPDATABLE: Record<string, string> = {
   status: 'status',
   priority: 'priority',
   dueAt: 'due_at',
+  colour: 'colour',
   sortOrder: 'sort_order'
 }
 

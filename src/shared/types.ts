@@ -46,6 +46,9 @@ export interface BusinessSettings {
   nextInvoiceNumber: number
   quotePrefix: string
   nextQuoteNumber: number
+
+  /** Workspace-relative path to the business logo, shown on the dashboard. */
+  logoFile: string
 }
 
 export interface Settings extends BusinessSettings {
@@ -108,6 +111,8 @@ export interface Client {
   colour: string
   /** Relative to the workspace root. */
   folder: string
+  /** A live relationship. Distinct from `archived`, which hides the record. */
+  active: boolean
   archived: boolean
   createdAt: string
   updatedAt: string
@@ -180,6 +185,8 @@ export interface Task {
   status: TaskStatus
   priority: number
   dueAt: string | null
+  /** Overrides the category's colour. Empty means "inherit". */
+  colour: string
   sortOrder: number
   completedAt: string | null
   createdAt: string
@@ -197,12 +204,89 @@ export interface TaskWithContext extends Task {
 
 export interface Note {
   id: number
-  projectId: number
+  /** Null for a standalone note in the Notes section. */
+  projectId: number | null
   title: string
   file: string
+  pinned: boolean
   createdAt: string
   updatedAt: string
 }
+
+export interface NoteWithContext extends Note {
+  projectName: string | null
+}
+
+/* ------------------------------------------------------------------ *
+ * Goals
+ * ------------------------------------------------------------------ */
+
+/**
+ * Everything but `custom` is measured from data the app already holds, so a
+ * goal cannot drift from reality by being updated by hand.
+ */
+export type GoalKind = 'revenue' | 'profit' | 'clients' | 'projects' | 'hours' | 'posts' | 'custom'
+
+export type GoalPeriod = 'month' | 'quarter' | 'year' | 'once'
+
+export type GoalStatus = 'active' | 'achieved' | 'missed' | 'archived'
+
+export const GOAL_KINDS: {
+  value: GoalKind
+  label: string
+  hint: string
+  money: boolean
+}[] = [
+  { value: 'revenue', label: 'Revenue', hint: 'Invoices paid in the period', money: true },
+  { value: 'profit', label: 'Profit', hint: 'Paid income less expenses', money: true },
+  { value: 'clients', label: 'New clients', hint: 'Clients added in the period', money: false },
+  { value: 'projects', label: 'Projects finished', hint: 'Marked completed', money: false },
+  { value: 'hours', label: 'Hours tracked', hint: 'From your timer', money: false },
+  { value: 'posts', label: 'Posts published', hint: 'From Marketing', money: false },
+  { value: 'custom', label: 'Something else', hint: 'You update the number', money: false }
+]
+
+export const GOAL_PERIODS: { value: GoalPeriod; label: string }[] = [
+  { value: 'month', label: 'Every month' },
+  { value: 'quarter', label: 'Every quarter' },
+  { value: 'year', label: 'This tax year' },
+  { value: 'once', label: 'One-off, by a date' }
+]
+
+export interface Goal {
+  id: number
+  name: string
+  description: string
+  kind: GoalKind
+  /** Integer pence for revenue and profit; a plain count otherwise. */
+  target: number
+  /** Only meaningful for `custom` goals. */
+  manual: number
+  period: GoalPeriod
+  startsOn: string | null
+  endsOn: string | null
+  colour: string
+  status: GoalStatus
+  createdAt: string
+  updatedAt: string
+}
+
+export interface GoalProgress extends Goal {
+  /** Measured from real data, except for `custom` where it is `manual`. */
+  current: number
+  /** Basis points of the target, capped at 10000 for the bar. */
+  share: BasisPoints
+  range: { from: string; to: string }
+  /** Days left in the period, or null for a goal with no end. */
+  daysLeft: number | null
+  /**
+   * Where you would land at the current rate. Null before there is enough of
+   * the period elapsed to extrapolate honestly.
+   */
+  projected: number | null
+}
+
+export type GoalInput = Partial<Omit<Goal, 'id' | 'createdAt' | 'updatedAt'>> & { name: string }
 
 /** What a template recreates when a project is made from it. */
 export interface TemplatePayload {
@@ -757,6 +841,24 @@ export interface ChatMessage {
   toolResult: string | null
   createdAt: string
 }
+
+/**
+ * A lens for the assistant. Modes do not restrict what it can reach — they set
+ * what it leads with, so "what should I do today" gets a different answer in
+ * Finance than in Marketing.
+ */
+export type AssistantMode = 'general' | 'marketing' | 'projects' | 'finance'
+
+export const ASSISTANT_MODES: {
+  value: AssistantMode
+  label: string
+  hint: string
+}[] = [
+  { value: 'general', label: 'General', hint: 'Anything across the whole business' },
+  { value: 'marketing', label: 'Marketing', hint: 'Content plans, campaigns, posts' },
+  { value: 'projects', label: 'Project planning', hint: 'Scoping, tasks, deadlines' },
+  { value: 'finance', label: 'Finance', hint: 'Cashflow, invoices, tax set-aside' }
+]
 
 /** Whether the assistant can run at all, and why not when it cannot. */
 export interface AssistantStatus {

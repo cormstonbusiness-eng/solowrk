@@ -3,10 +3,12 @@ import { query, type PermissionResult, type Query, type SDKMessage } from '@anth
 import type { BrowserWindow } from 'electron'
 import type {
   AssistantEvent,
+  AssistantMode,
   AssistantStatus,
   PermissionAnswer,
   PermissionRequest
 } from '@shared/types'
+import { readBusinessPlan } from './businessPlan'
 import { session } from '../services/session'
 import { getSettings } from '../services/settings'
 import {
@@ -112,7 +114,12 @@ class Assistant {
     this.pending.get(answer.id)?.(answer)
   }
 
-  async send(getWindow: WindowGetter, conversationId: number, text: string): Promise<void> {
+  async send(
+    getWindow: WindowGetter,
+    conversationId: number,
+    text: string,
+    mode: AssistantMode = 'general'
+  ): Promise<void> {
     if (this.active) throw new Error('The assistant is still working on the previous message')
 
     const db = session.requireDb()
@@ -124,13 +131,20 @@ class Assistant {
 
     this.abort = new AbortController()
 
+    // Read fresh each turn rather than caching: the user may well have just
+    // edited the plan and expects the next answer to reflect it.
+    const businessPlan = (await readBusinessPlan(session.requirePath())) ?? undefined
+
     try {
       const stream = query({
         prompt: text,
         options: {
           abortController: this.abort,
           cwd: session.requirePath(),
-          systemPrompt: systemPrompt(getSettings(db), session.requirePath()),
+          systemPrompt: systemPrompt(getSettings(db), session.requirePath(), {
+            mode,
+            businessPlan
+          }),
           mcpServers: { solowrk: soloTools },
           allowedTools: ALLOWED_BUILTINS,
           // The workspace is the boundary. Without this the model could read

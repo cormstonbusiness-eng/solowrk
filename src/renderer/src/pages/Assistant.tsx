@@ -9,9 +9,11 @@ import {
   Trash2,
   TriangleAlert
 } from 'lucide-react'
-import type { ChatMessage, PermissionRequest } from '@shared/types'
+import type { AssistantMode, ChatMessage, PermissionRequest } from '@shared/types'
+import { ASSISTANT_MODES } from '@shared/types'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
+import { Select } from '@/components/ui/Select'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { ToolCall } from './assistant/ToolCall'
@@ -32,6 +34,7 @@ export function Assistant(): React.JSX.Element {
   const [streaming, setStreaming] = useState('')
   const [working, setWorking] = useState(false)
   const [permission, setPermission] = useState<PermissionRequest | null>(null)
+  const [mode, setMode] = useState<AssistantMode>('general')
   const bottom = useRef<HTMLDivElement>(null)
 
   const { data: status } = useQuery({
@@ -134,7 +137,7 @@ export function Assistant(): React.JSX.Element {
     setStreaming('')
 
     try {
-      await window.solo.invoke('ai:send', { conversationId: id, text: trimmed })
+      await window.solo.invoke('ai:send', { conversationId: id, text: trimmed, mode })
     } catch {
       // The turn's own error message is stored and streamed back by main; a
       // rejection here just means the call did not complete.
@@ -162,10 +165,23 @@ export function Assistant(): React.JSX.Element {
       description="Claude, with real access to your workspace."
       className="flex min-h-0 flex-col overflow-y-hidden"
       actions={
-        <Button variant="outline" onClick={() => newChat.mutate()}>
-          <MessageSquarePlus size={14} strokeWidth={1.75} />
-          New chat
-        </Button>
+        <>
+          {/* A lens, not a limit: modes change what it leads with, so "what
+              should I do today" answers differently in Finance than Marketing. */}
+          <Select
+            value={mode}
+            onChange={(value) => setMode((value ?? 'general') as AssistantMode)}
+            className="w-[180px]"
+            options={ASSISTANT_MODES.map((entry) => ({
+              value: entry.value,
+              label: entry.label
+            }))}
+          />
+          <Button variant="outline" onClick={() => newChat.mutate()}>
+            <MessageSquarePlus size={14} strokeWidth={1.75} />
+            New chat
+          </Button>
+        </>
       }
     >
       <div className="flex min-h-0 flex-1 gap-3">
@@ -214,7 +230,8 @@ export function Assistant(): React.JSX.Element {
                   <p className="text-[13px] text-ink">Ask about your own business</p>
                   <p className="mt-1 text-[12px] leading-relaxed text-muted">
                     It can read your projects, time, invoices and files, and make changes once
-                    you approve them.
+                    you approve them.{' '}
+                    {ASSISTANT_MODES.find((entry) => entry.value === mode)?.hint}.
                   </p>
 
                   <div className="mt-4 flex flex-col gap-1.5">

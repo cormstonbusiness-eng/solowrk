@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { Check, Compass, FolderOpen, Loader2 } from 'lucide-react'
+import { Check, Compass, FolderOpen, Image as ImageIcon, Loader2, Upload } from 'lucide-react'
 import type { BusinessSettings, Settings as SettingsType } from '@shared/types'
 import { Page } from '@/components/Page'
 import { Card, CardHeader } from '@/components/ui/Card'
@@ -10,6 +10,15 @@ import { Field, MoneyInput, NumberInput, TextInput, Toggle } from '@/components/
 import { transition } from '@/lib/motion'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useTour } from '@/tour/TourProvider'
+
+type Tab = 'business' | 'money' | 'assistant' | 'app'
+
+const TABS: { value: Tab; label: string }[] = [
+  { value: 'business', label: 'Business' },
+  { value: 'money', label: 'Invoicing & tax' },
+  { value: 'assistant', label: 'Assistant' },
+  { value: 'app', label: 'App' }
+]
 
 /**
  * Settings edits a local draft and saves explicitly. Auto-save would be fine
@@ -25,6 +34,7 @@ export function Settings(): React.JSX.Element {
     queryFn: () => window.solo.invoke('settings:get')
   })
 
+  const [tab, setTab] = useState<Tab>('business')
   const [draft, setDraft] = useState<SettingsType | null>(null)
   useEffect(() => {
     if (settings) setDraft(settings)
@@ -56,7 +66,7 @@ export function Settings(): React.JSX.Element {
   return (
     <Page
       title="Settings"
-      description="Business details, workspace and invoicing."
+      description="Your business, your money, your assistant and the app itself."
       actions={
         <AnimatePresence mode="wait">
           {dirty ? (
@@ -97,7 +107,40 @@ export function Settings(): React.JSX.Element {
         </AnimatePresence>
       }
     >
-      <div className="flex max-w-[760px] flex-col gap-3">
+      <div className="mb-4 flex items-center gap-1 border-b border-line">
+        {TABS.map((entry) => (
+          <button
+            key={entry.value}
+            type="button"
+            onClick={() => setTab(entry.value)}
+            className="relative px-3 py-2 text-[13px]"
+          >
+            <span className={tab === entry.value ? 'text-ink' : 'text-muted hover:text-ink'}>
+              {entry.label}
+            </span>
+            {tab === entry.value && (
+              <motion.span
+                layoutId="settings-tab"
+                transition={transition.layout}
+                className="absolute right-0 -bottom-px left-0 h-[2px] bg-accent"
+              />
+            )}
+          </button>
+        ))}
+      </div>
+
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={tab}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={transition.page}
+          className="flex max-w-[760px] flex-col gap-3"
+        >
+          {tab === 'business' && (
+            <>
+              <LogoCard logoFile={draft.logoFile} />
         <Card>
           <CardHeader title="Business" />
           <div className="flex flex-col gap-3.5">
@@ -129,7 +172,6 @@ export function Settings(): React.JSX.Element {
             </div>
           </div>
         </Card>
-
         <Card>
           <CardHeader title="Address" />
           <div className="flex flex-col gap-3.5">
@@ -161,7 +203,10 @@ export function Settings(): React.JSX.Element {
             </div>
           </div>
         </Card>
+            </>
+          )}
 
+          {tab === 'money' && <>
         <Card>
           <CardHeader title="Invoicing and tax" />
           <div className="flex flex-col gap-3.5">
@@ -242,7 +287,12 @@ export function Settings(): React.JSX.Element {
             </div>
           </div>
         </Card>
+            </>}
 
+          {tab === 'assistant' && <BusinessPlanCard />}
+
+          {tab === 'app' && (
+            <>
         <Card>
           <CardHeader title="Help" />
           <div className="flex items-center justify-between gap-4">
@@ -258,7 +308,6 @@ export function Settings(): React.JSX.Element {
             </Button>
           </div>
         </Card>
-
         <Card>
           <CardHeader title="Workspace" />
           <div className="flex items-center justify-between gap-4">
@@ -279,7 +328,161 @@ export function Settings(): React.JSX.Element {
             </Button>
           </div>
         </Card>
-      </div>
+              <VersionFooter />
+            </>
+          )}
+        </motion.div>
+      </AnimatePresence>
     </Page>
+  )
+}
+/**
+ * The business logo, shown above the greeting on the dashboard.
+ *
+ * Copied into the workspace rather than referenced where it sits, so moving the
+ * original does not leave a hole — the same rule as receipts and documents.
+ */
+function LogoCard({ logoFile }: { logoFile: string }): React.JSX.Element {
+  const queryClient = useQueryClient()
+
+  const { data: logo } = useQuery({
+    queryKey: ['settings', 'logo', logoFile],
+    queryFn: () => window.solo.invoke('settings:logo')
+  })
+
+  const refresh = (updated: SettingsType): void => {
+    queryClient.setQueryData(['settings'], updated)
+    void queryClient.invalidateQueries({ queryKey: ['settings', 'logo'] })
+  }
+
+  const choose = useMutation({
+    mutationFn: async () => {
+      const [file] = await window.solo.invoke('files:pick', { multiple: false })
+      if (!file) return null
+      return window.solo.invoke('settings:setLogo', { sourcePath: file })
+    },
+    onSuccess: (updated) => updated && refresh(updated)
+  })
+
+  const clear = useMutation({
+    mutationFn: () => window.solo.invoke('settings:clearLogo'),
+    onSuccess: refresh
+  })
+
+  return (
+    <Card>
+      <CardHeader title="Logo" />
+      <div className="flex items-center gap-4">
+        <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-card border border-line bg-raised">
+          {logo ? (
+            <img src={logo} alt="Business logo" className="h-full w-full object-contain" />
+          ) : (
+            <ImageIcon size={18} strokeWidth={1.5} className="text-faint" />
+          )}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="text-[13px] text-ink">Your mark, on the dashboard</p>
+          <p className="mt-0.5 text-[11px] text-faint">
+            PNG, JPG, WebP or SVG. Copied into Documents\Business so it travels with your
+            workspace.
+          </p>
+        </div>
+
+        <div className="flex shrink-0 items-center gap-2">
+          {logo && (
+            <Button variant="ghost" onClick={() => clear.mutate()}>
+              Remove
+            </Button>
+          )}
+          <Button variant="outline" onClick={() => choose.mutate()} disabled={choose.isPending}>
+            <Upload size={14} strokeWidth={1.75} />
+            {logo ? 'Replace' : 'Add logo'}
+          </Button>
+        </div>
+      </div>
+    </Card>
+  )
+}
+
+/** How long after you stop typing before the plan is written to disk. */
+const PLAN_SAVE_DELAY_MS = 900
+
+/**
+ * The business plan the assistant reads before every answer.
+ *
+ * A real markdown file at Documents\Business Plan.md, not a settings field, so
+ * it can be edited anywhere and the assistant's own file tools can reach it.
+ */
+function BusinessPlanCard(): React.JSX.Element {
+  const [content, setContent] = useState<string | null>(null)
+  const [saved, setSaved] = useState(true)
+  const timer = useRef<NodeJS.Timeout | null>(null)
+
+  const { data } = useQuery({
+    queryKey: ['ai', 'businessPlan'],
+    queryFn: () => window.solo.invoke('ai:businessPlan')
+  })
+
+  useEffect(() => {
+    if (data && content === null) setContent(data.content)
+  }, [data, content])
+
+  const save = useMutation({
+    mutationFn: (text: string) => window.solo.invoke('ai:saveBusinessPlan', { content: text }),
+    onSuccess: () => setSaved(true)
+  })
+
+  function edit(text: string): void {
+    setContent(text)
+    setSaved(false)
+    if (timer.current) clearTimeout(timer.current)
+    timer.current = setTimeout(() => save.mutate(text), PLAN_SAVE_DELAY_MS)
+  }
+
+  useEffect(() => {
+    return () => {
+      if (timer.current) clearTimeout(timer.current)
+    }
+  }, [])
+
+  return (
+    <Card>
+      <CardHeader
+        title="Business plan"
+        action={
+          <span className="text-[10.5px] text-faint">{saved ? 'Saved' : 'Saving…'}</span>
+        }
+      />
+      <p className="mb-3 text-[12px] leading-relaxed text-muted">
+        The assistant reads this before every answer, so advice is about your business rather
+        than freelancing in general. It is a real file at{' '}
+        <span className="numeric text-faint">Documents\Business Plan.md</span> — edit it here or
+        in any editor.
+      </p>
+
+      <textarea
+        value={content ?? ''}
+        onChange={(event) => edit(event.target.value)}
+        rows={18}
+        spellCheck
+        className="w-full resize-y rounded-control border border-line bg-raised px-3 py-2 font-mono text-[12px] leading-relaxed text-ink focus:border-accent focus:outline-none"
+        placeholder="Loading…"
+      />
+    </Card>
+  )
+}
+
+/** Quiet, and deliberately the last thing on the page. */
+function VersionFooter(): React.JSX.Element {
+  const { data: version } = useQuery({
+    queryKey: ['app', 'version'],
+    queryFn: () => window.solo.invoke('app:version')
+  })
+
+  return (
+    <p className="py-2 text-center text-[11px] text-white/25">
+      SoloWrk v{version ?? '—'}
+    </p>
   )
 }

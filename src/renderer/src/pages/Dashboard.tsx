@@ -84,6 +84,17 @@ export function Dashboard(): React.JSX.Element {
     queryFn: () => window.solo.invoke('marketing:posts', { status: 'needs_attention' })
   })
 
+  const { data: logo } = useQuery({
+    queryKey: ['settings', 'logo'],
+    queryFn: () => window.solo.invoke('settings:logo'),
+    staleTime: 5 * 60_000
+  })
+
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => window.solo.invoke('settings:get')
+  })
+
   const { data: recent = [] } = useQuery({
     queryKey: ['files', 'recent'],
     queryFn: () => window.solo.invoke('files:recent', { limit: 5 }),
@@ -170,6 +181,29 @@ export function Dashboard(): React.JSX.Element {
         day: 'numeric',
         month: 'long'
       })}
+      before={
+        (logo || settings?.businessName) && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={transition.page}
+            className="mb-2.5 flex items-center gap-2.5"
+          >
+            {logo && (
+              <img
+                src={logo}
+                alt=""
+                className="h-7 w-7 rounded-[6px] object-contain"
+              />
+            )}
+            {settings?.businessName && (
+              <span className="text-[12px] tracking-[0.04em] text-muted">
+                {settings.businessName}
+              </span>
+            )}
+          </motion.div>
+        )
+      }
       actions={
         <div data-tour="dashboard-actions" className="flex items-center gap-2">
           <Button variant="secondary" onClick={() => navigate('/time')}>

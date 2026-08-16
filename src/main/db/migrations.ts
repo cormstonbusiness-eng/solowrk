@@ -554,5 +554,70 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_media_post       ON post_media(post_id, sort_order);
       CREATE INDEX idx_metrics_target   ON post_metrics(target_id, captured_at);
     `
+  },
+
+  {
+    id: 9,
+    name: 'goals_notes_personalisation',
+    sql: `
+      -- Per-task colour, overriding the category's. Empty means "inherit".
+      ALTER TABLE tasks ADD COLUMN colour TEXT NOT NULL DEFAULT '';
+
+      -- Business logo, shown on the dashboard and collected in the wizard.
+      -- Workspace-relative, like every other file path we store.
+      ALTER TABLE settings ADD COLUMN logo_file TEXT NOT NULL DEFAULT '';
+
+      -- Whether this is a live client relationship. Distinct from 'archived',
+      -- which is about hiding a record: a dormant client is still someone you
+      -- want in the directory with their phone number.
+      ALTER TABLE clients ADD COLUMN active INTEGER NOT NULL DEFAULT 1
+        CHECK (active IN (0, 1));
+
+      CREATE TABLE goals (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        name        TEXT    NOT NULL,
+        description TEXT    NOT NULL DEFAULT '',
+        kind        TEXT    NOT NULL DEFAULT 'custom'
+                            CHECK (kind IN ('revenue','profit','clients','projects',
+                                            'hours','posts','custom')),
+        -- Revenue and profit targets are integer pence, like all money here.
+        -- Everything else is a plain count.
+        target      INTEGER NOT NULL DEFAULT 0,
+        -- Only used by 'custom' goals; the rest are measured from real data.
+        manual      INTEGER NOT NULL DEFAULT 0,
+        period      TEXT    NOT NULL DEFAULT 'year'
+                            CHECK (period IN ('month','quarter','year','once')),
+        starts_on   TEXT,
+        ends_on     TEXT,
+        colour      TEXT    NOT NULL DEFAULT '#6E56CF',
+        status      TEXT    NOT NULL DEFAULT 'active'
+                            CHECK (status IN ('active','achieved','missed','archived')),
+        created_at  TEXT    NOT NULL,
+        updated_at  TEXT    NOT NULL
+      );
+
+      -- Notes are rebuilt so project_id can be NULL: a standalone notebook was
+      -- not possible while every note had to belong to a project, and SQLite
+      -- cannot drop a NOT NULL constraint in place.
+      CREATE TABLE notes_new (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+        title      TEXT    NOT NULL,
+        -- The note's body lives in this .md file, readable outside SoloWrk.
+        file       TEXT    NOT NULL,
+        pinned     INTEGER NOT NULL DEFAULT 0 CHECK (pinned IN (0, 1)),
+        created_at TEXT    NOT NULL,
+        updated_at TEXT    NOT NULL
+      );
+
+      INSERT INTO notes_new (id, project_id, title, file, created_at, updated_at)
+        SELECT id, project_id, title, file, created_at, updated_at FROM notes;
+
+      DROP TABLE notes;
+      ALTER TABLE notes_new RENAME TO notes;
+
+      CREATE INDEX idx_notes_project ON notes(project_id);
+      CREATE INDEX idx_goals_status  ON goals(status);
+    `
   }
 ]

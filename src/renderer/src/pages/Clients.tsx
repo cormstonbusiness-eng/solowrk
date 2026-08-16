@@ -7,7 +7,7 @@ import type { ClientInput } from '@shared/types'
 import { Page } from '@/components/Page'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Field, MoneyInput, NumberInput, TextInput } from '@/components/ui/Field'
+import { Field, MoneyInput, NumberInput, TextInput, Toggle } from '@/components/ui/Field'
 import { ColourPicker } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Dot, Empty } from '@/components/ui/Empty'
@@ -15,9 +15,11 @@ import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { formatRate } from '@/lib/format'
 import { listItemVariants, listVariants } from '@/lib/motion'
+import { cn } from '@/lib/utils'
 
 const BLANK: ClientInput = {
   name: '',
+  active: true,
   contactName: '',
   email: '',
   phone: '',
@@ -53,7 +55,7 @@ export function Clients(): React.JSX.Element {
   return (
     <Page
       title="Clients"
-      description="Who you work for, and everything filed against them."
+      description="Your contact directory — who you work for, how to reach them, and what they are on."
       actions={
         <Button variant="primary" onClick={() => setEditing({ ...BLANK })}>
           <Plus size={14} strokeWidth={1.75} />
@@ -83,14 +85,40 @@ export function Clients(): React.JSX.Element {
           {clients.map((client) => (
             <motion.div key={client.id} variants={listItemVariants}>
               <Link to={`/clients/${client.id}`}>
-                <Card className="h-full transition-colors duration-150 hover:border-line-strong">
+                <Card
+                  className={cn(
+                    'h-full transition-colors duration-150 hover:border-line-strong',
+                    !client.active && 'opacity-60'
+                  )}
+                >
                   <div className="mb-2 flex items-center gap-2">
                     <Dot colour={client.colour} />
                     <p className="truncate text-[14px] font-medium text-ink">{client.name}</p>
+                    {!client.active && (
+                      <span className="ml-auto shrink-0 rounded-full border border-line px-1.5 py-0.5 text-[10px] text-faint">
+                        Dormant
+                      </span>
+                    )}
                   </div>
-                  {client.contactName && (
-                    <p className="truncate text-[12px] text-muted">{client.contactName}</p>
-                  )}
+
+                  <div className="flex flex-col gap-0.5">
+                    {client.contactName && (
+                      <p className="truncate text-[12px] text-muted">{client.contactName}</p>
+                    )}
+                    {client.email && (
+                      <p className="flex items-center gap-1.5 truncate text-[11.5px] text-faint">
+                        <Mail size={10} strokeWidth={1.75} />
+                        {client.email}
+                      </p>
+                    )}
+                    {client.phone && (
+                      <p className="flex items-center gap-1.5 truncate text-[11.5px] text-faint">
+                        <Phone size={10} strokeWidth={1.75} />
+                        {client.phone}
+                      </p>
+                    )}
+                  </div>
+
                   <p className="mt-3 text-[11px] text-faint">
                     {formatRate(client.defaultRate)} · {client.paymentTermsDays ?? '—'} day terms
                   </p>
@@ -216,6 +244,15 @@ function ClientModal({
                 onChangeValue={(value) => set('paymentTermsDays', value === 0 ? null : value)}
               />
             </Field>
+          </div>
+
+          <div className="border-t border-line pt-3.5">
+            <Toggle
+              checked={draft.active ?? true}
+              onChange={(checked) => set('active', checked)}
+              label="Active client"
+              hint="Dormant clients stay in the directory with their details — they just read as past work."
+            />
           </div>
 
           <Field label="Colour">

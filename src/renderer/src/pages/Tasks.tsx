@@ -14,7 +14,7 @@ import { useDraggable } from '@dnd-kit/core'
 import { AnimatePresence, motion } from 'motion/react'
 import { CircleCheckBig, Columns3, List, Plus, Tag } from 'lucide-react'
 import type { TaskStatus, TaskWithContext } from '@shared/types'
-import { TASK_STATUSES } from '@shared/types'
+import { COLOUR_CHOICES, TASK_STATUSES } from '@shared/types'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
 import { TextInput } from '@/components/ui/Field'
@@ -31,6 +31,75 @@ import { TaskModal } from './tasks/TaskModal'
 
 type View = 'board' | 'list'
 
+/**
+ * A compact colour swatch for the add row. The full picker is eight swatches
+ * wide, which is too much furniture for a row you type in.
+ */
+function ColourDot({
+  value,
+  onChange
+}: {
+  value: string
+  onChange: (colour: string) => void
+}): React.JSX.Element {
+  const [open, setOpen] = useState(false)
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-label="Task colour"
+        title="Task colour"
+        className="grid h-9 w-9 place-items-center rounded-control border border-line bg-raised transition-colors hover:border-line-strong"
+      >
+        <span
+          style={{ backgroundColor: value || 'transparent' }}
+          className={cn(
+            'h-3.5 w-3.5 rounded-full',
+            value === '' && 'border border-dashed border-line-strong'
+          )}
+        />
+      </button>
+
+      {open && (
+        <>
+          <button
+            type="button"
+            aria-hidden
+            tabIndex={-1}
+            onClick={() => setOpen(false)}
+            className="fixed inset-0 z-10 cursor-default"
+          />
+          <div className="absolute top-full right-0 z-20 mt-1 flex w-[132px] flex-wrap gap-1.5 rounded-control border border-line-strong bg-overlay p-2 shadow-xl">
+            <button
+              type="button"
+              onClick={() => {
+                onChange('')
+                setOpen(false)
+              }}
+              title="No colour"
+              className="h-5 w-5 rounded-full border border-dashed border-line-strong"
+            />
+            {COLOUR_CHOICES.map((colour) => (
+              <button
+                key={colour}
+                type="button"
+                onClick={() => {
+                  onChange(colour)
+                  setOpen(false)
+                }}
+                style={{ backgroundColor: colour }}
+                className="h-5 w-5 rounded-full transition-transform hover:scale-110"
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 export function Tasks(): React.JSX.Element {
   const invalidate = useInvalidate()
   const [view, setView] = useState<View>('board')
@@ -41,6 +110,9 @@ export function Tasks(): React.JSX.Element {
   const [managingCategories, setManagingCategories] = useState(false)
   const [dragging, setDragging] = useState<TaskWithContext | null>(null)
   const [newTitle, setNewTitle] = useState('')
+  const [newProjectId, setNewProjectId] = useState<number | null>(null)
+  const [newDueAt, setNewDueAt] = useState('')
+  const [newColour, setNewColour] = useState('')
   const quickAdd = useRef<HTMLInputElement>(null)
 
   useOpenParam('new', () => quickAdd.current?.focus())
@@ -69,12 +141,19 @@ export function Tasks(): React.JSX.Element {
     mutationFn: () =>
       window.solo.invoke('tasks:create', {
         title: newTitle.trim(),
-        projectId: projectFilter,
-        categoryId: categoryFilter
+        // The row's own project wins; the filter is only a fallback, so
+        // filtering to a project and typing still does the obvious thing.
+        projectId: newProjectId ?? projectFilter,
+        categoryId: categoryFilter,
+        dueAt: newDueAt || null,
+        colour: newColour
       }),
     onSuccess: () => {
       invalidate(['tasks'])
+      // Title clears; project, date and colour stay, because adding five tasks
+      // to the same project in a row is the normal case.
       setNewTitle('')
+      quickAdd.current?.focus()
     }
   })
 
@@ -84,6 +163,11 @@ export function Tasks(): React.JSX.Element {
         id: task.id,
         patch: { status: task.status === 'done' ? 'todo' : 'done' }
       }),
+    onSuccess: () => invalidate(['tasks'])
+  })
+
+  const remove = useMutation({
+    mutationFn: (id: number) => window.solo.invoke('tasks:delete', { id }),
     onSuccess: () => invalidate(['tasks'])
   })
 
@@ -149,6 +233,9 @@ export function Tasks(): React.JSX.Element {
         </>
       }
     >
+      {/* Project and due date sit in the add row, not behind a second step:
+          almost every task has both, and going back in to set them afterwards
+          was the single most repeated action in the app. */}
       <div className="mb-2 flex gap-2">
         <TextInput
           ref={quickAdd}
@@ -159,6 +246,21 @@ export function Tasks(): React.JSX.Element {
           }}
           placeholder="Add a task and press Enter"
         />
+        <Select
+          value={newProjectId}
+          onChange={setNewProjectId}
+          placeholder="No project"
+          options={projects.map((p) => ({ value: p.id, label: p.name }))}
+          className="w-[170px] shrink-0"
+        />
+        <TextInput
+          type="date"
+          value={newDueAt}
+          onChange={(e) => setNewDueAt(e.target.value)}
+          title="Due date"
+          className="w-[150px] shrink-0"
+        />
+        <ColourDot value={newColour} onChange={setNewColour} />
         <Button
           variant="primary"
           onClick={() => add.mutate()}
@@ -238,6 +340,7 @@ export function Tasks(): React.JSX.Element {
                 showProject
                 onToggle={() => toggle.mutate(task)}
                 onOpen={() => setOpen(task)}
+                onDelete={() => remove.mutate(task.id)}
               />
             ))}
           </AnimatePresence>

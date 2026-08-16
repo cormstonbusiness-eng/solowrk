@@ -34,6 +34,11 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
     }
   })
 
+  const remove = useMutation({
+    mutationFn: (id: number) => window.solo.invoke('tasks:delete', { id }),
+    onSuccess: () => invalidate(['tasks'])
+  })
+
   const toggle = useMutation({
     mutationFn: (task: TaskWithContext) =>
       window.solo.invoke('tasks:update', {
@@ -82,6 +87,7 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
                 task={task}
                 onToggle={() => toggle.mutate(task)}
                 onOpen={() => setOpen(task)}
+                onDelete={() => remove.mutate(task.id)}
               />
             ))}
           </AnimatePresence>

@@ -98,11 +98,6 @@ export function Calendar(): React.JSX.Element {
       })
   })
 
-  const { data: tasks = [] } = useQuery({
-    queryKey: keys.tasks({ dueAfter: from, dueBefore: to }),
-    queryFn: () => window.solo.invoke('tasks:list', { dueAfter: from, dueBefore: to })
-  })
-
   const { data: projects = [] } = useQuery({
     queryKey: keys.projects(),
     queryFn: () => window.solo.invoke('projects:list', {})
@@ -229,7 +224,6 @@ export function Calendar(): React.JSX.Element {
               month={anchor}
               today={today}
               events={events}
-              tasks={tasks}
               posts={posts}
               onOpenEvent={setEditing}
               onCreateAt={(day) => openNew(day)}
@@ -248,7 +242,6 @@ export function Calendar(): React.JSX.Element {
               days={view === 'day' ? [anchor] : weekDays(anchor)}
               today={today}
               events={events}
-              tasks={tasks}
               posts={posts}
               onOpenEvent={setEditing}
               onCreateSlot={(startsAt, endsAt) =>
@@ -264,8 +257,7 @@ export function Calendar(): React.JSX.Element {
                 days={days}
                 today={today}
                 events={events}
-                tasks={tasks}
-              posts={posts}
+                posts={posts}
                 onOpenEvent={setEditing}
               />
             </div>

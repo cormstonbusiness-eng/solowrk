@@ -29,6 +29,7 @@ interface SettingsRow extends Row {
   next_invoice_number: number
   quote_prefix: string
   next_quote_number: number
+  logo_file: string
   created_at: string
   updated_at: string
 }
@@ -57,6 +58,7 @@ function toSettings(row: SettingsRow): Settings {
     nextInvoiceNumber: row.next_invoice_number,
     quotePrefix: row.quote_prefix,
     nextQuoteNumber: row.next_quote_number,
+    logoFile: row.logo_file,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -87,7 +89,8 @@ const COLUMNS: {
   invoicePrefix: { column: 'invoice_prefix', toDb: String },
   nextInvoiceNumber: { column: 'next_invoice_number', toDb: Number },
   quotePrefix: { column: 'quote_prefix', toDb: String },
-  nextQuoteNumber: { column: 'next_quote_number', toDb: Number }
+  nextQuoteNumber: { column: 'next_quote_number', toDb: Number },
+  logoFile: { column: 'logo_file', toDb: String }
 }
 
 export function getSettings(db: Database): Settings {

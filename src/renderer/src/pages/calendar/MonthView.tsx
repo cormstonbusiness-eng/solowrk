@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import type { CalendarEventWithContext, PostWithContext, TaskWithContext } from '@shared/types'
+import type { CalendarEventWithContext, PostWithContext } from '@shared/types'
 import { dayOf, daysBetween, isSameMonth, monthGrid, occursOn, timeOf } from '@shared/calendar'
 import { cn } from '@/lib/utils'
 import { transition } from '@/lib/motion'
@@ -14,7 +14,6 @@ export function MonthView({
   month,
   today,
   events,
-  tasks,
   posts,
   onOpenEvent,
   onCreateAt,
@@ -24,7 +23,6 @@ export function MonthView({
   month: string
   today: string
   events: CalendarEventWithContext[]
-  tasks: TaskWithContext[]
   posts: PostWithContext[]
   onOpenEvent: (event: CalendarEventWithContext) => void
   onCreateAt: (day: string) => void
@@ -109,7 +107,6 @@ export function MonthView({
       <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6">
         {days.map((day) => {
           const dayEvents = events.filter((event) => occursOn(event, day))
-          const dayTasks = tasks.filter((task) => task.dueAt?.slice(0, 10) === day)
           const dayPosts = posts.filter((post) => post.scheduledAt?.slice(0, 10) === day)
           const outside = !isSameMonth(day, month)
           const isToday = day === today
@@ -165,31 +162,13 @@ export function MonthView({
                   </motion.button>
                 ))}
 
-                {dayTasks.slice(0, 2).map((task) => (
-                  <div
-                    key={`task-${task.id}`}
-                    title={`Task due: ${task.title}`}
-                    className="flex items-center gap-1.5 truncate rounded-[4px] border border-dashed border-line-strong px-1.5 py-[2px] text-[11px] text-muted"
-                  >
-                    <span
-                      style={{ backgroundColor: task.projectColour ?? '#5a5a63' }}
-                      className="h-1.5 w-1.5 shrink-0 rounded-full"
-                    />
-                    <span
-                      className={cn('truncate', task.status === 'done' && 'line-through opacity-60')}
-                    >
-                      {task.title}
-                    </span>
-                  </div>
-                ))}
-
                 {dayPosts.slice(0, 2).map((post) => (
                   <CalendarPostChip key={`post-${post.id}`} post={post} compact />
                 ))}
 
-                {dayEvents.length + dayTasks.length + dayPosts.length > 7 && (
+                {dayEvents.length + dayPosts.length > 5 && (
                   <span className="px-1 text-[10.5px] text-faint">
-                    +{dayEvents.length + dayTasks.length + dayPosts.length - 7} more
+                    +{dayEvents.length + dayPosts.length - 5} more
                   </span>
                 )}
               </div>

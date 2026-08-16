@@ -8,9 +8,11 @@ import {
   FolderOpen,
   LayoutDashboard,
   Megaphone,
+  NotebookPen,
   ReceiptText,
   Settings,
   Sparkles,
+  Target,
   Users,
   type LucideIcon
 } from 'lucide-react'
@@ -35,7 +37,8 @@ export const navGroups: NavGroup[] = [
       { label: 'Projects', path: '/projects', icon: FolderKanban },
       { label: 'Tasks', path: '/tasks', icon: CircleCheckBig },
       { label: 'Time', path: '/time', icon: Clock },
-      { label: 'Calendar', path: '/calendar', icon: CalendarDays }
+      { label: 'Calendar', path: '/calendar', icon: CalendarDays },
+      { label: 'Notes', path: '/notes', icon: NotebookPen }
     ]
   },
   {
@@ -43,6 +46,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { label: 'Clients', path: '/clients', icon: Users },
       { label: 'Marketing', path: '/marketing', icon: Megaphone },
+      { label: 'Goals', path: '/goals', icon: Target },
       { label: 'Invoices', path: '/invoices', icon: ReceiptText },
       { label: 'Finance', path: '/finance', icon: ChartNoAxesCombined }
     ]

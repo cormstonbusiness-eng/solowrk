@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
-import { ArrowLeft, BookMarked, FolderKanban, FolderOpen, Plus, Trash2 } from 'lucide-react'
+import { Archive, ArrowLeft, BookMarked, FolderKanban, FolderOpen, Plus, Trash2 } from 'lucide-react'
 import type { ProjectInput, ProjectStatus } from '@shared/types'
 import { PROJECT_STATUSES } from '@shared/types'
 import { Page } from '@/components/Page'
@@ -11,13 +11,13 @@ import { Button } from '@/components/ui/Button'
 import { Field, MoneyInput, TextInput } from '@/components/ui/Field'
 import { ColourPicker, Select } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
-import { Dot, Empty, Pill } from '@/components/ui/Empty'
+import { Empty, Pill } from '@/components/ui/Empty'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
-import { describeDue, formatDate, formatMoney, toDateInput } from '@/lib/format'
-import { listItemVariants, listVariants } from '@/lib/motion'
+import { formatDate, formatMoney, toDateInput } from '@/lib/format'
 import { TaskList } from './tasks/TaskList'
 import { ProjectNotes } from './ProjectNotes'
+import { ProjectBoard } from './projects/Board'
 
 const BLANK: ProjectInput = {
   name: '',
@@ -37,10 +37,16 @@ function statusMeta(status: ProjectStatus): { label: string; colour: string } {
 
 export function Projects(): React.JSX.Element {
   const invalidate = useInvalidate()
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const clientFilter = searchParams.get('client')
   const [editing, setEditing] = useState<(ProjectInput & { id?: number }) | null>(null)
-  const [statusFilter, setStatusFilter] = useState<ProjectStatus | null>(null)
+
+  const archive = useMutation({
+    mutationFn: (id: number) =>
+      window.solo.invoke('projects:update', { id, patch: { archived: true } }),
+    onSuccess: () => invalidate(['projects'])
+  })
 
   useOpenParam('new', () => setEditing({ ...BLANK }))
 
@@ -64,7 +70,6 @@ export function Projects(): React.JSX.Element {
     }
   })
 
-  const visible = statusFilter ? projects.filter((p) => p.status === statusFilter) : projects
 
   return (
     <Page
@@ -72,13 +77,10 @@ export function Projects(): React.JSX.Element {
       description="Every job, its folder, its tasks and its budget."
       actions={
         <>
-          <Select
-            value={statusFilter}
-            onChange={setStatusFilter}
-            placeholder="All statuses"
-            options={PROJECT_STATUSES.map((s) => ({ value: s.value, label: s.label }))}
-            className="w-[150px]"
-          />
+          <Button variant="ghost" onClick={() => navigate('/projects/archived')}>
+            <Archive size={14} strokeWidth={1.75} />
+            Archived
+          </Button>
           <Button
             variant="primary"
             onClick={() =>
@@ -94,76 +96,24 @@ export function Projects(): React.JSX.Element {
         </>
       }
     >
-      {visible.length === 0 ? (
+      {projects.length === 0 ? (
         <Empty
           icon={FolderKanban}
-          title={projects.length === 0 ? 'No projects yet' : 'Nothing matches that filter'}
-          body={
-            projects.length === 0
-              ? 'A project gets its own folder tree on disk — brief, assets, working files and deliverables — plus its own tasks and notes.'
-              : 'Try a different status.'
-          }
+          title="No projects yet"
+          body="A project gets its own folder tree on disk — brief, assets, working files and deliverables — plus its own tasks and notes."
           action={
-            projects.length === 0 ? (
-              <Button variant="primary" onClick={() => setEditing({ ...BLANK })}>
-                <Plus size={14} strokeWidth={1.75} />
-                Create a project
-              </Button>
-            ) : undefined
+            <Button variant="primary" onClick={() => setEditing({ ...BLANK })}>
+              <Plus size={14} strokeWidth={1.75} />
+              Create a project
+            </Button>
           }
         />
       ) : (
-        <motion.div
-          variants={listVariants}
-          initial="initial"
-          animate="animate"
-          className="flex flex-col gap-2"
-        >
-          {visible.map((project) => {
-            const status = statusMeta(project.status)
-            const due = describeDue(project.dueOn)
-
-            return (
-              <motion.div key={project.id} variants={listItemVariants}>
-                <Link to={`/projects/${project.id}`}>
-                  <Card className="flex items-center justify-between gap-4 py-3 transition-colors duration-150 hover:border-line-strong">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <Dot colour={project.colour} size={9} />
-                      <div className="min-w-0">
-                        <p className="truncate text-[13.5px] font-medium text-ink">
-                          {project.name}
-                        </p>
-                        <p className="truncate text-[11.5px] text-faint">
-                          {project.clientName ?? 'Internal'}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex shrink-0 items-center gap-4">
-                      {project.dueOn && (
-                        <span
-                          className={
-                            due.tone === 'danger'
-                              ? 'text-[11.5px] text-danger'
-                              : due.tone === 'warning'
-                                ? 'text-[11.5px] text-warning'
-                                : 'text-[11.5px] text-faint'
-                          }
-                        >
-                          {due.label}
-                        </span>
-                      )}
-                      <span className="numeric text-[11.5px] text-muted">
-                        {project.openTaskCount}/{project.taskCount}
-                      </span>
-                      <Pill colour={status.colour}>{status.label}</Pill>
-                    </div>
-                  </Card>
-                </Link>
-              </motion.div>
-            )
-          })}
-        </motion.div>
+        <ProjectBoard
+          projects={projects}
+          onMove={(project, status) => save.mutate({ ...project, id: project.id, status })}
+          onArchive={(project) => archive.mutate(project.id)}
+        />
       )}
 
       <ProjectModal

@@ -1,5 +1,6 @@
-import type { Settings } from '@shared/types'
+import type { AssistantMode, Settings } from '@shared/types'
 import { nowStamp } from '@shared/calendar'
+import { planSection } from './businessPlan'
 
 /**
  * The assistant's brief.
@@ -8,7 +9,47 @@ import { nowStamp } from '@shared/calendar'
  * model works better knowing it is inside one freelancer's business records
  * than being told twenty times not to invent numbers.
  */
-export function systemPrompt(settings: Settings, workspacePath: string): string {
+/**
+ * What each mode leads with.
+ *
+ * Deliberately a change of emphasis rather than a change of capability: a mode
+ * that hid tools would make "while you're there, what am I owed?" fail for no
+ * reason the user could see.
+ */
+const MODES: Record<AssistantMode, string> = {
+  general: '',
+  marketing: [
+    '',
+    'The user has put you in **Marketing** mode. Lead with content, campaigns and',
+    'audience. Check `get_marketing_summary` early, look at what they have already',
+    'published before suggesting more, and write in their voice about their real',
+    'work rather than in marketing language. Other topics are still fair game if',
+    'they ask.'
+  ].join('\n'),
+  projects: [
+    '',
+    'The user has put you in **Project planning** mode. Lead with scope, tasks and',
+    'deadlines. Read the project and its existing tasks before proposing anything,',
+    'break work down to things that can actually be finished in a sitting, and be',
+    'straight about what will not fit in the time left. Other topics are still fair',
+    'game if they ask.'
+  ].join('\n'),
+  finance: [
+    '',
+    'The user has put you in **Finance** mode. Lead with cashflow, invoices,',
+    'expenses and tax. Read the real numbers before answering — never estimate from',
+    'the conversation. Money is integer pence internally; say amounts in pounds.',
+    'You are not a substitute for an accountant, and should say so on anything that',
+    'turns on tax law rather than arithmetic. Other topics are still fair game if',
+    'they ask.'
+  ].join('\n')
+}
+
+export function systemPrompt(
+  settings: Settings,
+  workspacePath: string,
+  options: { mode?: AssistantMode; businessPlan?: string } = {}
+): string {
   const business = settings.businessName || 'this freelancer'
 
   return [
@@ -58,6 +99,10 @@ export function systemPrompt(settings: Settings, workspacePath: string): string 
     '',
     'Be brief and concrete. This is their business, not a chat: a straight answer with the',
     'real numbers in it beats a paragraph of preamble. If something is genuinely ambiguous',
-    'ask, but make the ordinary judgement calls yourself.'
-  ].join('\n')
+    'ask, but make the ordinary judgement calls yourself.',
+    MODES[options.mode ?? 'general'],
+    options.businessPlan ? planSection(options.businessPlan) : ''
+  ]
+    .filter((line) => line !== '')
+    .join('\n')
 }

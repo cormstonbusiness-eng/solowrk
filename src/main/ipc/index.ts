@@ -111,6 +111,14 @@ import {
   updatePost
 } from '../services/marketing'
 import { listAccounts } from '../social/accounts'
+import { clearLogo, logoDataUrl, setLogo } from '../services/branding'
+import { createGoal, deleteGoal, listGoals, updateGoal } from '../services/goals'
+import { listStandaloneNotes, renameNote, setNotePinned } from '../services/notes'
+import {
+  BUSINESS_PLAN_TEMPLATE,
+  readBusinessPlan,
+  writeBusinessPlan
+} from '../ai/businessPlan'
 import { today } from '@shared/taxYear'
 import { assistant } from '../ai/assistant'
 import {
@@ -416,6 +424,44 @@ const handlers: Handlers = {
   'events:upcoming': (_g, payload) =>
     upcomingEvents(session.requireDb(), nowStamp(), payload?.limit ?? 5),
 
+  'app:version': () => app.getVersion(),
+
+  'settings:setLogo': async (_g, { sourcePath }) => {
+    await setLogo(session.requireDb(), session.requirePath(), sourcePath)
+    return getSettings(session.requireDb())
+  },
+  'settings:clearLogo': () => {
+    clearLogo(session.requireDb())
+    return getSettings(session.requireDb())
+  },
+  'settings:logo': () => logoDataUrl(session.requireDb(), session.requirePath()),
+
+  'goals:list': (_g, args) => listGoals(session.requireDb(), args?.includeArchived ?? false),
+  'goals:create': (_g, input) => createGoal(session.requireDb(), input),
+  'goals:update': (_g, { id, patch }) => updateGoal(session.requireDb(), id, patch),
+  'goals:delete': (_g, { id }) => {
+    deleteGoal(session.requireDb(), id)
+  },
+
+  'notes:standalone': (_g, args) => listStandaloneNotes(session.requireDb(), args?.search),
+  'notes:createStandalone': (_g, { title }) =>
+    createNote(session.requireDb(), session.requirePath(), null, title),
+  'notes:rename': (_g, { id, title }) => {
+    renameNote(session.requireDb(), id, title)
+  },
+  'notes:pin': (_g, { id, pinned }) => {
+    setNotePinned(session.requireDb(), id, pinned)
+  },
+
+  'ai:businessPlan': async () => {
+    const content = await readBusinessPlan(session.requirePath())
+    // A blank plan hands back the template rather than an empty box: the
+    // hardest part of writing one is knowing what it should contain.
+    return { content: content ?? BUSINESS_PLAN_TEMPLATE, exists: content !== null }
+  },
+  'ai:saveBusinessPlan': (_g, { content }) =>
+    writeBusinessPlan(session.requirePath(), content),
+
   'marketing:campaigns': (_g, args) =>
     listCampaigns(session.requireDb(), args?.includeArchived ?? false),
   'marketing:createCampaign': (_g, input) => createCampaign(session.requireDb(), input),
@@ -471,8 +517,8 @@ const handlers: Handlers = {
   'ai:deleteConversation': (_g, { id }) => {
     deleteConversation(session.requireDb(), id)
   },
-  'ai:send': (getWindow, { conversationId, text }) =>
-    assistant.send(getWindow, conversationId, text),
+  'ai:send': (getWindow, { conversationId, text, mode }) =>
+    assistant.send(getWindow, conversationId, text, mode),
   'ai:interrupt': () => assistant.interrupt(),
   'ai:permission': (_g, answer) => {
     assistant.answerPermission(answer)

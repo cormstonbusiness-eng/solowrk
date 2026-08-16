@@ -11,6 +11,7 @@ import { TourProvider } from '@/tour/TourProvider'
 import { Palette } from '@/palette/Palette'
 import { transition } from '@/lib/motion'
 import {
+  ArchivedProjects,
   Assistant,
   Calendar,
   ClientDetail,
@@ -19,8 +20,10 @@ import {
   Documents,
   Files,
   Finance,
+  Goals,
   Invoices,
   Marketing,
+  Notes,
   ProjectDetail,
   Projects,
   Settings,
@@ -47,6 +50,8 @@ function AnimatedRoutes(): React.JSX.Element {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/projects" element={<Projects />} />
+        {/* Before the :id route so "archived" is not read as a project id. */}
+        <Route path="/projects/archived" element={<ArchivedProjects />} />
         <Route path="/projects/:id" element={<ProjectDetail />} />
         <Route path="/tasks" element={<Tasks />} />
         <Route path="/time" element={<Time />} />
@@ -54,6 +59,8 @@ function AnimatedRoutes(): React.JSX.Element {
         <Route path="/clients" element={<Clients />} />
         <Route path="/clients/:id" element={<ClientDetail />} />
         <Route path="/marketing" element={<Marketing />} />
+        <Route path="/goals" element={<Goals />} />
+        <Route path="/notes" element={<Notes />} />
         <Route path="/invoices" element={<Invoices />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/files" element={<Files />} />

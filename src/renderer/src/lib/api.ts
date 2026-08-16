@@ -23,7 +23,10 @@ export const keys = {
     filter ? (['marketing', 'posts', filter] as const) : (['marketing', 'posts'] as const),
   campaigns: ['marketing', 'campaigns'] as const,
   pillars: ['marketing', 'pillars'] as const,
-  accounts: ['social', 'accounts'] as const
+  accounts: ['social', 'accounts'] as const,
+  goals: ['goals'] as const,
+  standaloneNotes: (search?: string) =>
+    search ? (['notes', 'standalone', search] as const) : (['notes', 'standalone'] as const)
 }
 
 /**
@@ -48,6 +51,7 @@ export type Domain =
   | 'events'
   | 'marketing'
   | 'social'
+  | 'goals'
 
 export function invalidate(queryClient: QueryClient, domains: Domain[]): void {
   for (const domain of domains) {

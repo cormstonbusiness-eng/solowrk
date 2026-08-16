@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
-import { Copy, FileDown, Mail, Plus, ReceiptText, Repeat } from 'lucide-react'
+import { Copy, FileDown, Mail, Plus, ReceiptText, Repeat, Trash2 } from 'lucide-react'
 import type { InvoiceDisplayStatus, InvoiceWithContext, QuoteWithContext } from '@shared/types'
 import { Page } from '@/components/Page'
 import { Card } from '@/components/ui/Card'
@@ -388,6 +388,7 @@ function QuoteList({
 }): React.JSX.Element {
   const invalidate = useInvalidate()
   const [converting, setConverting] = useState<QuoteWithContext | null>(null)
+  const [deleting, setDeleting] = useState<QuoteWithContext | null>(null)
 
   const { data: quotes = [] } = useQuery({
     queryKey: ['quotes'],
@@ -397,6 +398,14 @@ function QuoteList({
   const makePdf = useMutation({
     mutationFn: (id: number) => window.solo.invoke('quotes:pdf', { id }),
     onSuccess: (path) => void window.solo.invoke('files:open', { path })
+  })
+
+  const remove = useMutation({
+    mutationFn: (id: number) => window.solo.invoke('quotes:delete', { id }),
+    onSuccess: () => {
+      invalidate(['quotes'])
+      setDeleting(null)
+    }
   })
 
   const setStatus = useMutation({
@@ -494,6 +503,15 @@ function QuoteList({
                 >
                   <FileDown size={13} strokeWidth={1.75} />
                 </button>
+                <button
+                  type="button"
+                  aria-label={`Delete quote ${quote.number}`}
+                  title="Delete quote"
+                  onClick={() => setDeleting(quote)}
+                  className="rounded-control p-1.5 text-faint hover:bg-hover hover:text-danger"
+                >
+                  <Trash2 size={13} strokeWidth={1.75} />
+                </button>
               </div>
             </Card>
           </motion.div>
@@ -501,6 +519,15 @@ function QuoteList({
       </motion.div>
 
       <ConvertQuoteModal quote={converting} onClose={() => setConverting(null)} />
+
+      <ConfirmModal
+        open={deleting !== null}
+        onClose={() => setDeleting(null)}
+        onConfirm={() => deleting && remove.mutate(deleting.id)}
+        title={`Delete quote ${deleting?.number ?? ''}?`}
+        body="The quote and its lines are removed. Any PDF already exported stays on disk, and a project or invoice converted from it is untouched."
+        confirmLabel="Delete quote"
+      />
     </>
   )
 }

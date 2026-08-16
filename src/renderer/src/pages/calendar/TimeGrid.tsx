@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { CalendarEventWithContext, PostWithContext, TaskWithContext } from '@shared/types'
+import type { CalendarEventWithContext, PostWithContext } from '@shared/types'
 import {
   MINUTES_PER_DAY,
   clamp,
@@ -40,7 +40,6 @@ export function TimeGrid({
   days,
   today,
   events,
-  tasks,
   posts,
   onOpenEvent,
   onCreateSlot,
@@ -49,7 +48,6 @@ export function TimeGrid({
   days: string[]
   today: string
   events: CalendarEventWithContext[]
-  tasks: TaskWithContext[]
   posts: PostWithContext[]
   onOpenEvent: (event: CalendarEventWithContext) => void
   onCreateSlot: (startsAt: string, endsAt: string) => void
@@ -203,7 +201,7 @@ export function TimeGrid({
         })}
       </div>
 
-      {/* All-day strip: whole-day events and task due dates */}
+      {/* All-day strip: whole-day events and scheduled posts */}
       <div className="flex shrink-0 border-b border-line bg-ground/40">
         <div className="flex w-[52px] shrink-0 items-center justify-end border-r border-line pr-2 text-[10px] text-faint">
           All day
@@ -236,25 +234,6 @@ export function TimeGrid({
                 <CalendarPostChip key={`post-${post.id}`} post={post} compact />
               ))}
 
-            {tasks
-              .filter((task) => task.dueAt?.slice(0, 10) === day)
-              .map((task) => (
-                <div
-                  key={`task-${task.id}`}
-                  title={`Task due: ${task.title}`}
-                  className="flex items-center gap-1.5 truncate rounded-[4px] border border-dashed border-line-strong px-1.5 py-[2px] text-[11px] text-muted"
-                >
-                  <span
-                    style={{ backgroundColor: task.projectColour ?? '#5a5a63' }}
-                    className="h-1.5 w-1.5 shrink-0 rounded-full"
-                  />
-                  <span
-                    className={cn('truncate', task.status === 'done' && 'line-through opacity-60')}
-                  >
-                    {task.title}
-                  </span>
-                </div>
-              ))}
           </div>
         ))}
       </div>

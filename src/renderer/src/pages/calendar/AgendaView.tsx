@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import { CalendarDays, MapPin, Video } from 'lucide-react'
-import type { CalendarEventWithContext, PostWithContext, TaskWithContext } from '@shared/types'
+import type { CalendarEventWithContext, PostWithContext } from '@shared/types'
 import { describeSpan, occursOn } from '@shared/calendar'
 import { Empty } from '@/components/ui/Empty'
 import { cn } from '@/lib/utils'
@@ -17,14 +17,12 @@ export function AgendaView({
   days,
   today,
   events,
-  tasks,
   posts,
   onOpenEvent
 }: {
   days: string[]
   today: string
   events: CalendarEventWithContext[]
-  tasks: TaskWithContext[]
   posts: PostWithContext[]
   onOpenEvent: (event: CalendarEventWithContext) => void
 }): React.JSX.Element {
@@ -32,10 +30,9 @@ export function AgendaView({
     .map((day) => ({
       day,
       events: events.filter((event) => occursOn(event, day)),
-      tasks: tasks.filter((task) => task.dueAt?.slice(0, 10) === day),
       posts: posts.filter((post) => post.scheduledAt?.slice(0, 10) === day)
     }))
-    .filter((row) => row.events.length > 0 || row.tasks.length > 0 || row.posts.length > 0)
+    .filter((row) => row.events.length > 0 || row.posts.length > 0)
 
   if (rows.length === 0) {
     return (
@@ -98,26 +95,6 @@ export function AgendaView({
               </motion.div>
             ))}
 
-            {row.tasks.map((task) => (
-              <motion.div
-                key={`task-${task.id}`}
-                variants={listItemVariants}
-                className="flex items-center gap-3 rounded-control border border-dashed border-line px-3 py-2"
-              >
-                <span className="w-[96px] shrink-0 text-[11.5px] text-faint">Due</span>
-                <span
-                  className={cn(
-                    'min-w-0 flex-1 truncate text-[13px] text-muted',
-                    task.status === 'done' && 'line-through opacity-60'
-                  )}
-                >
-                  {task.title}
-                </span>
-                {task.projectName && (
-                  <span className="shrink-0 text-[11px] text-faint">{task.projectName}</span>
-                )}
-              </motion.div>
-            ))}
           </div>
         </div>
       ))}

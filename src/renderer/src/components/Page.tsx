@@ -11,12 +11,15 @@ export function Page({
   title,
   description,
   actions,
+  before,
   children,
   className
 }: {
   title: string
   description?: string
   actions?: React.ReactNode
+  /** Rendered above the title — the dashboard puts the business logo here. */
+  before?: React.ReactNode
   children?: React.ReactNode
   className?: string
 }): React.JSX.Element {
@@ -30,6 +33,7 @@ export function Page({
     >
       <div className="flex shrink-0 items-start justify-between gap-4 px-7 pt-6 pb-4">
         <div>
+          {before}
           <h1 className="text-[19px] leading-tight font-semibold tracking-[-0.01em] text-ink">
             {title}
           </h1>
