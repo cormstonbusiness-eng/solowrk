@@ -1,6 +1,10 @@
+import { appendFileSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { app, type BrowserWindow } from 'electron'
 import electronUpdater from 'electron-updater'
 import type { UpdateState } from '@shared/types'
+import { session } from './session'
+import { push } from './notifications'
 
 /**
  * Keeping the installed app up to date.
@@ -40,6 +44,74 @@ export function updateState(): UpdateState {
 }
 
 /**
+ * A log file for the updater.
+ *
+ * electron-updater says nothing at all unless it is given a logger, which makes
+ * a failed update on someone else's machine impossible to diagnose — you get
+ * "it didn't update" and nothing more. `console.log` is no use here either: a
+ * packaged Windows app has no console attached, so those lines go nowhere.
+ *
+ * So: a file in userData, next to the config, truncated at each launch so it
+ * stays the story of the current session rather than growing forever.
+ */
+function fileLogger(): { info: (m: unknown) => void; warn: (m: unknown) => void; error: (m: unknown) => void; debug: () => void } {
+  const path = join(app.getPath('userData'), 'updates.log')
+
+  try {
+    writeFileSync(path, `SoloWrk ${app.getVersion()} — ${new Date().toISOString()}\n`)
+  } catch {
+    // A read-only userData is possible and is not worth failing over.
+  }
+
+  const write = (level: string, message: unknown): void => {
+    try {
+      appendFileSync(path, `${new Date().toISOString()} ${level} ${String(message)}\n`)
+    } catch {
+      // Logging must never be the thing that breaks updating.
+    }
+  }
+
+  return {
+    info: (message) => write('INFO ', message),
+    warn: (message) => write('WARN ', message),
+    error: (message) => write('ERROR', message),
+    debug: () => {
+      // Too chatty to keep — it logs every HTTP header of a 190 MB download.
+    }
+  }
+}
+
+/**
+ * Tell the user, once, that a version is waiting.
+ *
+ * Goes through the app's own notification system rather than a bespoke banner:
+ * it slides into the corner, survives being missed because it stays in the
+ * list, and sits with everything else that wanted attention. The version is the
+ * dedupe key, so the same update is mentioned once however many times the app
+ * is reopened before it is installed.
+ *
+ * Skipped entirely when no workspace is open — notifications live in the
+ * workspace database, and there is nowhere to put one during first-run setup.
+ * The titlebar still shows the button, so nothing is lost.
+ */
+function announce(version: string): void {
+  if (!session.isOpen) return
+
+  try {
+    push(session.requireDb(), getWindow ?? (() => null), {
+      kind: 'info',
+      title: `SoloWrk ${version} is ready`,
+      body: 'Restart when it suits you and the update applies. Nothing installs on its own.',
+      link: '/settings',
+      dedupeKey: `update-${version}`
+    })
+  } catch {
+    // A notification is a courtesy. Failing to file one must never stop the
+    // update itself from being installable.
+  }
+}
+
+/**
  * Wire up the updater and start checking.
  *
  * Silently does nothing when the app is not packaged. In development the
@@ -54,6 +126,8 @@ export function startUpdates(windowGetter: () => BrowserWindow | null): void {
     publish({ status: 'unsupported' })
     return
   }
+
+  autoUpdater.logger = fileLogger()
 
   // Downloaded ahead of time so "Restart and update" is instant rather than a
   // progress bar you have to sit and watch.
@@ -79,9 +153,10 @@ export function startUpdates(windowGetter: () => BrowserWindow | null): void {
     publish({ status: 'downloading', percent: Math.round(progress.percent) })
   )
 
-  autoUpdater.on('update-downloaded', (info) =>
+  autoUpdater.on('update-downloaded', (info) => {
     publish({ status: 'ready', version: info.version, percent: 100 })
-  )
+    announce(info.version)
+  })
 
   autoUpdater.on('error', (error: Error) => {
     // Being offline is the common case and is not worth alarming anyone about,

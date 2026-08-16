@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { motion } from 'motion/react'
 import { ArrowUpCircle, Copy, Minus, Square, X } from 'lucide-react'
 import type { WindowState } from '@shared/ipc'
 import { Timer } from './Timer'
@@ -6,6 +7,7 @@ import { themeById, type DecorKind } from '@shared/themes'
 import { useTheme } from '@/hooks/useTheme'
 import { useUpdates } from '@/hooks/useUpdates'
 import { Petal, Pumpkin, Snowflake, Sparkle } from '@/components/seasonal/sprites'
+import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
 /**
@@ -62,30 +64,60 @@ function Flourish(): React.JSX.Element | null {
 }
 
 /**
- * Shown only when a new version has finished downloading and is waiting.
+ * Says an update exists, from the moment one is found.
  *
- * Nothing appears while it checks or downloads — those are the app's business,
- * not yours. The one moment worth a word is when a restart is all that is left,
- * and even then it is a button rather than a countdown: nobody should have the
- * app close on them mid-invoice.
+ * Deliberately visible during the download as well as after it. A 190 MB
+ * installer takes minutes, and staying silent for those minutes means the
+ * button appears out of nowhere with no explanation of where it came from.
+ * Announcing the update and then showing it arrive is the honest version.
+ *
+ * Nothing here ever installs on its own — the last step is always a button.
+ * Nobody should have the app close on them mid-invoice.
  */
 function UpdatePrompt(): React.JSX.Element | null {
   const updates = useUpdates()
-  if (updates.status !== 'ready') return null
+
+  const downloading = updates.status === 'downloading'
+  const ready = updates.status === 'ready'
+  if (!downloading && !ready) return null
 
   return (
-    <button
+    <motion.button
       type="button"
-      onClick={updates.install}
-      title={`Version ${updates.version} is downloaded and ready`}
+      initial={{ opacity: 0, y: -4 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={transition.press}
+      onClick={ready ? updates.install : undefined}
+      // Not a button yet while it downloads — pressing it could not do
+      // anything, and a button that ignores you is worse than a label.
+      disabled={!ready}
+      title={
+        ready
+          ? `Version ${updates.version} is downloaded — click to restart and update`
+          : `Downloading version ${updates.version}`
+      }
       className={cn(
-        'no-drag mr-2 flex items-center gap-1.5 rounded-full px-2.5 py-0.5',
-        'bg-accent/15 text-[11px] text-accent transition-colors hover:bg-accent/25'
+        'no-drag mr-2 flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px]',
+        'transition-colors',
+        ready
+          ? 'bg-accent text-accent-ink hover:bg-accent/85'
+          : 'bg-accent/12 text-accent cursor-default'
       )}
     >
-      <ArrowUpCircle size={11} strokeWidth={2} />
-      Restart to update
-    </button>
+      <ArrowUpCircle
+        size={11}
+        strokeWidth={2}
+        className={cn('shrink-0', downloading && 'animate-pulse')}
+      />
+      {ready ? (
+        `Update to ${updates.version} — restart`
+      ) : (
+        <>
+          Update {updates.version} downloading
+          <span className="numeric opacity-70">{updates.percent}%</span>
+        </>
+      )}
+    </motion.button>
   )
 }
 
