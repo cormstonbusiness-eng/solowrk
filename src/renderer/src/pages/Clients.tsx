@@ -12,6 +12,7 @@ import { ColourPicker } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Dot, Empty } from '@/components/ui/Empty'
 import { keys, useInvalidate } from '@/lib/api'
+import { useOpenParam } from '@/hooks/useOpenParam'
 import { formatRate } from '@/lib/format'
 import { listItemVariants, listVariants } from '@/lib/motion'
 
@@ -30,6 +31,8 @@ const BLANK: ClientInput = {
 export function Clients(): React.JSX.Element {
   const invalidate = useInvalidate()
   const [editing, setEditing] = useState<ClientInput & { id?: number } | null>(null)
+
+  useOpenParam('new', () => setEditing({ ...BLANK }))
 
   const { data: clients = [] } = useQuery({
     queryKey: keys.clients,

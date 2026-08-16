@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   DndContext,
@@ -23,6 +23,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Dot, Empty } from '@/components/ui/Empty'
 import { Field } from '@/components/ui/Field'
 import { keys, useInvalidate } from '@/lib/api'
+import { useOpenParam } from '@/hooks/useOpenParam'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { TaskRow } from './tasks/TaskRow'
@@ -39,6 +40,10 @@ export function Tasks(): React.JSX.Element {
   const [open, setOpen] = useState<TaskWithContext | null>(null)
   const [managingCategories, setManagingCategories] = useState(false)
   const [dragging, setDragging] = useState<TaskWithContext | null>(null)
+  const [newTitle, setNewTitle] = useState('')
+  const quickAdd = useRef<HTMLInputElement>(null)
+
+  useOpenParam('new', () => quickAdd.current?.focus())
 
   const { data: tasks = [] } = useQuery({
     queryKey: keys.tasks({ topLevelOnly: true }),
@@ -53,6 +58,24 @@ export function Tasks(): React.JSX.Element {
   const { data: categories = [] } = useQuery({
     queryKey: keys.categories,
     queryFn: () => window.solo.invoke('categories:list')
+  })
+
+  /**
+   * Quick add. It inherits whatever the filters are set to, because if you are
+   * looking at one project's tasks, the task you are about to write is almost
+   * certainly that project's.
+   */
+  const add = useMutation({
+    mutationFn: () =>
+      window.solo.invoke('tasks:create', {
+        title: newTitle.trim(),
+        projectId: projectFilter,
+        categoryId: categoryFilter
+      }),
+    onSuccess: () => {
+      invalidate(['tasks'])
+      setNewTitle('')
+    }
   })
 
   const toggle = useMutation({
@@ -126,6 +149,26 @@ export function Tasks(): React.JSX.Element {
         </>
       }
     >
+      <div className="mb-2 flex gap-2">
+        <TextInput
+          ref={quickAdd}
+          value={newTitle}
+          onChange={(e) => setNewTitle(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && newTitle.trim()) add.mutate()
+          }}
+          placeholder="Add a task and press Enter"
+        />
+        <Button
+          variant="primary"
+          onClick={() => add.mutate()}
+          disabled={!newTitle.trim()}
+          aria-label="Add task"
+        >
+          <Plus size={14} strokeWidth={1.75} />
+        </Button>
+      </div>
+
       <div className="mb-3 flex gap-2">
         <TextInput
           value={search}
@@ -153,7 +196,7 @@ export function Tasks(): React.JSX.Element {
         <Empty
           icon={CircleCheckBig}
           title="No tasks yet"
-          body="Tasks live under a project. Open a project and add the first one, or create a standalone task from a project's task tab."
+          body="Add one above, or open a project and add it there. Set a due date and it appears on your calendar."
         />
       ) : view === 'board' ? (
         <DndContext

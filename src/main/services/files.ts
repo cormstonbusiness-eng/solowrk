@@ -1,3 +1,4 @@
+import type { Dirent } from 'node:fs'
 import { copyFile, mkdir, readdir, rename, stat } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { shell } from 'electron'
@@ -55,6 +56,67 @@ export async function listDirectory(
       if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1
       return a.name.localeCompare(b.name, 'en-GB', { sensitivity: 'base' })
     })
+}
+
+/**
+ * The most recently modified files in the workspace, for the dashboard.
+ *
+ * A bounded walk rather than an index: the workspace is a freelancer's project
+ * tree, not a filesystem, and a depth and visit cap keeps a stray `node_modules`
+ * dropped into a project folder from turning the dashboard into a crawl.
+ */
+export async function recentFiles(
+  workspacePath: string,
+  limit = 6,
+  { maxDepth = 5, maxVisits = 4000 } = {}
+): Promise<FileEntry[]> {
+  const found: FileEntry[] = []
+  let visits = 0
+
+  async function walk(relativePath: string, depth: number): Promise<void> {
+    if (depth > maxDepth || visits > maxVisits) return
+
+    let dirents: Dirent[]
+    try {
+      dirents = await readdir(resolveInWorkspace(workspacePath, relativePath), {
+        withFileTypes: true
+      })
+    } catch {
+      return
+    }
+
+    for (const dirent of dirents) {
+      if (visits++ > maxVisits) return
+      // `_app` holds the database and backups, which change on every launch and
+      // would otherwise be the only thing this ever reported.
+      if (HIDDEN.has(dirent.name.toLowerCase())) continue
+
+      const childRelative = relativePath === '' ? dirent.name : join(relativePath, dirent.name)
+
+      if (dirent.isDirectory()) {
+        await walk(childRelative, depth + 1)
+        continue
+      }
+
+      try {
+        const info = await stat(resolveInWorkspace(workspacePath, childRelative))
+        found.push({
+          name: dirent.name,
+          path: childRelative,
+          isDirectory: false,
+          size: info.size,
+          modifiedAt: info.mtime.toISOString(),
+          extension: (dirent.name.split('.').pop() ?? '').toLowerCase()
+        })
+      } catch {
+        // Vanished or unreadable — skip it rather than failing the whole walk.
+      }
+    }
+  }
+
+  await walk('', 0)
+
+  return found.sort((a, b) => b.modifiedAt.localeCompare(a.modifiedAt)).slice(0, limit)
 }
 
 export async function createFolder(

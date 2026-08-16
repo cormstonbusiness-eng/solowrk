@@ -65,9 +65,9 @@ to compile and `npm install` works on any machine. Queries are hand-written SQL 
 
 Phases 0 (shell, design system, animated routing), 1 (data layer, first-run wizard, settings),
 2 (clients, projects, tasks, notes, templates), 3 (files, documents), 4 (time, quotes,
-invoices, expenses, finance) and 5 (calendar) are complete. Later phases add the dashboard and
-command palette, the Claude assistant, and calendar sync. Sections not yet built say which
-phase builds them.
+invoices, expenses, finance), 5 (calendar) and 6 (live dashboard, Ctrl+K palette) are complete.
+Later phases add the Claude assistant and calendar sync. Sections not yet built say which phase
+builds them.
 
 ### Gotchas worth knowing
 
@@ -88,6 +88,12 @@ phase builds them.
   it back in UTC can shift a payment across the 6 April tax-year boundary.
 - **`Database.transaction` is re-entrant** (SAVEPOINT when nested), because services compose and
   SQLite has no nested `BEGIN`.
+- **`?new=1` is how one screen asks another to open its create modal.** The palette navigates to
+  `/invoices?new=1`; the page picks it up with `useOpenParam`, which clears the parameter so a
+  reload or a back-navigation cannot reopen it. Add it to any page that grows a create action.
+- **The palette filters in the renderer, not in SQL.** A freelancer's workspace is hundreds of
+  records; an index in main would be machinery with no payoff, and filtering here means results
+  keep up with keystrokes. Revisit only if a list ever gets genuinely large.
 - **Event times are local wall-clock stamps** (`yyyy-mm-ddThh:mm`), not UTC and not `Date`. A
   10:00 meeting stays at 10:00 across the clock change, and a range query is a string
   comparison. Phase 8's Google and Microsoft sync converts at that boundary and nowhere else.

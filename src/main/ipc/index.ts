@@ -39,6 +39,7 @@ import {
   importFiles,
   listDirectory,
   openEntry,
+  recentFiles,
   renameEntry,
   revealEntry,
   trashEntry
@@ -242,6 +243,8 @@ const handlers: Handlers = {
 
     return result.canceled ? [] : result.filePaths
   },
+
+  'files:recent': (_g, args) => recentFiles(session.requirePath(), args?.limit ?? 6),
 
   'documents:list': (_g, args) => listDocuments(session.requireDb(), args ?? {}),
   'documents:add': (_g, input) =>

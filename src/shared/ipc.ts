@@ -143,6 +143,8 @@ export interface IpcContract {
   'files:import': { req: { destination: string; sources: string[] }; res: string[] }
   /** Native picker; returns absolute paths, or an empty array if cancelled. */
   'files:pick': { req: { multiple?: boolean } | void; res: string[] }
+  /** Most recently modified files across the workspace — for the dashboard. */
+  'files:recent': { req: { limit?: number } | void; res: FileEntry[] }
 
   'documents:list': { req: { search?: string; category?: string } | void; res: DocumentRecord[] }
   'documents:add': {
@@ -324,6 +326,7 @@ export const IPC_CHANNELS = [
   'files:reveal',
   'files:import',
   'files:pick',
+  'files:recent',
   'documents:list',
   'documents:add',
   'documents:update',

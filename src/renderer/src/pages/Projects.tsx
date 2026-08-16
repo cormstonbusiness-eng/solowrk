@@ -13,6 +13,7 @@ import { ColourPicker, Select } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Dot, Empty, Pill } from '@/components/ui/Empty'
 import { keys, useInvalidate } from '@/lib/api'
+import { useOpenParam } from '@/hooks/useOpenParam'
 import { describeDue, formatDate, formatMoney, toDateInput } from '@/lib/format'
 import { listItemVariants, listVariants } from '@/lib/motion'
 import { TaskList } from './tasks/TaskList'
@@ -40,6 +41,8 @@ export function Projects(): React.JSX.Element {
   const clientFilter = searchParams.get('client')
   const [editing, setEditing] = useState<(ProjectInput & { id?: number }) | null>(null)
   const [statusFilter, setStatusFilter] = useState<ProjectStatus | null>(null)
+
+  useOpenParam('new', () => setEditing({ ...BLANK }))
 
   const { data: projects = [] } = useQuery({
     queryKey: keys.projects(clientFilter ? Number(clientFilter) : undefined),

@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Empty, Pill } from '@/components/ui/Empty'
 import { useInvalidate } from '@/lib/api'
+import { useOpenParam } from '@/hooks/useOpenParam'
 import { describeDue, formatDate, formatMoney } from '@/lib/format'
 import { listItemVariants, listVariants, transition } from '@/lib/motion'
 import { InvoiceEditor } from './invoices/InvoiceEditor'
@@ -39,6 +40,10 @@ export function Invoices(): React.JSX.Element {
   const [creating, setCreating] = useState(false)
   const [quoteEditing, setQuoteEditing] = useState<QuoteWithContext | null>(null)
   const [quoteCreating, setQuoteCreating] = useState(false)
+
+  // Whichever tab is showing is the thing being asked for, so ?new=1 from the
+  // palette raises an invoice, and the same URL on the quotes tab raises a quote.
+  useOpenParam('new', () => (tab === 'invoices' ? setCreating(true) : setQuoteCreating(true)))
 
   return (
     <Page

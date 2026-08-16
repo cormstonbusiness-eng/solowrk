@@ -8,6 +8,7 @@ import { Sidebar } from '@/components/Sidebar'
 import { FirstRun } from '@/setup/FirstRun'
 import { WorkspaceContext } from '@/hooks/useWorkspace'
 import { TourProvider } from '@/tour/TourProvider'
+import { Palette } from '@/palette/Palette'
 import { transition } from '@/lib/motion'
 import {
   Assistant,
@@ -74,6 +75,8 @@ function Shell(): React.JSX.Element {
             <AnimatedRoutes />
           </main>
         </div>
+        {/* Inside the router too: every command it runs is a navigation. */}
+        <Palette />
       </TourProvider>
     </HashRouter>
   )

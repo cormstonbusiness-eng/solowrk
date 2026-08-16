@@ -24,7 +24,7 @@ export const tourSteps: TourStep[] = [
   {
     id: 'welcome',
     title: 'A quick tour',
-    body: "Six steps and you will know where everything lives. You can skip it now and replay it any time from Settings.",
+    body: 'A minute, and you will know where everything lives. You can skip it now and replay it any time from Settings.',
     route: '/'
   },
   {
@@ -51,7 +51,7 @@ export const tourSteps: TourStep[] = [
   {
     id: 'dashboard-stats',
     title: 'Your HQ',
-    body: 'The dashboard opens on the numbers that matter: invoiced this month, what you are owed, what is overdue, and hours tracked. These figures are samples until the money sections are built.',
+    body: 'The dashboard opens on the numbers that matter: paid this month, what you are owed, what is overdue, and hours tracked. Every card is a link to the page that deals with it.',
     target: 'dashboard-stats',
     route: '/',
     placement: 'bottom'
@@ -59,10 +59,16 @@ export const tourSteps: TourStep[] = [
   {
     id: 'dashboard-actions',
     title: 'Start from anywhere',
-    body: 'The things you do most often sit at the top of the dashboard, so starting a timer or a new project is never more than one click away.',
+    body: 'The things you do most often sit at the top of the dashboard, so tracking time or starting a project is never more than one click away.',
     target: 'dashboard-actions',
     route: '/',
     placement: 'bottom'
+  },
+  {
+    id: 'palette',
+    title: 'Ctrl K finds anything',
+    body: 'One keystroke, from any screen. Search every project, client, task, invoice and document, or type a command — "start timer on Rebrand", "new invoice" — and press Enter.',
+    route: '/'
   },
   {
     id: 'nav-assistant',

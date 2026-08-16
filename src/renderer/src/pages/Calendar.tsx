@@ -8,6 +8,7 @@ import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { keys, useInvalidate } from '@/lib/api'
+import { useOpenParam } from '@/hooks/useOpenParam'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { AgendaView } from './calendar/AgendaView'
@@ -80,6 +81,8 @@ export function Calendar(): React.JSX.Element {
     null
   )
   const [focusId, setFocusId] = useState<number | null>(null)
+
+  useOpenParam('new', () => setCreating({ day: anchor, startTime: '09:00', endTime: '10:00' }))
 
   const days = daysInView(view, anchor)
   const from = days[0] ?? anchor
