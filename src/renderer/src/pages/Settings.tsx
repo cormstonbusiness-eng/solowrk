@@ -1,22 +1,36 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { Check, Compass, FolderOpen, Image as ImageIcon, Loader2, Upload } from 'lucide-react'
+import {
+  Check,
+  Compass,
+  FileText,
+  FolderOpen,
+  Image as ImageIcon,
+  Loader2,
+  TriangleAlert,
+  Upload
+} from 'lucide-react'
 import type { BusinessSettings, Settings as SettingsType } from '@shared/types'
 import { Page } from '@/components/Page'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, MoneyInput, NumberInput, TextInput, Toggle } from '@/components/ui/Field'
+import { THEMES } from '@shared/themes'
+import { useTheme } from '@/hooks/useTheme'
+import { cn } from '@/lib/utils'
+import { formatDate } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useTour } from '@/tour/TourProvider'
 
-type Tab = 'business' | 'money' | 'assistant' | 'app'
+type Tab = 'business' | 'money' | 'assistant' | 'appearance' | 'app'
 
 const TABS: { value: Tab; label: string }[] = [
   { value: 'business', label: 'Business' },
   { value: 'money', label: 'Invoicing & tax' },
   { value: 'assistant', label: 'Assistant' },
+  { value: 'appearance', label: 'Appearance' },
   { value: 'app', label: 'App' }
 ]
 
@@ -291,6 +305,8 @@ export function Settings(): React.JSX.Element {
 
           {tab === 'assistant' && <BusinessPlanCard />}
 
+          {tab === 'appearance' && <ThemeCard />}
+
           {tab === 'app' && (
             <>
         <Card>
@@ -405,70 +421,224 @@ function LogoCard({ logoFile }: { logoFile: string }): React.JSX.Element {
   )
 }
 
-/** How long after you stop typing before the plan is written to disk. */
-const PLAN_SAVE_DELAY_MS = 900
-
 /**
- * The business plan the assistant reads before every answer.
+ * The business plan, attached as the document the user already has.
  *
- * A real markdown file at Documents\Business Plan.md, not a settings field, so
- * it can be edited anywhere and the assistant's own file tools can reach it.
+ * A file rather than a textarea: everyone running a business has some version
+ * of this written down already, and asking them to retype it is asking them not
+ * to bother. The text is pulled out once and cached, and the preview is here so
+ * you can see it read the right thing rather than taking it on trust.
  */
 function BusinessPlanCard(): React.JSX.Element {
-  const [content, setContent] = useState<string | null>(null)
-  const [saved, setSaved] = useState(true)
-  const timer = useRef<NodeJS.Timeout | null>(null)
+  const queryClient = useQueryClient()
+  const [error, setError] = useState<string | null>(null)
 
-  const { data } = useQuery({
+  const { data: plan } = useQuery({
     queryKey: ['ai', 'businessPlan'],
     queryFn: () => window.solo.invoke('ai:businessPlan')
   })
 
-  useEffect(() => {
-    if (data && content === null) setContent(data.content)
-  }, [data, content])
-
-  const save = useMutation({
-    mutationFn: (text: string) => window.solo.invoke('ai:saveBusinessPlan', { content: text }),
-    onSuccess: () => setSaved(true)
+  const attach = useMutation({
+    mutationFn: async () => {
+      const [file] = await window.solo.invoke('files:pick', { multiple: false })
+      if (!file) return null
+      return window.solo.invoke('ai:attachBusinessPlan', { sourcePath: file })
+    },
+    onMutate: () => setError(null),
+    onSuccess: (status) => status && queryClient.setQueryData(['ai', 'businessPlan'], status),
+    onError: (cause: unknown) =>
+      setError(cause instanceof Error ? cause.message : 'Could not read that file')
   })
 
-  function edit(text: string): void {
-    setContent(text)
-    setSaved(false)
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(() => save.mutate(text), PLAN_SAVE_DELAY_MS)
-  }
-
-  useEffect(() => {
-    return () => {
-      if (timer.current) clearTimeout(timer.current)
+  const detach = useMutation({
+    mutationFn: () => window.solo.invoke('ai:detachBusinessPlan'),
+    onSuccess: (status) => {
+      setError(null)
+      queryClient.setQueryData(['ai', 'businessPlan'], status)
     }
-  }, [])
+  })
+
+  const attached = plan !== undefined && plan.file !== ''
 
   return (
     <Card>
-      <CardHeader
-        title="Business plan"
-        action={
-          <span className="text-[10.5px] text-faint">{saved ? 'Saved' : 'Saving…'}</span>
-        }
-      />
+      <CardHeader title="Business plan" />
       <p className="mb-3 text-[12px] leading-relaxed text-muted">
-        The assistant reads this before every answer, so advice is about your business rather
-        than freelancing in general. It is a real file at{' '}
-        <span className="numeric text-faint">Documents\Business Plan.md</span> — edit it here or
-        in any editor.
+        Attach your business plan and the assistant reads it before every answer, so advice is
+        about your business rather than freelancing in general. Word, PDF, markdown or plain
+        text — it takes the words out and keeps a copy in your workspace.
       </p>
 
-      <textarea
-        value={content ?? ''}
-        onChange={(event) => edit(event.target.value)}
-        rows={18}
-        spellCheck
-        className="w-full resize-y rounded-control border border-line bg-raised px-3 py-2 font-mono text-[12px] leading-relaxed text-ink focus:border-accent focus:outline-none"
-        placeholder="Loading…"
-      />
+      {attached ? (
+        <div className="flex items-center gap-3 rounded-control border border-line bg-raised px-3 py-2.5">
+          <FileText size={16} strokeWidth={1.5} className="shrink-0 text-accent" />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[12.5px] text-ink">{plan.name}</p>
+            <p className="mt-0.5 text-[11px] text-faint">
+              {plan.length.toLocaleString('en-GB')} characters read
+              {plan.readAt && ` · ${formatDate(plan.readAt)}`}
+            </p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => void window.solo.invoke('ai:openBusinessPlan')}>
+            Open
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => attach.mutate()}>
+            Replace
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => detach.mutate()}>
+            Remove
+          </Button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => attach.mutate()}
+          disabled={attach.isPending}
+          className="flex w-full flex-col items-center gap-2 rounded-card border border-dashed border-line px-4 py-7 transition-colors hover:border-line-strong disabled:opacity-60"
+        >
+          <Upload size={18} strokeWidth={1.5} className="text-faint" />
+          <span className="text-[12.5px] text-ink">
+            {attach.isPending ? 'Reading…' : 'Attach your business plan'}
+          </span>
+          <span className="text-[11px] text-faint">PDF, Word, markdown or text</span>
+        </button>
+      )}
+
+      {error && (
+        <p className="mt-2.5 flex items-start gap-1.5 text-[11.5px] text-danger">
+          <TriangleAlert size={12} strokeWidth={2} className="mt-0.5 shrink-0" />
+          {error}
+        </p>
+      )}
+
+      {attached && plan.preview && (
+        <div className="mt-3">
+          <p className="mb-1 text-[10.5px] tracking-[0.06em] text-faint uppercase">
+            What the assistant sees
+          </p>
+          <pre className="max-h-[180px] overflow-auto rounded-control bg-ground/60 px-3 py-2 text-[11px] leading-relaxed whitespace-pre-wrap text-muted">
+            {plan.preview}
+            {plan.length > plan.preview.length && '…'}
+          </pre>
+        </div>
+      )}
+    </Card>
+  )
+}
+
+/**
+ * Theme templates.
+ *
+ * Every colour, font and radius in the app comes from a token, so a theme is
+ * just a different set of values for those — which is why swatches here can
+ * show a real preview rather than an approximation, and why changing one is
+ * instant with nothing to reload.
+ */
+function ThemeCard(): React.JSX.Element {
+  const { themeId, setThemeId } = useTheme()
+
+  return (
+    <Card>
+      <CardHeader title="Theme" />
+      <p className="mb-3 text-[12px] leading-relaxed text-muted">
+        Changes colours, corners and the typeface across the whole app. Your choice is kept with
+        the workspace, so it travels with it.
+      </p>
+
+      <div className="grid grid-cols-3 gap-2.5">
+        {THEMES.map((theme) => {
+          const active = theme.id === themeId
+
+          return (
+            <button
+              key={theme.id}
+              type="button"
+              onClick={() => setThemeId(theme.id)}
+              className={cn(
+                'overflow-hidden rounded-card border text-left transition-colors',
+                active ? 'border-accent' : 'border-line hover:border-line-strong'
+              )}
+            >
+              {/* A miniature of the app itself, painted in that theme's tokens —
+                  a row of hex swatches would not tell you what it feels like. */}
+              <div
+                style={{ backgroundColor: theme.tokens.ground }}
+                className="flex h-[74px] gap-1.5 p-2"
+              >
+                <div
+                  style={{ backgroundColor: theme.tokens.surface, borderRadius: theme.radius / 2 }}
+                  className="flex w-[26%] flex-col gap-1 p-1.5"
+                >
+                  <span
+                    style={{ backgroundColor: theme.tokens.accent, borderRadius: 2 }}
+                    className="h-1.5 w-full"
+                  />
+                  <span
+                    style={{ backgroundColor: theme.tokens.line, borderRadius: 2 }}
+                    className="h-1.5 w-3/4"
+                  />
+                  <span
+                    style={{ backgroundColor: theme.tokens.line, borderRadius: 2 }}
+                    className="h-1.5 w-2/3"
+                  />
+                </div>
+
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <div
+                    style={{
+                      backgroundColor: theme.tokens.surface,
+                      borderColor: theme.tokens.line,
+                      borderRadius: theme.radius / 2
+                    }}
+                    className="flex flex-1 items-center gap-1.5 border p-1.5"
+                  >
+                    <span
+                      style={{ backgroundColor: theme.tokens.ink, borderRadius: 2 }}
+                      className="h-1.5 w-1/3 opacity-80"
+                    />
+                    <span
+                      style={{ backgroundColor: theme.tokens.muted, borderRadius: 2 }}
+                      className="h-1.5 w-1/4 opacity-70"
+                    />
+                  </div>
+                  <div className="flex gap-1.5">
+                    <span
+                      style={{
+                        backgroundColor: theme.tokens.accent,
+                        borderRadius: Math.max(2, theme.radius - 4)
+                      }}
+                      className="h-4 w-12"
+                    />
+                    <span
+                      style={{
+                        backgroundColor: theme.tokens.raised,
+                        borderRadius: Math.max(2, theme.radius - 4)
+                      }}
+                      className="h-4 w-8"
+                    />
+                    <span
+                      style={{ backgroundColor: theme.tokens.success, borderRadius: 99 }}
+                      className="h-4 w-4"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2 border-t border-line p-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12.5px] font-medium text-ink">{theme.name}</p>
+                  <p className="mt-0.5 text-[11px] leading-snug text-faint">
+                    {theme.description}
+                  </p>
+                </div>
+                {active && (
+                  <Check size={14} strokeWidth={2.5} className="mt-0.5 shrink-0 text-accent" />
+                )}
+              </div>
+            </button>
+          )
+        })}
+      </div>
     </Card>
   )
 }

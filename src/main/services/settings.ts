@@ -30,6 +30,9 @@ interface SettingsRow extends Row {
   quote_prefix: string
   next_quote_number: number
   logo_file: string
+  business_plan_file: string
+  business_plan_text: string
+  business_plan_read_at: string | null
   created_at: string
   updated_at: string
 }
@@ -59,6 +62,7 @@ function toSettings(row: SettingsRow): Settings {
     quotePrefix: row.quote_prefix,
     nextQuoteNumber: row.next_quote_number,
     logoFile: row.logo_file,
+    businessPlanFile: row.business_plan_file,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -90,7 +94,8 @@ const COLUMNS: {
   nextInvoiceNumber: { column: 'next_invoice_number', toDb: Number },
   quotePrefix: { column: 'quote_prefix', toDb: String },
   nextQuoteNumber: { column: 'next_quote_number', toDb: Number },
-  logoFile: { column: 'logo_file', toDb: String }
+  logoFile: { column: 'logo_file', toDb: String },
+  businessPlanFile: { column: 'business_plan_file', toDb: String }
 }
 
 export function getSettings(db: Database): Settings {

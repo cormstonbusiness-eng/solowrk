@@ -49,6 +49,25 @@ export interface BusinessSettings {
 
   /** Workspace-relative path to the business logo, shown on the dashboard. */
   logoFile: string
+
+  /** Workspace-relative path to the attached business plan document. */
+  businessPlanFile: string
+}
+
+/** The attached business plan, as the Settings page sees it. */
+export interface BusinessPlanStatus {
+  /** Workspace-relative path, or empty when nothing is attached. */
+  file: string
+  /** Just the file name, for display. */
+  name: string
+  /** Characters of readable text pulled out of it. */
+  length: number
+  /** When the text was last extracted. */
+  readAt: string | null
+  /** The opening of the extracted text, so you can see it read the right thing. */
+  preview: string
+  /** Set when the last extraction failed — shown instead of the preview. */
+  error?: string
 }
 
 export interface Settings extends BusinessSettings {
@@ -218,6 +237,36 @@ export interface Note {
 
 export interface NoteWithContext extends Note {
   projectName: string | null
+}
+
+/* ------------------------------------------------------------------ *
+ * Notifications
+ * ------------------------------------------------------------------ */
+
+export type NotificationKind = 'info' | 'due' | 'late' | 'money' | 'assistant'
+
+export interface AppNotification {
+  id: number
+  kind: NotificationKind
+  title: string
+  body: string
+  /** Route to open when clicked, or empty. */
+  link: string
+  readAt: string | null
+  archived: boolean
+  createdAt: string
+}
+
+export interface NotificationInput {
+  kind?: NotificationKind
+  title: string
+  body?: string
+  link?: string
+  /**
+   * Stable identity for a recurring alert. The same key never produces a
+   * second notification, so a late invoice is mentioned once, not daily.
+   */
+  dedupeKey?: string
 }
 
 /* ------------------------------------------------------------------ *

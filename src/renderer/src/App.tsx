@@ -7,8 +7,10 @@ import { TitleBar } from '@/components/TitleBar'
 import { Sidebar } from '@/components/Sidebar'
 import { FirstRun } from '@/setup/FirstRun'
 import { WorkspaceContext } from '@/hooks/useWorkspace'
+import { ThemeContext, useThemeState } from '@/hooks/useTheme'
 import { TourProvider } from '@/tour/TourProvider'
 import { Palette } from '@/palette/Palette'
+import { Toasts } from '@/components/Toasts'
 import { transition } from '@/lib/motion'
 import {
   ArchivedProjects,
@@ -25,6 +27,7 @@ import {
   Invoices,
   Marketing,
   Notes,
+  Notifications,
   ProjectDetail,
   Projects,
   Settings,
@@ -63,6 +66,7 @@ function AnimatedRoutes(): React.JSX.Element {
         <Route path="/marketing" element={<Marketing />} />
         <Route path="/goals" element={<Goals />} />
         <Route path="/notes" element={<Notes />} />
+        <Route path="/notifications" element={<Notifications />} />
         <Route path="/invoices" element={<Invoices />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/files" element={<Files />} />
@@ -88,6 +92,8 @@ function Shell(): React.JSX.Element {
         </div>
         {/* Inside the router too: every command it runs is a navigation. */}
         <Palette />
+        {/* Same reason — a toast is a shortcut to the page it is about. */}
+        <Toasts />
       </TourProvider>
     </HashRouter>
   )
@@ -112,11 +118,15 @@ export function App(): React.JSX.Element {
   }, [])
 
   const workspace = useMemo(() => ({ status, setStatus }), [status])
+  // Themes live in the workspace, so the stored choice can only be read once
+  // one is open. Until then the default applies.
+  const theme = useThemeState(status?.state === 'ready')
 
   return (
     <MotionConfig reducedMotion="user">
       <QueryClientProvider client={queryClient}>
         <WorkspaceContext.Provider value={workspace}>
+          <ThemeContext.Provider value={theme}>
           <div className="flex h-full flex-col bg-ground">
             <TitleBar />
 
@@ -161,6 +171,7 @@ export function App(): React.JSX.Element {
               )}
             </AnimatePresence>
           </div>
+          </ThemeContext.Provider>
         </WorkspaceContext.Provider>
       </QueryClientProvider>
     </MotionConfig>

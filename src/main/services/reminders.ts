@@ -1,11 +1,12 @@
-import { Notification, type BrowserWindow } from 'electron'
+import type { BrowserWindow } from 'electron'
 import { addDays, dayOf, nowStamp, timeOf } from '@shared/calendar'
 import { dueReminders, markReminded } from './events'
 import { listDueTasks } from './tasks'
 import { session } from './session'
+import { push } from './notifications'
 
 /**
- * Fires native Windows notifications for events whose reminder has come due.
+ * Raises in-app notifications for events whose reminder has come due.
  *
  * A poll rather than a timer per event: a `setTimeout` scheduled hours ahead is
  * unreliable across sleep and suspend, and would have to be cancelled and
@@ -36,25 +37,15 @@ function tick(getWindow: () => BrowserWindow | null): void {
   const { due, stale } = dueReminders(db, now)
 
   for (const event of due) {
-    if (!Notification.isSupported()) break
-
-    const notification = new Notification({
+    push(db, getWindow, {
+      kind: 'due',
       title: event.title,
       body: [bodyFor(event), event.location].filter(Boolean).join(' · '),
-      silent: false
+      link: '/calendar',
+      // One per event, so a reminder cannot be raised twice even if the poll
+      // and the reminded_at write ever disagree.
+      dedupeKey: `event-${event.id}`
     })
-
-    // Clicking a reminder should land you in the app, not just dismiss it.
-    notification.on('click', () => {
-      const window = getWindow()
-      if (!window) return
-      if (window.isMinimized()) window.restore()
-      window.show()
-      window.focus()
-      window.webContents.send('calendar:focusEvent', { id: event.id })
-    })
-
-    notification.show()
   }
 
   markReminded(db, [...due, ...stale].map((event) => event.id), now)
@@ -105,22 +96,16 @@ function runDigest(getWindow: () => BrowserWindow | null, now: Date): void {
   }
 
   // Nothing to say is a perfectly good outcome; say nothing.
-  if (lines.length === 0 || !Notification.isSupported()) return
+  if (lines.length === 0) return
 
-  const notification = new Notification({
+  push(db, getWindow, {
+    kind: overdueTasks.length > 0 ? 'late' : 'due',
     title: overdueTasks.length > 0 ? 'Some things are late' : 'Today’s deadlines',
-    body: lines.join(' · ')
+    body: lines.join(' · '),
+    link: '/tasks',
+    // One digest per day, whatever else happens.
+    dedupeKey: `digest-${day}`
   })
-
-  notification.on('click', () => {
-    const window = getWindow()
-    if (!window) return
-    if (window.isMinimized()) window.restore()
-    window.show()
-    window.focus()
-  })
-
-  notification.show()
 }
 
 export function startReminders(getWindow: () => BrowserWindow | null): void {

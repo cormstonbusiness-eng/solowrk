@@ -634,5 +634,48 @@ export const migrations: Migration[] = [
 
       CREATE INDEX idx_tasks_archived ON tasks(archived);
     `
+  },
+
+  {
+    id: 11,
+    name: 'business_plan_document',
+    sql: `
+      -- The business plan as a document the user already has, rather than
+      -- something retyped into the app. Workspace-relative, like every path.
+      ALTER TABLE settings ADD COLUMN business_plan_file TEXT NOT NULL DEFAULT '';
+      -- Extraction is not free on a long PDF, so the text is cached and
+      -- refreshed only when the source file has actually changed.
+      ALTER TABLE settings ADD COLUMN business_plan_text TEXT NOT NULL DEFAULT '';
+      ALTER TABLE settings ADD COLUMN business_plan_read_at TEXT;
+    `
+  },
+
+  {
+    id: 12,
+    name: 'notifications',
+    sql: `
+      -- Notifications live in the app rather than the OS tray, so they survive
+      -- being missed: a Windows toast that appears while you are in another
+      -- window is gone forever, which is no way to be told an invoice is late.
+      CREATE TABLE notifications (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        kind       TEXT    NOT NULL DEFAULT 'info'
+                           CHECK (kind IN ('info', 'due', 'late', 'money', 'assistant')),
+        title      TEXT    NOT NULL,
+        body       TEXT    NOT NULL DEFAULT '',
+        -- Route to open when clicked, e.g. '/invoices'.
+        link       TEXT    NOT NULL DEFAULT '',
+        -- Stable identity for a recurring alert, so the same overdue invoice
+        -- does not produce a new notification every single day.
+        dedupe_key TEXT,
+        read_at    TEXT,
+        archived   INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
+        created_at TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_notifications_unread ON notifications(archived, read_at, id);
+      CREATE UNIQUE INDEX idx_notifications_dedupe ON notifications(dedupe_key)
+        WHERE dedupe_key IS NOT NULL;
+    `
   }
 ]

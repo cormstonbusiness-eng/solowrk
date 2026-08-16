@@ -1,8 +1,11 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { Sparkles } from 'lucide-react'
+import { useQuery } from '@tanstack/react-query'
+import { Bell, Sparkles } from 'lucide-react'
 import { transition } from '@/lib/motion'
 import { footerNav, navGroups, type NavItem } from '@/lib/nav'
+import { themeById } from '@shared/themes'
+import { useTheme } from '@/hooks/useTheme'
 import { cn } from '@/lib/utils'
 
 /**
@@ -21,9 +24,58 @@ function ActivePill(): React.JSX.Element {
   )
 }
 
+/**
+ * Sits with the assistant, above the divider, because both are things you go to
+ * rather than places work lives. The badge is the point: an unread count you
+ * cannot see is a notification system that does not work.
+ */
+function NotificationsButton(): React.JSX.Element {
+  const { pathname } = useLocation()
+  const isActive = pathname === '/notifications'
+
+  const { data: unread = 0 } = useQuery({
+    queryKey: ['notifications', 'unread'],
+    queryFn: () => window.solo.invoke('notifications:unread'),
+    refetchInterval: 30_000
+  })
+
+  return (
+    <NavLink
+      to="/notifications"
+      className={cn(
+        'relative flex items-center gap-2.5 rounded-control px-2.5 py-[7px]',
+        'text-[13px] transition-colors duration-150',
+        isActive ? 'text-ink' : 'text-muted hover:text-ink'
+      )}
+    >
+      {isActive && <ActivePill />}
+      <span className="relative">
+        <Bell size={15} strokeWidth={1.75} />
+      </span>
+      <span className="relative flex-1">Notifications</span>
+      {unread > 0 && (
+        <motion.span
+          key={unread}
+          initial={{ scale: 0.7, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={transition.press}
+          className="relative grid h-[17px] min-w-[17px] place-items-center rounded-full bg-accent px-1 text-[10px] font-medium text-accent-ink"
+        >
+          {unread > 99 ? '99+' : unread}
+        </motion.span>
+      )}
+    </NavLink>
+  )
+}
+
 function AssistantButton(): React.JSX.Element {
   const { pathname } = useLocation()
+  const { themeId } = useTheme()
   const isActive = pathname === '/assistant'
+
+  // A tinted orange on a near-black sidebar reads as a warm button; the same
+  // tint on a white one reads as a smudge. Light themes get the solid fill.
+  const light = themeById(themeId).light
 
   return (
     <NavLink
@@ -34,8 +86,8 @@ function AssistantButton(): React.JSX.Element {
         // Warm orange, deliberately the only place this hue appears — the
         // accent violet is spoken for by primary actions and active nav, so
         // reusing it here would make the button disappear into the app.
-        isActive
-          ? 'bg-[#F2A65A] text-[#1a1207]'
+        isActive || light
+          ? 'bg-[#E08A2E] text-white hover:bg-[#cc7c26]'
           : 'bg-[#F2A65A]/16 text-[#F2A65A] hover:bg-[#F2A65A]/26'
       )}
     >
@@ -97,7 +149,8 @@ export function Sidebar(): React.JSX.Element {
       {/* The assistant sits above the divider as a filled button rather than
           another grey nav row: it is the one destination people hunt for, and a
           row that looks like every other row is a row you scan past. */}
-      <div className="px-2.5 pb-1.5">
+      <div className="flex flex-col gap-1 px-2.5 pb-1.5">
+        <NotificationsButton />
         <AssistantButton />
       </div>
 

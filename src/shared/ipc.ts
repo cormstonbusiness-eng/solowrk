@@ -8,9 +8,11 @@
  */
 
 import type {
+  AppNotification,
   AssistantEvent,
   AssistantStatus,
   AssistantMode,
+  BusinessPlanStatus,
   BusinessSettings,
   CalendarEventWithContext,
   Campaign,
@@ -105,6 +107,15 @@ export interface IpcContract {
   /** App version, for the footer in Settings. */
   'app:version': { req: void; res: string }
 
+  'notifications:list': { req: { archived?: boolean } | void; res: AppNotification[] }
+  'notifications:unread': { req: void; res: number }
+  'notifications:read': { req: { id: number }; res: void }
+  'notifications:readAll': { req: void; res: void }
+  'notifications:archive': { req: { id: number }; res: void }
+  'notifications:archiveRead': { req: void; res: void }
+  'notifications:restore': { req: { id: number }; res: void }
+  'notifications:delete': { req: { id: number }; res: void }
+
   'goals:list': { req: { includeArchived?: boolean } | void; res: GoalProgress[] }
   'goals:create': { req: GoalInput; res: GoalProgress }
   'goals:update': { req: { id: number; patch: Partial<GoalInput> }; res: GoalProgress }
@@ -116,9 +127,13 @@ export interface IpcContract {
   'notes:rename': { req: { id: number; title: string }; res: void }
   'notes:pin': { req: { id: number; pinned: boolean }; res: void }
 
-  /** The markdown business plan folded into every assistant conversation. */
-  'ai:businessPlan': { req: void; res: { content: string; exists: boolean } }
-  'ai:saveBusinessPlan': { req: { content: string }; res: void }
+  /** The attached business plan folded into every assistant conversation. */
+  'ai:businessPlan': { req: void; res: BusinessPlanStatus }
+  /** Copies a document into the workspace and extracts its text. */
+  'ai:attachBusinessPlan': { req: { sourcePath: string }; res: BusinessPlanStatus }
+  'ai:detachBusinessPlan': { req: void; res: BusinessPlanStatus }
+  /** Opens the attached document in whatever the OS uses for it. */
+  'ai:openBusinessPlan': { req: void; res: void }
 
   /** Small workspace-scoped UI flags — see app_state in the database. */
   'state:get': { req: { key: string }; res: string | null }
@@ -351,6 +366,8 @@ export interface IpcEvents {
   'ai:event': AssistantEvent
   /** Sent when a due-post notification is clicked, to open that post. */
   'marketing:focusPost': { id: number }
+  /** A new notification, to slide into the corner of the window. */
+  'notifications:new': AppNotification
 }
 
 export type IpcEvent = keyof IpcEvents
@@ -374,6 +391,14 @@ export const IPC_CHANNELS = [
   'settings:clearLogo',
   'settings:logo',
   'app:version',
+  'notifications:list',
+  'notifications:unread',
+  'notifications:read',
+  'notifications:readAll',
+  'notifications:archive',
+  'notifications:archiveRead',
+  'notifications:restore',
+  'notifications:delete',
   'goals:list',
   'goals:create',
   'goals:update',
@@ -383,7 +408,9 @@ export const IPC_CHANNELS = [
   'notes:rename',
   'notes:pin',
   'ai:businessPlan',
-  'ai:saveBusinessPlan',
+  'ai:attachBusinessPlan',
+  'ai:detachBusinessPlan',
+  'ai:openBusinessPlan',
   'state:get',
   'state:set',
   'clients:list',
@@ -495,5 +522,6 @@ export const IPC_EVENTS = [
   'window:stateChanged',
   'calendar:focusEvent',
   'ai:event',
-  'marketing:focusPost'
+  'marketing:focusPost',
+  'notifications:new'
 ] as const satisfies readonly IpcEvent[]

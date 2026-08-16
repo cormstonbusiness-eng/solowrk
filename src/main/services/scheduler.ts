@@ -1,9 +1,10 @@
-import { Notification, type BrowserWindow } from 'electron'
+import type { BrowserWindow } from 'electron'
 import { dayFromDate, nowStamp, timeOf } from '@shared/calendar'
 import { PLATFORMS } from '@shared/social'
 import type { PostWithContext } from '@shared/types'
 import { duePosts, markNeedsAttention, runEvergreen } from './marketing'
 import { session } from './session'
+import { push } from './notifications'
 
 /**
  * Drives scheduled posts.
@@ -23,52 +24,38 @@ let timer: NodeJS.Timeout | null = null
 let lastEvergreenRun: string | null = null
 
 function notifyDue(getWindow: () => BrowserWindow | null, post: PostWithContext): void {
-  if (!Notification.isSupported()) return
-
   const platforms = post.targets
     .map((target) => PLATFORMS[target.platform]?.label ?? target.platform)
     .join(', ')
 
-  const notification = new Notification({
+  push(session.requireDb(), getWindow, {
+    kind: 'due',
     title: post.title || 'Time to post',
-    body: platforms === '' ? 'Scheduled now' : `Due now on ${platforms}`
+    body: platforms === '' ? 'Scheduled now' : `Due now on ${platforms}`,
+    link: '/marketing',
+    dedupeKey: `post-due-${post.id}`
   })
-
-  notification.on('click', () => {
-    const window = getWindow()
-    if (!window) return
-    if (window.isMinimized()) window.restore()
-    window.show()
-    window.focus()
-    window.webContents.send('marketing:focusPost', { id: post.id })
-  })
-
-  notification.show()
 }
 
-function notifyLate(getWindow: () => BrowserWindow | null, posts: PostWithContext[]): void {
-  if (!Notification.isSupported() || posts.length === 0) return
+function notifyLate(
+  getWindow: () => BrowserWindow | null,
+  posts: PostWithContext[]
+): void {
+  if (posts.length === 0) return
 
   // One notification for the batch. Opening the laptop after a week away and
   // being handed nine separate alerts is not a reminder, it is a telling-off.
-  const notification = new Notification({
-    title: posts.length === 1 ? 'A post missed its slot' : `${posts.length} posts missed their slot`,
+  push(session.requireDb(), getWindow, {
+    kind: 'late',
+    title:
+      posts.length === 1 ? 'A post missed its slot' : `${posts.length} posts missed their slot`,
     body:
       posts.length === 1
         ? `“${posts[0]!.title || 'Untitled'}” was due at ${timeOf(posts[0]!.scheduledAt ?? '')}. Reschedule or send it now.`
-        : 'SoloWrk was closed when they were due. They are waiting in Marketing.'
+        : 'SoloWrk was closed when they were due. They are waiting in Marketing.',
+    link: '/marketing',
+    dedupeKey: `post-late-${posts.map((post) => post.id).join('-')}`
   })
-
-  notification.on('click', () => {
-    const window = getWindow()
-    if (!window) return
-    if (window.isMinimized()) window.restore()
-    window.show()
-    window.focus()
-    window.webContents.send('marketing:focusPost', { id: posts[0]!.id })
-  })
-
-  notification.show()
 }
 
 async function tick(getWindow: () => BrowserWindow | null): Promise<void> {

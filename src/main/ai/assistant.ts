@@ -8,7 +8,7 @@ import type {
   PermissionAnswer,
   PermissionRequest
 } from '@shared/types'
-import { readBusinessPlan } from './businessPlan'
+import { readPlan } from './businessPlan'
 import { session } from '../services/session'
 import { getSettings } from '../services/settings'
 import {
@@ -133,7 +133,7 @@ class Assistant {
 
     // Read fresh each turn rather than caching: the user may well have just
     // edited the plan and expects the next answer to reflect it.
-    const businessPlan = (await readBusinessPlan(session.requirePath())) ?? undefined
+    const businessPlan = (await readPlan(db, session.requirePath())) ?? undefined
 
     try {
       const stream = query({

@@ -52,6 +52,7 @@ export type Domain =
   | 'marketing'
   | 'social'
   | 'goals'
+  | 'notifications'
 
 export function invalidate(queryClient: QueryClient, domains: Domain[]): void {
   for (const domain of domains) {

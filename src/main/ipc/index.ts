@@ -113,12 +113,18 @@ import {
 import { listAccounts } from '../social/accounts'
 import { clearLogo, logoDataUrl, setLogo } from '../services/branding'
 import { createGoal, deleteGoal, listGoals, updateGoal } from '../services/goals'
-import { listStandaloneNotes, renameNote, setNotePinned } from '../services/notes'
 import {
-  BUSINESS_PLAN_TEMPLATE,
-  readBusinessPlan,
-  writeBusinessPlan
-} from '../ai/businessPlan'
+  archiveNotification,
+  archiveRead,
+  deleteNotification,
+  listNotifications,
+  markAllRead,
+  markRead,
+  restoreNotification,
+  unreadCount
+} from '../services/notifications'
+import { listStandaloneNotes, renameNote, setNotePinned } from '../services/notes'
+import { attachPlan, detachPlan, planStatus } from '../ai/businessPlan'
 import { today } from '@shared/taxYear'
 import { assistant } from '../ai/assistant'
 import {
@@ -436,6 +442,28 @@ const handlers: Handlers = {
   },
   'settings:logo': () => logoDataUrl(session.requireDb(), session.requirePath()),
 
+  'notifications:list': (_g, args) =>
+    listNotifications(session.requireDb(), { archived: args?.archived ?? false }),
+  'notifications:unread': () => unreadCount(session.requireDb()),
+  'notifications:read': (_g, { id }) => {
+    markRead(session.requireDb(), id)
+  },
+  'notifications:readAll': () => {
+    markAllRead(session.requireDb())
+  },
+  'notifications:archive': (_g, { id }) => {
+    archiveNotification(session.requireDb(), id)
+  },
+  'notifications:archiveRead': () => {
+    archiveRead(session.requireDb())
+  },
+  'notifications:restore': (_g, { id }) => {
+    restoreNotification(session.requireDb(), id)
+  },
+  'notifications:delete': (_g, { id }) => {
+    deleteNotification(session.requireDb(), id)
+  },
+
   'goals:list': (_g, args) => listGoals(session.requireDb(), args?.includeArchived ?? false),
   'goals:create': (_g, input) => createGoal(session.requireDb(), input),
   'goals:update': (_g, { id, patch }) => updateGoal(session.requireDb(), id, patch),
@@ -453,14 +481,15 @@ const handlers: Handlers = {
     setNotePinned(session.requireDb(), id, pinned)
   },
 
-  'ai:businessPlan': async () => {
-    const content = await readBusinessPlan(session.requirePath())
-    // A blank plan hands back the template rather than an empty box: the
-    // hardest part of writing one is knowing what it should contain.
-    return { content: content ?? BUSINESS_PLAN_TEMPLATE, exists: content !== null }
+  'ai:businessPlan': () => planStatus(session.requireDb()),
+  'ai:attachBusinessPlan': (_g, { sourcePath }) =>
+    attachPlan(session.requireDb(), session.requirePath(), sourcePath),
+  'ai:detachBusinessPlan': () => detachPlan(session.requireDb()),
+  'ai:openBusinessPlan': () => {
+    const { businessPlanFile } = getSettings(session.requireDb())
+    if (businessPlanFile === '') return
+    void shell.openPath(resolveInWorkspace(session.requirePath(), businessPlanFile))
   },
-  'ai:saveBusinessPlan': (_g, { content }) =>
-    writeBusinessPlan(session.requirePath(), content),
 
   'marketing:campaigns': (_g, args) =>
     listCampaigns(session.requireDb(), args?.includeArchived ?? false),
