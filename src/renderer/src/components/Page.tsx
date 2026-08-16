@@ -29,7 +29,9 @@ export function Page({
       initial="initial"
       animate="animate"
       exit="exit"
-      className="flex h-full flex-col overflow-hidden"
+      // relative and z-10 keep every page above the seasonal layer, which sits
+      // at z-0 inside the same pane. One change here covers the whole app.
+      className="relative z-10 flex h-full flex-col overflow-hidden"
     >
       <div className="flex shrink-0 items-start justify-between gap-4 px-7 pt-6 pb-4">
         <div>

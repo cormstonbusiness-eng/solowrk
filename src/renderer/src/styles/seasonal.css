@@ -1,0 +1,251 @@
+/* ------------------------------------------------------------------------
+   Seasonal decoration.
+
+   All of it is CSS keyframes on elements created once, so nothing runs in
+   JavaScript per frame and the compositor does the work. Every animated
+   property is transform or opacity for the same reason — animating `top` or
+   `left` would force layout on every frame behind a scrolling list.
+   ------------------------------------------------------------------------ */
+
+.seasonal-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Decoration that cannot move is just clutter, and the global reduced-motion
+   rule would otherwise freeze every snowflake in a heap at the bottom of the
+   window. Hide it outright instead. */
+@media (prefers-reduced-motion: reduce) {
+  .seasonal-layer {
+    display: none;
+  }
+}
+
+/* ---------------- Halloween ---------------- */
+
+@keyframes seasonal-float {
+  0% {
+    transform: translate3d(0, 12vh, 0) scale(0.94);
+    opacity: 0;
+  }
+  12% {
+    opacity: var(--peak, 0.16);
+  }
+  50% {
+    transform: translate3d(2.5rem, -45vh, 0) scale(1);
+  }
+  88% {
+    opacity: var(--peak, 0.16);
+  }
+  100% {
+    transform: translate3d(-1.5rem, -105vh, 0) scale(0.96);
+    opacity: 0;
+  }
+}
+
+.seasonal-ghost {
+  position: absolute;
+  bottom: -12vh;
+  color: var(--color-ink);
+  animation: seasonal-float linear infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes seasonal-flicker {
+  0%,
+  100% {
+    opacity: var(--peak, 0.3);
+  }
+  45% {
+    opacity: calc(var(--peak, 0.3) * 0.72);
+  }
+  47% {
+    opacity: var(--peak, 0.3);
+  }
+  62% {
+    opacity: calc(var(--peak, 0.3) * 0.8);
+  }
+}
+
+.seasonal-pumpkin {
+  position: absolute;
+  bottom: -0.5rem;
+  color: #d2691e;
+  animation: seasonal-flicker ease-in-out infinite;
+}
+
+.seasonal-cobweb {
+  position: absolute;
+  top: 0;
+  color: var(--color-muted);
+}
+
+.seasonal-cobweb[data-side='right'] {
+  right: 0;
+  transform: scaleX(-1);
+}
+
+@keyframes seasonal-cross {
+  0% {
+    transform: translate3d(-15vw, 0, 0) scaleX(1);
+    opacity: 0;
+  }
+  8%,
+  92% {
+    opacity: var(--peak, 0.22);
+  }
+  50% {
+    transform: translate3d(55vw, -4vh, 0) scaleX(1);
+  }
+  100% {
+    transform: translate3d(120vw, 2vh, 0) scaleX(1);
+    opacity: 0;
+  }
+}
+
+.seasonal-bat {
+  position: absolute;
+  color: var(--color-ink);
+  animation: seasonal-cross linear infinite;
+  will-change: transform, opacity;
+}
+
+/* ---------------- Falling things: snow, confetti, petals ---------------- */
+
+@keyframes seasonal-fall {
+  0% {
+    transform: translate3d(0, -12vh, 0) rotate(0deg);
+    opacity: 0;
+  }
+  10%,
+  85% {
+    opacity: var(--peak, 0.5);
+  }
+  100% {
+    transform: translate3d(var(--drift, 3rem), 105vh, 0) rotate(var(--spin, 220deg));
+    opacity: 0;
+  }
+}
+
+.seasonal-fall {
+  position: absolute;
+  top: 0;
+  animation: seasonal-fall linear infinite;
+  will-change: transform, opacity;
+}
+
+.seasonal-snowflake {
+  color: #ffffff;
+}
+
+.seasonal-confetti {
+  /* Colour is set per piece so the confetti is not all one shade. */
+  opacity: 0.6;
+}
+
+.seasonal-petal {
+  color: #f0b9cd;
+}
+
+.seasonal-drift {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 4.5rem;
+  background: linear-gradient(to top, rgb(255 255 255 / 0.1), transparent);
+  border-top-left-radius: 50% 100%;
+  border-top-right-radius: 50% 100%;
+}
+
+.seasonal-lights {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1.75rem;
+  color: var(--color-muted);
+}
+
+@keyframes seasonal-bulb {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.seasonal-bulb {
+  animation: seasonal-bulb 2.4s ease-in-out infinite;
+}
+
+/* ---------------- New Year ---------------- */
+
+@keyframes seasonal-twinkle {
+  0%,
+  100% {
+    transform: scale(0.7) rotate(0deg);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1) rotate(45deg);
+    opacity: var(--peak, 0.5);
+  }
+}
+
+.seasonal-sparkle {
+  position: absolute;
+  color: #e3c078;
+  animation: seasonal-twinkle ease-in-out infinite;
+}
+
+/* ---------------- Summer ---------------- */
+
+@keyframes seasonal-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: var(--peak, 0.5);
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: calc(var(--peak, 0.5) * 1.2);
+  }
+}
+
+.seasonal-sun {
+  position: absolute;
+  top: -6rem;
+  right: -6rem;
+  width: 26rem;
+  height: 26rem;
+  color: #f5b642;
+  animation: seasonal-breathe 9s ease-in-out infinite;
+}
+
+@keyframes seasonal-waft {
+  0% {
+    transform: translate3d(-6vw, 8vh, 0) rotate(0deg);
+    opacity: 0;
+  }
+  15%,
+  85% {
+    opacity: var(--peak, 0.35);
+  }
+  100% {
+    transform: translate3d(106vw, -18vh, 0) rotate(300deg);
+    opacity: 0;
+  }
+}
+
+.seasonal-seed {
+  position: absolute;
+  color: #b99a63;
+  animation: seasonal-waft linear infinite;
+  will-change: transform, opacity;
+}

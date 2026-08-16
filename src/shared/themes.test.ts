@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_THEME_ID, THEMES, isInSeason, themeById, themeVariables } from './themes'
+import {
+  DECOR_COUNTS,
+  DEFAULT_THEME_ID,
+  THEMES,
+  decorFor,
+  isInSeason,
+  themeById,
+  themeVariables
+} from './themes'
 
 const contrast = (a: string, b: string): number => {
   const luminance = (hex: string): number => {
@@ -95,8 +103,39 @@ describe('seasonal themes', () => {
   it('marks only the seasonal ones', () => {
     expect(THEMES.filter((theme) => theme.season).map((theme) => theme.id).sort()).toEqual([
       'christmas',
-      'halloween'
+      'halloween',
+      'newyear',
+      'spring',
+      'summer'
     ])
+  })
+
+  it('gives every seasonal theme a decoration set, and no other theme one', () => {
+    for (const theme of THEMES) {
+      expect(Boolean(theme.decor)).toBe(Boolean(theme.season))
+    }
+  })
+
+  it('puts Spring in season across the spring months', () => {
+    const spring = themeById('spring')
+    expect(isInSeason(spring, '2026-03-20')).toBe(true)
+    expect(isInSeason(spring, '2026-04-30')).toBe(true)
+    expect(isInSeason(spring, '2026-03-19')).toBe(false)
+    expect(isInSeason(spring, '2026-05-01')).toBe(false)
+  })
+
+  it('puts Summer in season across the summer months', () => {
+    const summer = themeById('summer')
+    expect(isInSeason(summer, '2026-06-01')).toBe(true)
+    expect(isInSeason(summer, '2026-08-31')).toBe(true)
+    expect(isInSeason(summer, '2026-09-01')).toBe(false)
+  })
+
+  it('wraps New Year across the year boundary', () => {
+    const newYear = themeById('newyear')
+    expect(isInSeason(newYear, '2026-12-31')).toBe(true)
+    expect(isInSeason(newYear, '2027-01-01')).toBe(true)
+    expect(isInSeason(newYear, '2027-01-03')).toBe(false)
   })
 
   it('puts Halloween in season through October', () => {
@@ -142,5 +181,52 @@ describe('themeVariables', () => {
   it('never produces a negative radius on a square theme', () => {
     const square = { ...themeById('paper'), radius: 0 }
     expect(themeVariables(square)['--radius-control']).toBe('2px')
+  })
+})
+
+describe('decorFor', () => {
+  it('draws nothing at all when the dial is off', () => {
+    // "Off" has to mean the layer never renders — someone should be able to
+    // keep a seasonal palette without a single ghost.
+    for (const theme of THEMES) {
+      expect(decorFor(theme, 'off')).toBeNull()
+    }
+  })
+
+  it('draws nothing for a theme with no decoration set', () => {
+    expect(decorFor(themeById('midnight'), 'festive')).toBeNull()
+    expect(decorFor(themeById('paper'), 'subtle')).toBeNull()
+  })
+
+  it('returns the set and its counts for a seasonal theme', () => {
+    const decor = decorFor(themeById('halloween'), 'subtle')
+    expect(decor?.kind).toBe('halloween')
+    expect(decor?.counts.ghost).toBe(3)
+    expect(decor?.counts.pumpkin).toBe(2)
+  })
+
+  it('never draws fewer at festive than at subtle', () => {
+    for (const [kind, levels] of Object.entries(DECOR_COUNTS)) {
+      for (const sprite of Object.keys(levels.subtle)) {
+        expect(levels.festive[sprite] ?? 0).toBeGreaterThanOrEqual(levels.subtle[sprite] ?? 0)
+      }
+      void kind
+    }
+  })
+
+  it('keeps the counts low enough to stay decoration', () => {
+    // The difference between charming and infuriating is mostly how many.
+    for (const levels of Object.values(DECOR_COUNTS)) {
+      const total = Object.values(levels.festive).reduce((sum, count) => sum + count, 0)
+      expect(total).toBeLessThanOrEqual(30)
+    }
+  })
+
+  it('defines the same sprites at both intensities', () => {
+    // Otherwise turning the dial up makes something appear that was never
+    // designed into the quieter layout.
+    for (const levels of Object.values(DECOR_COUNTS)) {
+      expect(Object.keys(levels.festive).sort()).toEqual(Object.keys(levels.subtle).sort())
+    }
   })
 })

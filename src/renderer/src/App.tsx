@@ -11,6 +11,7 @@ import { ThemeContext, useThemeState } from '@/hooks/useTheme'
 import { TourProvider } from '@/tour/TourProvider'
 import { Palette } from '@/palette/Palette'
 import { Toasts } from '@/components/Toasts'
+import { SeasonalLayer } from '@/components/seasonal/SeasonalLayer'
 import { transition } from '@/lib/motion'
 import {
   ArchivedProjects,
@@ -86,7 +87,10 @@ function Shell(): React.JSX.Element {
       <TourProvider>
         <div className="flex min-h-0 flex-1">
           <Sidebar />
-          <main className="min-w-0 flex-1 bg-ground">
+          {/* `relative` so the decoration can sit inside it, `overflow-hidden`
+              so nothing drifts out into the sidebar or the titlebar. */}
+          <main className="relative min-w-0 flex-1 overflow-hidden bg-ground">
+            <SeasonalLayer />
             <AnimatedRoutes />
           </main>
         </div>

@@ -39,8 +39,31 @@ const TODAY_TASK_LIMIT = 10
 /** Four fits the row without the bars becoming decorative slivers. */
 const DASHBOARD_GOAL_LIMIT = 4
 
+/**
+ * Days worth naming, as `mm-dd`.
+ *
+ * Driven by the real date rather than the theme, unlike the decorations — a
+ * warm word on the day itself is welcome whether or not you ever touched a
+ * theme, and "Merry Christmas" in June with the Christmas palette on would be
+ * silly.
+ */
+const OCCASIONS: Record<string, string> = {
+  '10-31': 'Happy Halloween',
+  '12-24': 'Merry Christmas Eve',
+  '12-25': 'Merry Christmas',
+  '12-31': "Happy New Year's Eve",
+  '01-01': 'Happy New Year'
+}
+
 function greeting(): string {
-  const hour = new Date().getHours()
+  const now = new Date()
+  const occasion =
+    OCCASIONS[
+      `${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    ]
+  if (occasion) return occasion
+
+  const hour = now.getHours()
   if (hour < 12) return 'Good morning'
   if (hour < 18) return 'Good afternoon'
   return 'Good evening'

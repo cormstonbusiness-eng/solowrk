@@ -16,7 +16,7 @@ import { Page } from '@/components/Page'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, MoneyInput, NumberInput, TextInput, Toggle } from '@/components/ui/Field'
-import { THEMES, isInSeason } from '@shared/themes'
+import { DECOR_INTENSITIES, THEMES, isInSeason, themeById } from '@shared/themes'
 import { useTheme } from '@/hooks/useTheme'
 import { cn } from '@/lib/utils'
 import { today as todayString } from '@shared/taxYear'
@@ -306,7 +306,12 @@ export function Settings(): React.JSX.Element {
 
           {tab === 'assistant' && <BusinessPlanCard />}
 
-          {tab === 'appearance' && <ThemeCard />}
+          {tab === 'appearance' && (
+            <>
+              <ThemeCard />
+              <DecorCard />
+            </>
+          )}
 
           {tab === 'app' && (
             <>
@@ -671,6 +676,59 @@ function ThemeCard(): React.JSX.Element {
           )
         })}
       </div>
+    </Card>
+  )
+}
+
+/**
+ * How much seasonal decoration to draw.
+ *
+ * Only shown when the current theme actually brings decoration with it — a dial
+ * that does nothing on six of the eight themes would be furniture.
+ */
+function DecorCard(): React.JSX.Element | null {
+  const { themeId, decorIntensity, setDecorIntensity } = useTheme()
+  const theme = themeById(themeId)
+
+  if (!theme.decor) return null
+
+  return (
+    <Card>
+      <CardHeader title="Decoration" />
+      <p className="mb-3 text-[12px] leading-relaxed text-muted">
+        {theme.name} comes with something behind the app. It stays out of the way of your work
+        and never sits over what you are reading — but on the days you would rather it did not,
+        turn it off.
+      </p>
+
+      <div className="flex gap-2">
+        {DECOR_INTENSITIES.map((option) => {
+          const active = option.value === decorIntensity
+
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => setDecorIntensity(option.value)}
+              className={cn(
+                'flex-1 rounded-control border px-3 py-2.5 text-left transition-colors',
+                active
+                  ? 'border-accent bg-accent/8'
+                  : 'border-line hover:border-line-strong'
+              )}
+            >
+              <p className={cn('text-[12.5px]', active ? 'text-ink' : 'text-muted')}>
+                {option.label}
+              </p>
+              <p className="mt-0.5 text-[11px] text-faint">{option.hint}</p>
+            </button>
+          )
+        })}
+      </div>
+
+      <p className="mt-2.5 text-[11px] text-faint">
+        Hidden automatically when Windows is set to reduce animation.
+      </p>
     </Card>
   )
 }

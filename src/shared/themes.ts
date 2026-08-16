@@ -32,6 +32,23 @@ export interface ThemeTokens {
   info: string
 }
 
+/** Which decoration set a theme brings with it, if any. */
+export type DecorKind = 'halloween' | 'christmas' | 'newyear' | 'spring' | 'summer'
+
+/**
+ * How much decoration to draw.
+ *
+ * `off` is a real off — the layer is not rendered at all, so someone can keep a
+ * seasonal palette without a single ghost.
+ */
+export type DecorIntensity = 'off' | 'subtle' | 'festive'
+
+export const DECOR_INTENSITIES: { value: DecorIntensity; label: string; hint: string }[] = [
+  { value: 'off', label: 'Off', hint: 'Palette only' },
+  { value: 'subtle', label: 'Subtle', hint: 'A few, quietly' },
+  { value: 'festive', label: 'Festive', hint: 'The works' }
+]
+
 export interface Theme {
   id: string
   name: string
@@ -46,6 +63,8 @@ export interface Theme {
   radius: number
   /** Set on seasonal themes: the window of the year they belong to. */
   season?: { from: string; to: string }
+  /** Decoration drawn behind the app while this theme is on. */
+  decor?: DecorKind
   tokens: ThemeTokens
 }
 
@@ -264,6 +283,7 @@ export const THEMES: Theme[] = [
     fontMono: MONO,
     radius: 10,
     season: { from: '10-01', to: '11-02' },
+    decor: 'halloween',
     tokens: {
       ground: '#0c0910',
       surface: '#151020',
@@ -297,6 +317,7 @@ export const THEMES: Theme[] = [
     fontMono: MONO,
     radius: 12,
     season: { from: '12-01', to: '01-06' },
+    decor: 'christmas',
     tokens: {
       ground: '#0a1210',
       surface: '#101b17',
@@ -319,10 +340,153 @@ export const THEMES: Theme[] = [
       danger: '#e23b3b',
       info: '#5aa7d8'
     }
+  },
+
+  {
+    id: 'newyear',
+    name: 'New Year',
+    description: 'Midnight blue and champagne gold, with confetti still coming down.',
+    light: false,
+    fontSans: GEOMETRIC,
+    fontMono: MONO,
+    radius: 12,
+    season: { from: '12-31', to: '01-02' },
+    decor: 'newyear',
+    tokens: {
+      ground: '#080c16',
+      surface: '#0f1524',
+      raised: '#161e30',
+      overlay: '#1d273c',
+      hover: '#26314a',
+      line: '#1e2840',
+      lineStrong: '#2f3d5c',
+      ink: '#eef2fb',
+      muted: '#93a0bd',
+      faint: '#64708c',
+      accent: '#e3c078',
+      accentHover: '#f0cf8c',
+      accentPress: '#c5a45e',
+      accentInk: '#120e05',
+      success: '#3fb185',
+      warning: '#e8b04b',
+      danger: '#f2566b',
+      info: '#6ba3f5'
+    }
+  },
+
+  {
+    id: 'spring',
+    name: 'Spring',
+    description: 'Fresh greens and pale blossom, with petals coming off the tree.',
+    light: true,
+    fontSans: GEOMETRIC,
+    fontMono: MONO,
+    radius: 14,
+    season: { from: '03-20', to: '04-30' },
+    decor: 'spring',
+    tokens: {
+      ground: '#f6faf4',
+      surface: '#ffffff',
+      raised: '#ecf5e9',
+      overlay: '#ffffff',
+      hover: '#dfeeda',
+      line: '#e2efdd',
+      lineStrong: '#bcd8b3',
+      ink: '#18251a',
+      muted: '#556b57',
+      faint: '#87a189',
+      accent: '#3f7d44',
+      accentHover: '#356b3a',
+      accentPress: '#2b5830',
+      accentInk: '#ffffff',
+      success: '#2f8f57',
+      warning: '#a8720c',
+      // Blossom pink would vanish against the greens, so danger stays a firm
+      // red — it is the one colour that must never be pretty at the cost of
+      // being noticed.
+      danger: '#c2334b',
+      info: '#2f6cc4'
+    }
+  },
+
+  {
+    id: 'summer',
+    name: 'Summer',
+    description: 'Bright and warm, with a low sun in the corner. For the months with no holiday.',
+    light: true,
+    fontSans: GEOMETRIC,
+    fontMono: MONO,
+    radius: 14,
+    season: { from: '06-01', to: '08-31' },
+    decor: 'summer',
+    tokens: {
+      ground: '#fffaf0',
+      surface: '#ffffff',
+      raised: '#fdf1dc',
+      overlay: '#ffffff',
+      hover: '#f7e5c8',
+      line: '#f6e8d2',
+      lineStrong: '#dcc49b',
+      ink: '#1f1a10',
+      muted: '#6a5c44',
+      faint: '#9c8b6e',
+      accent: '#0d7a8f',
+      accentHover: '#0a677a',
+      accentPress: '#085463',
+      accentInk: '#ffffff',
+      success: '#2f7d51',
+      warning: '#a86a08',
+      danger: '#c4304a',
+      info: '#1f6fb8'
+    }
   }
 ]
 
 export const DEFAULT_THEME_ID = 'midnight'
+export const DEFAULT_DECOR_INTENSITY: DecorIntensity = 'subtle'
+
+/**
+ * How many of each sprite to draw, per decoration set and intensity.
+ *
+ * Counts are deliberately small. Decoration sits behind the screen someone
+ * does their invoicing on, and the difference between charming and infuriating
+ * is mostly a question of how many. Snow is the only one that needs volume,
+ * because sparse snow reads as dust.
+ */
+export const DECOR_COUNTS: Record<
+  DecorKind,
+  Record<Exclude<DecorIntensity, 'off'>, Record<string, number>>
+> = {
+  halloween: {
+    subtle: { ghost: 3, pumpkin: 2, cobweb: 2, bat: 0 },
+    festive: { ghost: 6, pumpkin: 5, cobweb: 2, bat: 3 }
+  },
+  christmas: {
+    subtle: { snowflake: 14, lights: 1, drift: 1 },
+    festive: { snowflake: 24, lights: 1, drift: 1 }
+  },
+  newyear: {
+    subtle: { confetti: 12, sparkle: 3 },
+    festive: { confetti: 24, sparkle: 5 }
+  },
+  spring: {
+    subtle: { petal: 10 },
+    festive: { petal: 20 }
+  },
+  summer: {
+    subtle: { sun: 1, seed: 6 },
+    festive: { sun: 1, seed: 14 }
+  }
+}
+
+/** What to draw for a theme at an intensity. Empty when there is nothing. */
+export function decorFor(
+  theme: Theme,
+  intensity: DecorIntensity
+): { kind: DecorKind; counts: Record<string, number> } | null {
+  if (!theme.decor || intensity === 'off') return null
+  return { kind: theme.decor, counts: DECOR_COUNTS[theme.decor][intensity] }
+}
 
 export function themeById(id: string): Theme {
   return THEMES.find((theme) => theme.id === id) ?? THEMES[0]!

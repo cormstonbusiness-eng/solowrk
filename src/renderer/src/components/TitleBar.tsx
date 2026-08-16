@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { Copy, Minus, Square, X } from 'lucide-react'
 import type { WindowState } from '@shared/ipc'
 import { Timer } from './Timer'
+import { themeById, type DecorKind } from '@shared/themes'
+import { useTheme } from '@/hooks/useTheme'
+import { Petal, Pumpkin, Snowflake, Sparkle } from '@/components/seasonal/sprites'
 import { cn } from '@/lib/utils'
 
 /**
@@ -37,6 +40,26 @@ function ControlButton({
   )
 }
 
+/**
+ * A small seasonal mark beside the wordmark. Static — the titlebar is the one
+ * strip of the window that is always on screen, so nothing here should move.
+ */
+const MARKS: Partial<Record<DecorKind, (props: { className?: string }) => React.JSX.Element>> = {
+  halloween: Pumpkin,
+  christmas: Snowflake,
+  newyear: Sparkle,
+  spring: Petal
+}
+
+function Flourish(): React.JSX.Element | null {
+  const { themeId, decorIntensity } = useTheme()
+  const decor = themeById(themeId).decor
+  const Mark = decorIntensity === 'off' || !decor ? null : MARKS[decor]
+
+  if (!Mark) return null
+  return <Mark className="h-3 w-3 text-muted opacity-70" />
+}
+
 export function TitleBar(): React.JSX.Element {
   const [state, setState] = useState<WindowState>({ isMaximized: false, isFocused: true })
 
@@ -58,6 +81,7 @@ export function TitleBar(): React.JSX.Element {
         <div className="h-3 w-3 rounded-[3px] bg-accent" aria-hidden />
         {/* Not uppercased: the capital W is the whole point of the wordmark. */}
         <span className="text-[11px] font-medium tracking-[0.06em] text-muted">SoloWrk</span>
+        <Flourish />
       </div>
 
       {/* Centred so it reads as a status, not another control. */}
