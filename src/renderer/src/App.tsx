@@ -20,6 +20,7 @@ import {
   Files,
   Finance,
   Invoices,
+  Marketing,
   ProjectDetail,
   Projects,
   Settings,
@@ -52,6 +53,7 @@ function AnimatedRoutes(): React.JSX.Element {
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/clients" element={<Clients />} />
         <Route path="/clients/:id" element={<ClientDetail />} />
+        <Route path="/marketing" element={<Marketing />} />
         <Route path="/invoices" element={<Invoices />} />
         <Route path="/finance" element={<Finance />} />
         <Route path="/files" element={<Files />} />

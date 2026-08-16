@@ -1,11 +1,12 @@
 import { motion } from 'motion/react'
 import { CalendarDays, MapPin, Video } from 'lucide-react'
-import type { CalendarEventWithContext, TaskWithContext } from '@shared/types'
+import type { CalendarEventWithContext, PostWithContext, TaskWithContext } from '@shared/types'
 import { describeSpan, occursOn } from '@shared/calendar'
 import { Empty } from '@/components/ui/Empty'
 import { cn } from '@/lib/utils'
 import { listItemVariants, listVariants } from '@/lib/motion'
 import { dayLabel } from './grid'
+import { CalendarPostChip } from './PostChip'
 
 /**
  * The list view: everything in range, in order, grouped by day. Days with
@@ -17,21 +18,24 @@ export function AgendaView({
   today,
   events,
   tasks,
+  posts,
   onOpenEvent
 }: {
   days: string[]
   today: string
   events: CalendarEventWithContext[]
   tasks: TaskWithContext[]
+  posts: PostWithContext[]
   onOpenEvent: (event: CalendarEventWithContext) => void
 }): React.JSX.Element {
   const rows = days
     .map((day) => ({
       day,
       events: events.filter((event) => occursOn(event, day)),
-      tasks: tasks.filter((task) => task.dueAt?.slice(0, 10) === day)
+      tasks: tasks.filter((task) => task.dueAt?.slice(0, 10) === day),
+      posts: posts.filter((post) => post.scheduledAt?.slice(0, 10) === day)
     }))
-    .filter((row) => row.events.length > 0 || row.tasks.length > 0)
+    .filter((row) => row.events.length > 0 || row.tasks.length > 0 || row.posts.length > 0)
 
   if (rows.length === 0) {
     return (
@@ -86,6 +90,12 @@ export function AgendaView({
                   <span className="shrink-0 text-[11px] text-muted">{event.projectName}</span>
                 )}
               </motion.button>
+            ))}
+
+            {row.posts.map((post) => (
+              <motion.div key={`post-${post.id}`} variants={listItemVariants}>
+                <CalendarPostChip post={post} />
+              </motion.div>
             ))}
 
             {row.tasks.map((task) => (

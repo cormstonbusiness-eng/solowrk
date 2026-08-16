@@ -24,6 +24,9 @@ export const WORKSPACE_TREE = [
   'Invoices',
   'Quotes',
   'Expenses',
+  'Marketing',
+  join('Marketing', 'Assets'),
+  join('Marketing', 'Exports'),
   'Templates'
 ]
 

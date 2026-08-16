@@ -108,6 +108,13 @@ export function Calendar(): React.JSX.Element {
     queryFn: () => window.solo.invoke('projects:list', {})
   })
 
+  // Scheduled posts sit alongside events and task deadlines: what is going out
+  // this week is part of the week, not a separate calendar to remember to check.
+  const { data: posts = [] } = useQuery({
+    queryKey: keys.posts({ from, to }),
+    queryFn: () => window.solo.invoke('marketing:posts', { from, to })
+  })
+
   const reschedule = useMutation({
     mutationFn: (input: { id: number; startsAt: string; endsAt: string }) =>
       window.solo.invoke('events:update', {
@@ -223,6 +230,7 @@ export function Calendar(): React.JSX.Element {
               today={today}
               events={events}
               tasks={tasks}
+              posts={posts}
               onOpenEvent={setEditing}
               onCreateAt={(day) => openNew(day)}
               onMoveEvent={(event, dayDelta) =>
@@ -241,6 +249,7 @@ export function Calendar(): React.JSX.Element {
               today={today}
               events={events}
               tasks={tasks}
+              posts={posts}
               onOpenEvent={setEditing}
               onCreateSlot={(startsAt, endsAt) =>
                 openNew(startsAt.slice(0, 10), startsAt.slice(11, 16), endsAt.slice(11, 16))
@@ -256,6 +265,7 @@ export function Calendar(): React.JSX.Element {
                 today={today}
                 events={events}
                 tasks={tasks}
+              posts={posts}
                 onOpenEvent={setEditing}
               />
             </div>

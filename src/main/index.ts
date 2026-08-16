@@ -5,6 +5,7 @@ import { registerIpcHandlers } from './ipc'
 import { broadcastWindowState } from './ipc/window'
 import { session } from './services/session'
 import { startReminders, stopReminders } from './services/reminders'
+import { startScheduler, stopScheduler } from './services/scheduler'
 import { assistant } from './ai/assistant'
 
 /** Matches `--ground` in the renderer theme so there is no white flash on launch. */
@@ -82,6 +83,7 @@ void app.whenReady().then(() => {
   // Polls for due event reminders. It no-ops until a workspace is open, so it
   // is safe to start before first-run setup has happened.
   startReminders(getMainWindow)
+  startScheduler(getMainWindow)
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()
@@ -96,6 +98,7 @@ app.on('window-all-closed', () => {
 // next launch to recover.
 app.on('before-quit', () => {
   stopReminders()
+  stopScheduler()
   // Ends any in-flight turn and drops the "always allow" grants, which are
   // deliberately per-run rather than persisted.
   assistant.reset()

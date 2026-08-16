@@ -7,6 +7,7 @@ import {
   CircleCheckBig,
   FileText,
   FolderKanban,
+  Megaphone,
   Play,
   Plus,
   ReceiptText,
@@ -82,6 +83,12 @@ export function useCommands({
     ...options
   })
 
+  const { data: posts = [] } = useQuery({
+    queryKey: keys.posts(),
+    queryFn: () => window.solo.invoke('marketing:posts', {}),
+    ...options
+  })
+
   const { data: running } = useQuery({
     queryKey: ['time', 'running'],
     queryFn: () => window.solo.invoke('time:running'),
@@ -138,6 +145,14 @@ export function useCommands({
         icon: Plus,
         searchText: 'New client create add customer',
         run: go('/clients?new=1')
+      },
+      {
+        id: 'new-post',
+        label: 'New post',
+        group: 'Action',
+        icon: Plus,
+        searchText: 'New post create social marketing linkedin instagram schedule',
+        run: go('/marketing?new=1')
       }
     )
 
@@ -249,6 +264,19 @@ export function useCommands({
       })
     }
 
+    for (const post of posts) {
+      commands.push({
+        id: `post-${post.id}`,
+        label: post.title || post.body.slice(0, 60) || 'Untitled post',
+        subtitle: post.scheduledAt ? post.scheduledAt.replace('T', ' ') : 'Backlog',
+        group: 'Post',
+        icon: Megaphone,
+        colour: post.campaignColour ?? post.pillarColour ?? undefined,
+        searchText: `${post.title} ${post.body} ${post.campaignName ?? ''} post social`,
+        run: go('/marketing')
+      })
+    }
+
     commands.push({
       id: 'today',
       label: "Today's schedule",
@@ -272,5 +300,5 @@ export function useCommands({
     }
 
     return commands
-  }, [projects, clients, tasks, invoices, documents, running, navigate, queryClient, close])
+  }, [projects, clients, tasks, invoices, documents, posts, running, navigate, queryClient, close])
 }

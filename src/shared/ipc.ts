@@ -12,10 +12,19 @@ import type {
   AssistantStatus,
   BusinessSettings,
   CalendarEventWithContext,
+  Campaign,
+  CampaignWithCounts,
   Category,
   ChatMessage,
+  ContentPillar,
   Conversation,
+  MarketingSummary,
   PermissionAnswer,
+  Platform,
+  PostFilter,
+  PostInput,
+  PostWithContext,
+  SocialAccount,
   Client,
   ClientInput,
   ClientTotal,
@@ -262,6 +271,33 @@ export interface IpcContract {
   'events:delete': { req: { id: number }; res: void }
   'events:upcoming': { req: { limit?: number } | void; res: CalendarEventWithContext[] }
 
+  'marketing:campaigns': { req: { includeArchived?: boolean } | void; res: CampaignWithCounts[] }
+  'marketing:createCampaign': { req: Partial<Campaign> & { name: string }; res: Campaign }
+  'marketing:updateCampaign': { req: { id: number; patch: Partial<Campaign> }; res: Campaign }
+  'marketing:deleteCampaign': { req: { id: number }; res: void }
+
+  'marketing:pillars': { req: void; res: ContentPillar[] }
+  'marketing:createPillar': {
+    req: { name: string; colour?: string; description?: string; targetShare?: number }
+    res: ContentPillar
+  }
+  'marketing:updatePillar': {
+    req: { id: number; patch: Partial<ContentPillar> }
+    res: ContentPillar
+  }
+  'marketing:deletePillar': { req: { id: number }; res: void }
+
+  'marketing:posts': { req: PostFilter | void; res: PostWithContext[] }
+  'marketing:post': { req: { id: number }; res: PostWithContext }
+  'marketing:createPost': { req: PostInput; res: PostWithContext }
+  'marketing:updatePost': { req: { id: number; patch: PostInput }; res: PostWithContext }
+  'marketing:deletePost': { req: { id: number }; res: void }
+  /** Copies the caption for a platform to the clipboard and reveals its media. */
+  'marketing:handoff': { req: { postId: number; platform: Platform }; res: void }
+  'marketing:summary': { req: { from: string; to: string }; res: MarketingSummary }
+
+  'social:accounts': { req: void; res: SocialAccount[] }
+
   'ai:status': { req: void; res: AssistantStatus }
   'ai:conversations': { req: void; res: Conversation[] }
   'ai:messages': { req: { conversationId: number }; res: ChatMessage[] }
@@ -287,6 +323,8 @@ export interface IpcEvents {
   'calendar:focusEvent': { id: number }
   /** Streaming progress from the assistant — text, tool calls, confirmations. */
   'ai:event': AssistantEvent
+  /** Sent when a due-post notification is clicked, to open that post. */
+  'marketing:focusPost': { id: number }
 }
 
 export type IpcEvent = keyof IpcEvents
@@ -387,6 +425,22 @@ export const IPC_CHANNELS = [
   'events:update',
   'events:delete',
   'events:upcoming',
+  'marketing:campaigns',
+  'marketing:createCampaign',
+  'marketing:updateCampaign',
+  'marketing:deleteCampaign',
+  'marketing:pillars',
+  'marketing:createPillar',
+  'marketing:updatePillar',
+  'marketing:deletePillar',
+  'marketing:posts',
+  'marketing:post',
+  'marketing:createPost',
+  'marketing:updatePost',
+  'marketing:deletePost',
+  'marketing:handoff',
+  'marketing:summary',
+  'social:accounts',
   'ai:status',
   'ai:conversations',
   'ai:messages',
@@ -400,5 +454,6 @@ export const IPC_CHANNELS = [
 export const IPC_EVENTS = [
   'window:stateChanged',
   'calendar:focusEvent',
-  'ai:event'
+  'ai:event',
+  'marketing:focusPost'
 ] as const satisfies readonly IpcEvent[]

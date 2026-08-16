@@ -1,5 +1,6 @@
 import {
   app,
+  clipboard,
   dialog,
   ipcMain,
   shell,
@@ -93,6 +94,24 @@ import {
   upcomingEvents
 } from '../services/events'
 import { nowStamp } from '@shared/calendar'
+import {
+  createCampaign,
+  createPillar,
+  createPost,
+  deleteCampaign,
+  deletePillar,
+  deletePost,
+  getPost,
+  listCampaigns,
+  listPillars,
+  listPosts,
+  marketingSummary,
+  updateCampaign,
+  updatePillar,
+  updatePost
+} from '../services/marketing'
+import { listAccounts } from '../social/accounts'
+import { today } from '@shared/taxYear'
 import { assistant } from '../ai/assistant'
 import {
   createConversation,
@@ -396,6 +415,53 @@ const handlers: Handlers = {
 
   'events:upcoming': (_g, payload) =>
     upcomingEvents(session.requireDb(), nowStamp(), payload?.limit ?? 5),
+
+  'marketing:campaigns': (_g, args) =>
+    listCampaigns(session.requireDb(), args?.includeArchived ?? false),
+  'marketing:createCampaign': (_g, input) => createCampaign(session.requireDb(), input),
+  'marketing:updateCampaign': (_g, { id, patch }) =>
+    updateCampaign(session.requireDb(), id, patch),
+  'marketing:deleteCampaign': (_g, { id }) => {
+    deleteCampaign(session.requireDb(), id)
+  },
+
+  'marketing:pillars': () => listPillars(session.requireDb()),
+  'marketing:createPillar': (_g, input) => createPillar(session.requireDb(), input),
+  'marketing:updatePillar': (_g, { id, patch }) => updatePillar(session.requireDb(), id, patch),
+  'marketing:deletePillar': (_g, { id }) => {
+    deletePillar(session.requireDb(), id)
+  },
+
+  'marketing:posts': (_g, filter) => listPosts(session.requireDb(), filter ?? {}),
+  'marketing:post': (_g, { id }) => getPost(session.requireDb(), id),
+  'marketing:createPost': (_g, input) =>
+    createPost(session.requireDb(), session.requirePath(), input, today()),
+  'marketing:updatePost': (_g, { id, patch }) =>
+    updatePost(session.requireDb(), session.requirePath(), id, patch, today()),
+  'marketing:deletePost': (_g, { id }) => {
+    deletePost(session.requireDb(), id)
+  },
+
+  /**
+   * The manual route, for a platform with no connection — and the fallback for
+   * one whose auto-post failed. Copies the caption and opens the folder holding
+   * the images, which between them is the whole job of posting by hand.
+   */
+  'marketing:handoff': (_g, { postId, platform }) => {
+    const post = getPost(session.requireDb(), postId)
+    const target = post.targets.find((entry) => entry.platform === platform)
+
+    clipboard.writeText(target?.body?.trim() || post.body)
+
+    const first = post.media[0]
+    if (first) {
+      shell.showItemInFolder(resolveInWorkspace(session.requirePath(), first.file))
+    }
+  },
+
+  'marketing:summary': (_g, range) => marketingSummary(session.requireDb(), range),
+
+  'social:accounts': () => listAccounts(session.requireDb()),
 
   'ai:status': () => assistant.status(),
   'ai:conversations': () => listConversations(session.requireDb()),

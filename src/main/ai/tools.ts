@@ -17,7 +17,17 @@ import { summary } from '../services/finance'
 import { createEvent, listEvents } from '../services/events'
 import { createNote, listNotes, writeNote } from '../services/notes'
 import { listDocuments } from '../services/documents'
-import { rangeFor, type Period } from '@shared/taxYear'
+import {
+  createCampaign,
+  createPost,
+  listCampaigns,
+  listPillars,
+  listPosts,
+  marketingSummary,
+  updatePost
+} from '../services/marketing'
+import { listAccounts } from '../social/accounts'
+import { rangeFor, today as todayString, type Period } from '@shared/taxYear'
 import { nowStamp } from '@shared/calendar'
 
 /**
@@ -43,7 +53,11 @@ export const MUTATING = new Set([
   'log_time',
   'create_invoice_draft',
   'create_event',
-  'write_note'
+  'write_note',
+  'create_campaign',
+  'create_post',
+  'update_post',
+  'create_content_plan'
 ])
 
 const ok = (text: string): { content: { type: 'text'; text: string }[] } => ({
@@ -76,6 +90,20 @@ export function describeCall(toolName: string, input: Record<string, unknown>): 
       return `Add “${name('title')}” to your calendar`
     case 'write_note':
       return `Write to the note “${name('title')}”`
+    case 'create_campaign':
+      return `Create the campaign “${name('name')}”`
+    case 'create_post':
+      return `Create the post “${name('title')}”${
+        input.scheduledAt ? ` for ${String(input.scheduledAt).replace('T', ' at ')}` : ''
+      }`
+    case 'update_post':
+      return `Update post #${name('id')}`
+    case 'create_content_plan': {
+      // The one bulk tool: the count and the range are the whole decision, so
+      // they go in the sentence rather than being buried in the JSON below it.
+      const posts = Array.isArray(input.posts) ? input.posts.length : 0
+      return `Create ${posts} draft post${posts === 1 ? '' : 's'}`
+    }
     default:
       return `Run ${toolName}`
   }
@@ -342,6 +370,174 @@ export const soloTools = createSdkMcpServer({
       'List filed business documents — contracts, insurance, certificates.',
       { search: z.string().optional(), category: z.string().optional() },
       async (args) => asJson(listDocuments(db(), args))
+    ),
+
+    /* ---------------- Marketing ---------------- */
+
+    tool(
+      'list_campaigns',
+      'Marketing campaigns, with how many posts each holds.',
+      { includeArchived: z.boolean().default(false) },
+      async (args) => asJson(listCampaigns(db(), args.includeArchived))
+    ),
+
+    tool(
+      'create_campaign',
+      'Create a marketing campaign to group posts under. Requires the user to confirm.',
+      {
+        name: z.string(),
+        goal: z.string().default(''),
+        description: z.string().default(''),
+        startsOn: z.string().nullable().default(null).describe('yyyy-mm-dd'),
+        endsOn: z.string().nullable().default(null).describe('yyyy-mm-dd')
+      },
+      async (args) => asJson(createCampaign(db(), args))
+    ),
+
+    tool(
+      'list_content_pillars',
+      'The themes the user wants their content split across, with the share of ' +
+        'output each is meant to take, in basis points (4000 = 40%).',
+      {},
+      async () => asJson(listPillars(db()))
+    ),
+
+    tool(
+      'list_posts',
+      'Social posts. Use `backlog` for undated ideas, or a date range for what is planned.',
+      {
+        from: z.string().optional().describe('yyyy-mm-dd'),
+        to: z.string().optional().describe('yyyy-mm-dd'),
+        backlog: z.boolean().default(false),
+        status: z
+          .enum(['idea', 'draft', 'scheduled', 'published', 'failed', 'needs_attention'])
+          .optional(),
+        campaignId: z.number().int().optional(),
+        search: z.string().optional()
+      },
+      async (args) => asJson(listPosts(db(), args))
+    ),
+
+    tool(
+      'get_marketing_summary',
+      'How the plan looks over a range: what is scheduled and published, what needs ' +
+        'attention, which days have nothing on them, and how the pillar mix compares ' +
+        'with the targets. Read this before proposing a plan.',
+      { from: z.string().describe('yyyy-mm-dd'), to: z.string().describe('yyyy-mm-dd') },
+      async (args) => asJson(marketingSummary(db(), args))
+    ),
+
+    tool(
+      'create_post',
+      'Create one social post. Times are local wall-clock, yyyy-mm-ddThh:mm. Leave ' +
+        'scheduledAt null to put it in the idea backlog. Requires the user to confirm.',
+      {
+        title: z.string().describe('Internal name — never posted'),
+        body: z.string(),
+        platforms: z
+          .array(z.enum(['linkedin', 'facebook', 'instagram', 'tiktok', 'pinterest']))
+          .default([]),
+        scheduledAt: z.string().nullable().default(null).describe('yyyy-mm-ddThh:mm'),
+        campaignId: z.number().int().nullable().default(null),
+        pillarId: z.number().int().nullable().default(null),
+        linkUrl: z.string().default(''),
+        notes: z.string().default('')
+      },
+      async (args) =>
+        asJson(
+          await createPost(
+            db(),
+            root(),
+            {
+              title: args.title,
+              body: args.body,
+              linkUrl: args.linkUrl,
+              notes: args.notes,
+              campaignId: args.campaignId,
+              pillarId: args.pillarId,
+              scheduledAt: args.scheduledAt,
+              targets: args.platforms.map((platform) => ({ platform }))
+            },
+            todayString()
+          )
+        )
+    ),
+
+    tool(
+      'update_post',
+      'Change a post — its text, date, campaign or pillar. Requires the user to confirm.',
+      {
+        id: z.number().int(),
+        title: z.string().optional(),
+        body: z.string().optional(),
+        scheduledAt: z.string().nullable().optional(),
+        campaignId: z.number().int().nullable().optional(),
+        pillarId: z.number().int().nullable().optional(),
+        notes: z.string().optional()
+      },
+      async ({ id, ...patch }) => asJson(await updatePost(db(), root(), id, patch, todayString()))
+    ),
+
+    tool(
+      'create_content_plan',
+      'Create several posts at once — a week, a month or a quarter of content. ' +
+        'Everything arrives as a draft for the user to edit; nothing is sent. This ' +
+        'ADDS to the calendar and never replaces what is already scheduled, so read ' +
+        'get_marketing_summary first and fill the gaps rather than double-booking days. ' +
+        'Requires the user to confirm, once, for the whole batch.',
+      {
+        posts: z
+          .array(
+            z.object({
+              title: z.string(),
+              body: z.string(),
+              scheduledAt: z.string().describe('yyyy-mm-ddThh:mm'),
+              pillarId: z.number().int().nullable().default(null),
+              platforms: z
+                .array(z.enum(['linkedin', 'facebook', 'instagram', 'tiktok', 'pinterest']))
+                .default([])
+            })
+          )
+          .min(1)
+          .max(60),
+        campaignId: z.number().int().nullable().default(null)
+      },
+      async (args) => {
+        const created = []
+        for (const item of args.posts) {
+          created.push(
+            await createPost(
+              db(),
+              root(),
+              {
+                title: item.title,
+                body: item.body,
+                scheduledAt: item.scheduledAt,
+                pillarId: item.pillarId,
+                campaignId: args.campaignId,
+                // Drafts, not scheduled: a month of content the user has not
+                // read yet must not be queued to send itself.
+                status: 'draft',
+                targets: item.platforms.map((platform) => ({ platform }))
+              },
+              todayString()
+            )
+          )
+        }
+        return ok(
+          `Created ${created.length} draft posts, from ${args.posts[0]!.scheduledAt.slice(0, 10)} ` +
+            `to ${args.posts.at(-1)!.scheduledAt.slice(0, 10)}. They are drafts — review them in ` +
+            `Marketing and schedule the ones you want.`
+        )
+      }
+    ),
+
+    tool(
+      'list_social_accounts',
+      'Which social accounts are connected. A platform with no connected account ' +
+        'can still be planned for — the user posts it by hand.',
+      {},
+      async () => asJson(listAccounts(db()))
     ),
 
     tool(

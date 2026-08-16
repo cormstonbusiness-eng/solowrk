@@ -417,5 +417,142 @@ export const migrations: Migration[] = [
 
       CREATE INDEX idx_ai_messages_conversation ON ai_messages(conversation_id, id);
     `
+  },
+
+  {
+    id: 8,
+    name: 'marketing',
+    sql: `
+      -- Connected social accounts. Deliberately holds NO tokens: credential_key
+      -- points at a blob encrypted with Electron's safeStorage and kept in
+      -- userData, outside the workspace, so a workspace that is zipped, synced
+      -- or copied to another machine never carries access tokens with it.
+      CREATE TABLE social_accounts (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        platform       TEXT    NOT NULL
+                               CHECK (platform IN ('linkedin','facebook','instagram',
+                                                   'tiktok','pinterest')),
+        handle         TEXT    NOT NULL DEFAULT '',
+        display_name   TEXT    NOT NULL DEFAULT '',
+        avatar_file    TEXT,
+        external_id    TEXT,
+        status         TEXT    NOT NULL DEFAULT 'connected'
+                               CHECK (status IN ('connected','expired','disconnected')),
+        scopes         TEXT    NOT NULL DEFAULT '',
+        -- Page id, Instagram user id, default Pinterest board — whatever the
+        -- platform needs alongside the token.
+        meta           TEXT    NOT NULL DEFAULT '{}',
+        credential_key TEXT,
+        connected_at   TEXT,
+        created_at     TEXT    NOT NULL,
+        updated_at     TEXT    NOT NULL
+      );
+
+      CREATE TABLE campaigns (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        name        TEXT    NOT NULL,
+        description TEXT    NOT NULL DEFAULT '',
+        goal        TEXT    NOT NULL DEFAULT '',
+        colour      TEXT    NOT NULL DEFAULT '#6E56CF',
+        starts_on   TEXT,
+        ends_on     TEXT,
+        status      TEXT    NOT NULL DEFAULT 'active'
+                            CHECK (status IN ('planned','active','finished','archived')),
+        created_at  TEXT    NOT NULL,
+        updated_at  TEXT    NOT NULL
+      );
+
+      -- Themes, with the share of output each is meant to take. Basis points,
+      -- like VAT rates, so 4000 is 40% and the arithmetic stays in integers.
+      CREATE TABLE content_pillars (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        name         TEXT    NOT NULL,
+        description  TEXT    NOT NULL DEFAULT '',
+        colour       TEXT    NOT NULL DEFAULT '#6E56CF',
+        target_share INTEGER NOT NULL DEFAULT 0,
+        sort_order   INTEGER NOT NULL DEFAULT 0,
+        created_at   TEXT    NOT NULL,
+        updated_at   TEXT    NOT NULL
+      );
+
+      -- scheduled_at is a local wall-clock stamp, 'yyyy-mm-ddThh:mm', exactly as
+      -- events are. See src/shared/calendar.ts. Conversion to whatever UTC each
+      -- API wants happens at the API boundary and nowhere else.
+      CREATE TABLE posts (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        campaign_id       INTEGER REFERENCES campaigns(id) ON DELETE SET NULL,
+        pillar_id         INTEGER REFERENCES content_pillars(id) ON DELETE SET NULL,
+        project_id        INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+        title             TEXT    NOT NULL DEFAULT '',
+        body              TEXT    NOT NULL DEFAULT '',
+        link_url          TEXT    NOT NULL DEFAULT '',
+        notes             TEXT    NOT NULL DEFAULT '',
+        status            TEXT    NOT NULL DEFAULT 'idea'
+                                  CHECK (status IN ('idea','draft','scheduled','published',
+                                                    'failed','needs_attention')),
+        scheduled_at      TEXT,
+        published_at      TEXT,
+        -- Evergreen posts re-appear as fresh scheduled copies on this cadence,
+        -- the same mechanism as recurring invoices.
+        evergreen_days    INTEGER,
+        next_repeat_on    TEXT,
+        parent_post_id    INTEGER REFERENCES posts(id) ON DELETE SET NULL,
+        created_at        TEXT    NOT NULL,
+        updated_at        TEXT    NOT NULL
+      );
+
+      -- One row per post per destination. The same idea goes to LinkedIn as
+      -- three paragraphs and to Instagram as a caption with fifteen hashtags,
+      -- and each destination succeeds or fails on its own — which is why the
+      -- status lives here and not only on the post.
+      CREATE TABLE post_targets (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_id      INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+        account_id   INTEGER REFERENCES social_accounts(id) ON DELETE SET NULL,
+        platform     TEXT    NOT NULL,
+        -- Empty means "use the post's body unchanged".
+        body         TEXT    NOT NULL DEFAULT '',
+        title        TEXT    NOT NULL DEFAULT '',
+        board_id     TEXT,
+        status       TEXT    NOT NULL DEFAULT 'pending'
+                             CHECK (status IN ('pending','handed_over','published',
+                                               'failed','skipped')),
+        external_id  TEXT,
+        external_url TEXT,
+        error        TEXT    NOT NULL DEFAULT '',
+        published_at TEXT,
+        created_at   TEXT    NOT NULL,
+        updated_at   TEXT    NOT NULL
+      );
+
+      CREATE TABLE post_media (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        post_id    INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE,
+        file       TEXT    NOT NULL,
+        alt_text   TEXT    NOT NULL DEFAULT '',
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT    NOT NULL
+      );
+
+      CREATE TABLE post_metrics (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        target_id   INTEGER NOT NULL REFERENCES post_targets(id) ON DELETE CASCADE,
+        captured_at TEXT    NOT NULL,
+        impressions INTEGER NOT NULL DEFAULT 0,
+        likes       INTEGER NOT NULL DEFAULT 0,
+        comments    INTEGER NOT NULL DEFAULT 0,
+        shares      INTEGER NOT NULL DEFAULT 0,
+        clicks      INTEGER NOT NULL DEFAULT 0,
+        saves       INTEGER NOT NULL DEFAULT 0
+      );
+
+      CREATE INDEX idx_posts_scheduled  ON posts(scheduled_at);
+      CREATE INDEX idx_posts_status     ON posts(status);
+      CREATE INDEX idx_posts_campaign   ON posts(campaign_id);
+      CREATE INDEX idx_targets_post     ON post_targets(post_id);
+      CREATE INDEX idx_targets_status   ON post_targets(status);
+      CREATE INDEX idx_media_post       ON post_media(post_id, sort_order);
+      CREATE INDEX idx_metrics_target   ON post_metrics(target_id, captured_at);
+    `
   }
 ]

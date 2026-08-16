@@ -58,7 +58,8 @@ class Session {
 
   /** Create the folder tree and database, then open it. */
   async create(setup: WorkspaceSetup): Promise<WorkspaceStatus> {
-    await scaffoldWorkspace(setup.path)
+    // `open` scaffolds too, so creation is just opening a path that is not
+    // there yet — one code path builds the tree rather than two.
     await this.open(setup.path)
 
     updateSettings(this.requireDb(), {
@@ -82,6 +83,13 @@ class Session {
 
   private async open(path: string): Promise<void> {
     this.close()
+
+    // Re-scaffold on every open, not only on create. Every mkdir is recursive
+    // so this is idempotent and costs a few filesystem calls — and without it a
+    // folder added to WORKSPACE_TREE by a later phase never reaches a workspace
+    // that already exists. It also heals a tree the user has deleted from.
+    await scaffoldWorkspace(path)
+
     this.db = new Database(databasePath(path))
     this.workspacePath = path
     await updateConfig({ workspacePath: path })

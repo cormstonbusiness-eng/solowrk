@@ -7,6 +7,7 @@ import {
   FolderKanban,
   FolderOpen,
   LayoutDashboard,
+  Megaphone,
   ReceiptText,
   Settings,
   Sparkles,
@@ -41,6 +42,7 @@ export const navGroups: NavGroup[] = [
     label: 'Business',
     items: [
       { label: 'Clients', path: '/clients', icon: Users },
+      { label: 'Marketing', path: '/marketing', icon: Megaphone },
       { label: 'Invoices', path: '/invoices', icon: ReceiptText },
       { label: 'Finance', path: '/finance', icon: ChartNoAxesCombined }
     ]

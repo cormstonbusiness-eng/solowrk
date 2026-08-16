@@ -66,8 +66,14 @@ to compile and `npm install` works on any machine. Queries are hand-written SQL 
 Phases 0 (shell, design system, animated routing), 1 (data layer, first-run wizard, settings),
 2 (clients, projects, tasks, notes, templates), 3 (files, documents), 4 (time, quotes,
 invoices, expenses, finance), 5 (calendar), 6 (live dashboard, Ctrl+K palette) and 7 (the Claude
-assistant) are complete. What remains is phase 8 (Google and Teams calendar sync, which needs
-OAuth app registrations) and phase 9 (the installer).
+assistant) are complete, plus stages 10.1 and 10.2 of the marketing phase — the content
+calendar, campaigns, pillars, idea backlog, evergreen queue and the assistant's planning tools.
+What remains is phase 8 (Google and Teams calendar sync), phase 9 (the installer), and stages
+10.3–10.4 (connecting social accounts and reading performance back), all of which need OAuth
+app registrations the user has to create.
+
+Marketing works with **no social accounts connected**: it plans, writes, schedules and reminds,
+and hands you the caption on the clipboard when a post is due.
 
 The assistant runs the Claude Code installation already on the machine, through
 `@anthropic-ai/claude-agent-sdk`, so it uses the user's own subscription and no API key is
@@ -93,6 +99,18 @@ three steps rather than showing a chat box that silently fails.
   it back in UTC can shift a payment across the 6 April tax-year boundary.
 - **`Database.transaction` is re-entrant** (SAVEPOINT when nested), because services compose and
   SQLite has no nested `BEGIN`.
+- **The workspace tree is re-scaffolded on every open**, not just on create, so a folder added
+  to `WORKSPACE_TREE` by a later phase reaches workspaces that already exist. Every `mkdir` is
+  recursive, so it is idempotent — and it heals a tree the user has deleted from.
+- **A post is `posts` plus one `post_targets` row per platform.** The same idea goes to LinkedIn
+  as three paragraphs and to Instagram as a caption with hashtags, and each destination succeeds
+  or fails on its own. Post status is *derived* from its targets, never set directly, so a
+  partial failure cannot round up to "published".
+- **Only Facebook and Pinterest schedule natively.** Everything else is a job SoloWrk runs while
+  it is open, with an hour's grace (`PUBLISH_GRACE_MINUTES`) before a missed post is flagged
+  rather than sent late. Same rule and reasoning as calendar reminders.
+- **Every platform rule lives in `src/shared/social.ts`.** The check that greys out the schedule
+  button and the check that runs before publishing must be the same check.
 - **The assistant's permission gate reads `MUTATING` in `src/main/ai/tools.ts`, not the model's
   intent.** Add a tool that changes data and you must add its name there, or it will run
   unconfirmed. `Bash`, `Write`, `Edit`, `WebFetch` and `WebSearch` are disallowed outright — the

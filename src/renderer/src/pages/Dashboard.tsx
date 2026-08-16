@@ -8,6 +8,7 @@ import {
   Clock,
   FileText,
   FolderOpen,
+  Megaphone,
   Plus,
   ReceiptText,
   Search,
@@ -73,6 +74,16 @@ export function Dashboard(): React.JSX.Element {
     queryFn: () => window.solo.invoke('documents:expiring', { days: 45 })
   })
 
+  const { data: duePosts = [] } = useQuery({
+    queryKey: ['marketing', 'posts', 'dashboard', today],
+    queryFn: () => window.solo.invoke('marketing:posts', { from: today, to: today })
+  })
+
+  const { data: stuckPosts = [] } = useQuery({
+    queryKey: ['marketing', 'posts', 'needs_attention'],
+    queryFn: () => window.solo.invoke('marketing:posts', { status: 'needs_attention' })
+  })
+
   const { data: recent = [] } = useQuery({
     queryKey: ['files', 'recent'],
     queryFn: () => window.solo.invoke('files:recent', { limit: 5 }),
@@ -128,6 +139,13 @@ export function Dashboard(): React.JSX.Element {
       tone: daysUntil(document.expiryAt ?? today) < 14 ? 'text-warning' : 'text-muted',
       text: `${document.title} expires ${formatDate(document.expiryAt)}`,
       to: '/documents'
+    })),
+    ...stuckPosts.slice(0, 3).map((post) => ({
+      id: `post-${post.id}`,
+      icon: Megaphone,
+      tone: 'text-warning',
+      text: `“${post.title || 'Untitled'}” missed its slot`,
+      to: '/marketing'
     })),
     ...dueTasks
       .filter((task) => (task.dueAt ?? '') < today)
@@ -204,7 +222,7 @@ export function Dashboard(): React.JSX.Element {
             }
           />
 
-          {todayEvents.length === 0 && dueToday.length === 0 ? (
+          {todayEvents.length === 0 && dueToday.length === 0 && duePosts.length === 0 ? (
             <div className="grid h-[168px] place-items-center rounded-control border border-dashed border-line">
               <p className="text-[12px] text-faint">Nothing scheduled today.</p>
             </div>
@@ -233,6 +251,24 @@ export function Dashboard(): React.JSX.Element {
                   {event.projectName && (
                     <span className="shrink-0 text-[11px] text-faint">{event.projectName}</span>
                   )}
+                </motion.button>
+              ))}
+
+              {duePosts.map((post) => (
+                <motion.button
+                  key={`post-${post.id}`}
+                  variants={listItemVariants}
+                  type="button"
+                  onClick={() => navigate('/marketing')}
+                  className="flex items-center gap-3 rounded-control border border-dashed border-accent/40 px-3 py-2 text-left transition-colors hover:bg-raised"
+                >
+                  <span className="numeric w-[92px] shrink-0 text-[11.5px] text-muted">
+                    {post.scheduledAt ? post.scheduledAt.slice(11, 16) : 'Post'}
+                  </span>
+                  <Megaphone size={12} strokeWidth={1.75} className="shrink-0 text-accent" />
+                  <span className="min-w-0 flex-1 truncate text-[13px] text-ink">
+                    {post.title || post.body.slice(0, 50) || 'Untitled post'}
+                  </span>
                 </motion.button>
               ))}
 

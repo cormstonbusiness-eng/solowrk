@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import type { CalendarEventWithContext, TaskWithContext } from '@shared/types'
+import type { CalendarEventWithContext, PostWithContext, TaskWithContext } from '@shared/types'
 import { dayOf, daysBetween, isSameMonth, monthGrid, occursOn, timeOf } from '@shared/calendar'
 import { cn } from '@/lib/utils'
 import { transition } from '@/lib/motion'
 import { WEEKDAY_LABELS } from './grid'
+import { CalendarPostChip } from './PostChip'
 
 /** How far the pointer must travel before a click becomes a drag. */
 const DRAG_THRESHOLD = 4
@@ -14,6 +15,7 @@ export function MonthView({
   today,
   events,
   tasks,
+  posts,
   onOpenEvent,
   onCreateAt,
   onMoveEvent
@@ -23,6 +25,7 @@ export function MonthView({
   today: string
   events: CalendarEventWithContext[]
   tasks: TaskWithContext[]
+  posts: PostWithContext[]
   onOpenEvent: (event: CalendarEventWithContext) => void
   onCreateAt: (day: string) => void
   onMoveEvent: (event: CalendarEventWithContext, days: number) => void
@@ -107,6 +110,7 @@ export function MonthView({
         {days.map((day) => {
           const dayEvents = events.filter((event) => occursOn(event, day))
           const dayTasks = tasks.filter((task) => task.dueAt?.slice(0, 10) === day)
+          const dayPosts = posts.filter((post) => post.scheduledAt?.slice(0, 10) === day)
           const outside = !isSameMonth(day, month)
           const isToday = day === today
 
@@ -179,9 +183,13 @@ export function MonthView({
                   </div>
                 ))}
 
-                {dayEvents.length + dayTasks.length > 5 && (
+                {dayPosts.slice(0, 2).map((post) => (
+                  <CalendarPostChip key={`post-${post.id}`} post={post} compact />
+                ))}
+
+                {dayEvents.length + dayTasks.length + dayPosts.length > 7 && (
                   <span className="px-1 text-[10.5px] text-faint">
-                    +{dayEvents.length + dayTasks.length - 5} more
+                    +{dayEvents.length + dayTasks.length + dayPosts.length - 7} more
                   </span>
                 )}
               </div>

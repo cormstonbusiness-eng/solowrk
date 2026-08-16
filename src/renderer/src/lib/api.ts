@@ -18,7 +18,12 @@ export const keys = {
   note: (id: number) => ['note', id] as const,
   templates: ['templates'] as const,
   events: (from: string, to: string, projectId: number | null) =>
-    ['events', { from, to, projectId }] as const
+    ['events', { from, to, projectId }] as const,
+  posts: (filter?: unknown) =>
+    filter ? (['marketing', 'posts', filter] as const) : (['marketing', 'posts'] as const),
+  campaigns: ['marketing', 'campaigns'] as const,
+  pillars: ['marketing', 'pillars'] as const,
+  accounts: ['social', 'accounts'] as const
 }
 
 /**
@@ -41,6 +46,8 @@ export type Domain =
   | 'expenses'
   | 'finance'
   | 'events'
+  | 'marketing'
+  | 'social'
 
 export function invalidate(queryClient: QueryClient, domains: Domain[]): void {
   for (const domain of domains) {

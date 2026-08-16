@@ -7,6 +7,10 @@
  * VAT arithmetic stays in integers too.
  */
 
+import type { Platform } from './social'
+
+export type { Platform }
+
 /** Integer pence. */
 export type Pence = number
 /** Hundredths of a percent. 2000 = 20%. */
@@ -547,6 +551,186 @@ export const REMINDER_CHOICES: { value: number; label: string }[] = [
   { value: 60, label: '1 hour before' },
   { value: 1440, label: '1 day before' }
 ]
+
+/* ------------------------------------------------------------------ *
+ * Marketing
+ * ------------------------------------------------------------------ */
+
+export type AccountStatus = 'connected' | 'expired' | 'disconnected'
+
+export interface SocialAccount {
+  id: number
+  platform: Platform
+  handle: string
+  displayName: string
+  /** Workspace-relative path to the cached avatar, if we have one. */
+  avatarFile: string | null
+  externalId: string | null
+  status: AccountStatus
+  scopes: string[]
+  /** Page id, Instagram user id, Pinterest boards — whatever the platform needs. */
+  meta: Record<string, unknown>
+  connectedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type CampaignStatus = 'planned' | 'active' | 'finished' | 'archived'
+
+export const CAMPAIGN_STATUSES: { value: CampaignStatus; label: string; colour: string }[] = [
+  { value: 'planned', label: 'Planned', colour: '#8a8a93' },
+  { value: 'active', label: 'Active', colour: '#3B82F6' },
+  { value: 'finished', label: 'Finished', colour: '#30A46C' },
+  { value: 'archived', label: 'Archived', colour: '#5a5a63' }
+]
+
+export interface Campaign {
+  id: number
+  name: string
+  description: string
+  goal: string
+  colour: string
+  startsOn: string | null
+  endsOn: string | null
+  status: CampaignStatus
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CampaignWithCounts extends Campaign {
+  postCount: number
+  publishedCount: number
+}
+
+export interface ContentPillar {
+  id: number
+  name: string
+  description: string
+  colour: string
+  /** Basis points — 4000 is 40% of output. */
+  targetShare: BasisPoints
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+/**
+ * `idea` has no date yet. `needs_attention` means it came due while SoloWrk was
+ * closed and is now too late to send without you looking at it first.
+ */
+export type PostStatus =
+  | 'idea'
+  | 'draft'
+  | 'scheduled'
+  | 'published'
+  | 'failed'
+  | 'needs_attention'
+
+export const POST_STATUSES: { value: PostStatus; label: string; colour: string }[] = [
+  { value: 'idea', label: 'Idea', colour: '#8a8a93' },
+  { value: 'draft', label: 'Draft', colour: '#5a5a63' },
+  { value: 'scheduled', label: 'Scheduled', colour: '#3B82F6' },
+  { value: 'published', label: 'Published', colour: '#30A46C' },
+  { value: 'failed', label: 'Failed', colour: '#E5484D' },
+  { value: 'needs_attention', label: 'Needs attention', colour: '#F5A623' }
+]
+
+export type TargetStatus = 'pending' | 'handed_over' | 'published' | 'failed' | 'skipped'
+
+export interface PostTarget {
+  id: number
+  postId: number
+  accountId: number | null
+  platform: Platform
+  /** Empty means "use the post body unchanged". */
+  body: string
+  title: string
+  boardId: string | null
+  status: TargetStatus
+  externalId: string | null
+  externalUrl: string | null
+  error: string
+  publishedAt: string | null
+}
+
+export interface PostMedia {
+  id: number
+  postId: number
+  /** Relative to the workspace root. */
+  file: string
+  altText: string
+  sortOrder: number
+}
+
+export interface Post {
+  id: number
+  campaignId: number | null
+  pillarId: number | null
+  projectId: number | null
+  title: string
+  body: string
+  linkUrl: string
+  notes: string
+  status: PostStatus
+  /** Local wall-clock stamp, `yyyy-mm-ddThh:mm`. Null while it is an idea. */
+  scheduledAt: string | null
+  publishedAt: string | null
+  /** Days between automatic re-posts, or null for a one-off. */
+  evergreenDays: number | null
+  nextRepeatOn: string | null
+  parentPostId: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PostWithContext extends Post {
+  campaignName: string | null
+  campaignColour: string | null
+  pillarName: string | null
+  pillarColour: string | null
+  targets: PostTarget[]
+  media: PostMedia[]
+}
+
+export type PostInput = Partial<Omit<Post, 'id' | 'createdAt' | 'updatedAt'>> & {
+  /** Which platforms this goes to. Replaces the target list wholesale. */
+  targets?: { platform: Platform; accountId?: number | null; body?: string; title?: string; boardId?: string | null }[]
+  /** Absolute paths to copy into the workspace, or existing relative ones. */
+  media?: { file: string; altText?: string }[]
+}
+
+export interface PostFilter {
+  from?: string
+  to?: string
+  status?: PostStatus
+  campaignId?: number
+  pillarId?: number
+  /** Ideas only — the backlog, which has no date. */
+  backlog?: boolean
+  search?: string
+}
+
+/** How output is actually split across pillars, against what you intended. */
+export interface PillarShare {
+  pillarId: number | null
+  name: string
+  colour: string
+  posts: number
+  /** Basis points of total output. */
+  actualShare: BasisPoints
+  targetShare: BasisPoints
+}
+
+export interface MarketingSummary {
+  range: { from: string; to: string }
+  scheduled: number
+  published: number
+  needsAttention: number
+  /** Days in the range with nothing planned — where the gaps are. */
+  emptyDays: string[]
+  mix: PillarShare[]
+  byPlatform: { platform: Platform; scheduled: number; published: number }[]
+}
 
 /* ------------------------------------------------------------------ *
  * Assistant
