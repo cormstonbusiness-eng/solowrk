@@ -93,6 +93,13 @@ import {
   upcomingEvents
 } from '../services/events'
 import { nowStamp } from '@shared/calendar'
+import { assistant } from '../ai/assistant'
+import {
+  createConversation,
+  deleteConversation,
+  listConversations,
+  listMessages
+} from '../services/conversations'
 import { writePdf } from '../services/pdf'
 import { rangeFor } from '@shared/taxYear'
 import { updateSettings } from '../services/settings'
@@ -388,7 +395,22 @@ const handlers: Handlers = {
   },
 
   'events:upcoming': (_g, payload) =>
-    upcomingEvents(session.requireDb(), nowStamp(), payload?.limit ?? 5)
+    upcomingEvents(session.requireDb(), nowStamp(), payload?.limit ?? 5),
+
+  'ai:status': () => assistant.status(),
+  'ai:conversations': () => listConversations(session.requireDb()),
+  'ai:messages': (_g, { conversationId }) => listMessages(session.requireDb(), conversationId),
+  'ai:newConversation': (_g, payload) =>
+    createConversation(session.requireDb(), payload?.projectId ?? null),
+  'ai:deleteConversation': (_g, { id }) => {
+    deleteConversation(session.requireDb(), id)
+  },
+  'ai:send': (getWindow, { conversationId, text }) =>
+    assistant.send(getWindow, conversationId, text),
+  'ai:interrupt': () => assistant.interrupt(),
+  'ai:permission': (_g, answer) => {
+    assistant.answerPermission(answer)
+  }
 }
 
 /**

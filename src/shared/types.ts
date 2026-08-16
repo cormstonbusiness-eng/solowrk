@@ -548,6 +548,68 @@ export const REMINDER_CHOICES: { value: number; label: string }[] = [
   { value: 1440, label: '1 day before' }
 ]
 
+/* ------------------------------------------------------------------ *
+ * Assistant
+ * ------------------------------------------------------------------ */
+
+export interface Conversation {
+  id: number
+  title: string
+  sessionId: string | null
+  projectId: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type ChatRole = 'user' | 'assistant' | 'tool' | 'error'
+
+export interface ChatMessage {
+  id: number
+  conversationId: number
+  role: ChatRole
+  content: string
+  toolName: string | null
+  toolInput: string | null
+  toolResult: string | null
+  createdAt: string
+}
+
+/** Whether the assistant can run at all, and why not when it cannot. */
+export interface AssistantStatus {
+  ready: boolean
+  /** Set when `ready` is false — shown verbatim in the setup panel. */
+  reason?: string
+  detail?: string
+}
+
+/**
+ * A tool call waiting on the user. Mutating tools never run until the answer
+ * comes back — the assistant proposes, the user decides.
+ */
+export interface PermissionRequest {
+  id: string
+  toolName: string
+  /** A sentence describing what will happen, written by the tool itself. */
+  title: string
+  input: Record<string, unknown>
+}
+
+/** What the renderer sends back for a `PermissionRequest`. */
+export interface PermissionAnswer {
+  id: string
+  allow: boolean
+  /** Trust this tool for the rest of the conversation. */
+  always?: boolean
+}
+
+/** Streaming updates pushed to the Assistant page as a turn runs. */
+export type AssistantEvent =
+  | { kind: 'delta'; conversationId: number; text: string }
+  | { kind: 'message'; conversationId: number; message: ChatMessage }
+  | { kind: 'permission'; conversationId: number; request: PermissionRequest }
+  | { kind: 'done'; conversationId: number }
+  | { kind: 'error'; conversationId: number; message: string }
+
 /** Colour an event falls back to when it has no project and no colour set. */
 export const DEFAULT_EVENT_COLOUR = '#6E56CF'
 

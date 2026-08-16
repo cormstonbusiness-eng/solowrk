@@ -5,6 +5,7 @@ import { registerIpcHandlers } from './ipc'
 import { broadcastWindowState } from './ipc/window'
 import { session } from './services/session'
 import { startReminders, stopReminders } from './services/reminders'
+import { assistant } from './ai/assistant'
 
 /** Matches `--ground` in the renderer theme so there is no white flash on launch. */
 const GROUND = '#0A0A0B'
@@ -95,5 +96,8 @@ app.on('window-all-closed', () => {
 // next launch to recover.
 app.on('before-quit', () => {
   stopReminders()
+  // Ends any in-flight turn and drops the "always allow" grants, which are
+  // deliberately per-run rather than persisted.
+  assistant.reset()
   session.close()
 })

@@ -8,9 +8,14 @@
  */
 
 import type {
+  AssistantEvent,
+  AssistantStatus,
   BusinessSettings,
   CalendarEventWithContext,
   Category,
+  ChatMessage,
+  Conversation,
+  PermissionAnswer,
   Client,
   ClientInput,
   ClientTotal,
@@ -256,6 +261,17 @@ export interface IpcContract {
   'events:update': { req: { id: number; patch: Partial<EventInput> }; res: CalendarEventWithContext }
   'events:delete': { req: { id: number }; res: void }
   'events:upcoming': { req: { limit?: number } | void; res: CalendarEventWithContext[] }
+
+  'ai:status': { req: void; res: AssistantStatus }
+  'ai:conversations': { req: void; res: Conversation[] }
+  'ai:messages': { req: { conversationId: number }; res: ChatMessage[] }
+  'ai:newConversation': { req: { projectId?: number | null } | void; res: Conversation }
+  'ai:deleteConversation': { req: { id: number }; res: void }
+  /** Resolves when the turn finishes; progress arrives on the `ai:event` channel. */
+  'ai:send': { req: { conversationId: number; text: string }; res: void }
+  'ai:interrupt': { req: void; res: void }
+  /** The user's answer to a confirmation card. */
+  'ai:permission': { req: PermissionAnswer; res: void }
 }
 
 export type IpcChannel = keyof IpcContract
@@ -269,6 +285,8 @@ export interface IpcEvents {
   'window:stateChanged': WindowState
   /** Sent when a reminder notification is clicked, to open that event. */
   'calendar:focusEvent': { id: number }
+  /** Streaming progress from the assistant — text, tool calls, confirmations. */
+  'ai:event': AssistantEvent
 }
 
 export type IpcEvent = keyof IpcEvents
@@ -368,10 +386,19 @@ export const IPC_CHANNELS = [
   'events:create',
   'events:update',
   'events:delete',
-  'events:upcoming'
+  'events:upcoming',
+  'ai:status',
+  'ai:conversations',
+  'ai:messages',
+  'ai:newConversation',
+  'ai:deleteConversation',
+  'ai:send',
+  'ai:interrupt',
+  'ai:permission'
 ] as const satisfies readonly IpcChannel[]
 
 export const IPC_EVENTS = [
   'window:stateChanged',
-  'calendar:focusEvent'
+  'calendar:focusEvent',
+  'ai:event'
 ] as const satisfies readonly IpcEvent[]

@@ -385,5 +385,37 @@ export const migrations: Migration[] = [
       CREATE UNIQUE INDEX idx_events_external ON events(kind, external_id)
         WHERE external_id IS NOT NULL;
     `
+  },
+
+  {
+    id: 7,
+    name: 'assistant',
+    sql: `
+      CREATE TABLE ai_conversations (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        title       TEXT    NOT NULL DEFAULT 'New chat',
+        -- The Agent SDK's own session id, so a conversation can be resumed
+        -- with its full context rather than replayed from our transcript.
+        session_id  TEXT,
+        project_id  INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+        created_at  TEXT    NOT NULL,
+        updated_at  TEXT    NOT NULL
+      );
+
+      CREATE TABLE ai_messages (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        conversation_id INTEGER NOT NULL REFERENCES ai_conversations(id) ON DELETE CASCADE,
+        role            TEXT    NOT NULL CHECK (role IN ('user', 'assistant', 'tool', 'error')),
+        content         TEXT    NOT NULL DEFAULT '',
+        -- Tool calls keep their name, input and result as JSON so the
+        -- transcript can be re-rendered exactly as it happened.
+        tool_name       TEXT,
+        tool_input      TEXT,
+        tool_result     TEXT,
+        created_at      TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_ai_messages_conversation ON ai_messages(conversation_id, id);
+    `
   }
 ]

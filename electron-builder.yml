@@ -14,6 +14,12 @@ files:
 # user-facing is bundled here — the installer only carries the app itself.
 asar: true
 
+# The Agent SDK ships a CLI that is spawned as a child process, and a binary
+# inside an asar archive cannot be executed. Unpacking it is what makes the
+# assistant work in an installed build rather than only in development.
+asarUnpack:
+  - node_modules/@anthropic-ai/claude-agent-sdk/**
+
 win:
   target:
     - target: nsis

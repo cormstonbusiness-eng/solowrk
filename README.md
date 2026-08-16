@@ -65,9 +65,14 @@ to compile and `npm install` works on any machine. Queries are hand-written SQL 
 
 Phases 0 (shell, design system, animated routing), 1 (data layer, first-run wizard, settings),
 2 (clients, projects, tasks, notes, templates), 3 (files, documents), 4 (time, quotes,
-invoices, expenses, finance), 5 (calendar) and 6 (live dashboard, Ctrl+K palette) are complete.
-Later phases add the Claude assistant and calendar sync. Sections not yet built say which phase
-builds them.
+invoices, expenses, finance), 5 (calendar), 6 (live dashboard, Ctrl+K palette) and 7 (the Claude
+assistant) are complete. What remains is phase 8 (Google and Teams calendar sync, which needs
+OAuth app registrations) and phase 9 (the installer).
+
+The assistant runs the Claude Code installation already on the machine, through
+`@anthropic-ai/claude-agent-sdk`, so it uses the user's own subscription and no API key is
+stored anywhere. If Claude Code is missing or not logged in, the page says so and explains the
+three steps rather than showing a chat box that silently fails.
 
 ### Gotchas worth knowing
 
@@ -88,6 +93,14 @@ builds them.
   it back in UTC can shift a payment across the 6 April tax-year boundary.
 - **`Database.transaction` is re-entrant** (SAVEPOINT when nested), because services compose and
   SQLite has no nested `BEGIN`.
+- **The assistant's permission gate reads `MUTATING` in `src/main/ai/tools.ts`, not the model's
+  intent.** Add a tool that changes data and you must add its name there, or it will run
+  unconfirmed. `Bash`, `Write`, `Edit`, `WebFetch` and `WebSearch` are disallowed outright — the
+  workspace tools are the only way in, and they go through `resolveInWorkspace`.
+- **`settingSources: []` keeps the assistant out of the user's own Claude config.** Without it,
+  their CLAUDE.md files and permission rules would leak into the app's sessions.
+- **The Agent SDK must be `asarUnpack`ed** in `electron-builder.yml`: it spawns a CLI, and a
+  binary inside an asar archive cannot be executed.
 - **`?new=1` is how one screen asks another to open its create modal.** The palette navigates to
   `/invoices?new=1`; the page picks it up with `useOpenParam`, which clears the parameter so a
   reload or a back-navigation cannot reopen it. Add it to any page that grows a create action.
