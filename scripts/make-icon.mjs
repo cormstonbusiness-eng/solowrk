@@ -1,19 +1,19 @@
 import { deflateSync } from 'node:zlib'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 /**
- * Generates the placeholder app icon.
+ * Draws a fallback app icon.
  *
- * A script rather than a committed binary because the app has no artwork yet
- * and this needs replacing: drop a real 1024×1024 `resources/icon.png` in and
- * electron-builder derives every Windows size from it. Until then this draws
- * the mark that is already beside the wordmark in the titlebar, so the taskbar
- * shows something deliberate rather than the default Electron atom.
+ * `resources/icon.png` now holds the real WRK artwork, so this is a safety net
+ * rather than the source of truth: it exists so the build still produces
+ * something deliberate rather than the default Electron atom if that file ever
+ * goes missing. It refuses to overwrite an existing icon — run it with
+ * `--force` if you actually want the drawn mark back.
  *
- * Written with zlib and nothing else. A one-off placeholder is not worth a
- * native image dependency in a project that has none.
+ * Written with zlib and nothing else. A fallback is not worth adding an image
+ * dependency to a project that has none.
  */
 
 const SIZE = 1024
@@ -129,6 +129,14 @@ function png(rgba) {
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const target = join(root, 'resources', 'icon.png')
+
+if (existsSync(target) && !process.argv.includes('--force')) {
+  console.log(
+    `${target} already exists — leaving it alone.\n` +
+      'Pass --force to replace the real artwork with the drawn fallback.'
+  )
+  process.exit(0)
+}
 
 mkdirSync(dirname(target), { recursive: true })
 writeFileSync(target, png(pixels()))
