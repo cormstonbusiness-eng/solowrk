@@ -17,6 +17,7 @@ import {
   ArchivedProjects,
   ArchivedTasks,
   Assistant,
+  Blog,
   BusinessPlan,
   Calendar,
   ClientDetail,
@@ -34,6 +35,7 @@ import {
   Projects,
   Settings,
   Tasks,
+  WebsiteOverview,
   Time
 } from '@/pages'
 
@@ -66,6 +68,8 @@ function AnimatedRoutes(): React.JSX.Element {
         <Route path="/clients" element={<Clients />} />
         <Route path="/clients/:id" element={<ClientDetail />} />
         <Route path="/business-plan" element={<BusinessPlan />} />
+        <Route path="/website" element={<WebsiteOverview />} />
+        <Route path="/website/blog" element={<Blog />} />
         <Route path="/marketing" element={<Marketing />} />
         <Route path="/goals" element={<Goals />} />
         <Route path="/notes" element={<Notes />} />

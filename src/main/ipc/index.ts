@@ -131,6 +131,19 @@ import {
   startPlan,
   writePlan
 } from '../ai/businessPlan'
+import { setSecret } from '../services/credentials'
+import { parseRepo, siteConnection, siteStatus } from '../services/site'
+import { checkAccess } from '../services/github'
+import {
+  createPost as createBlogPost,
+  deletePost as deleteBlogPost,
+  getPost as getBlogPost,
+  lastDeploy,
+  listDeploys,
+  listPosts as listBlogPosts,
+  publishPost,
+  savePost as saveBlogPost
+} from '../services/blog'
 import { today } from '@shared/taxYear'
 import { assistant } from '../ai/assistant'
 import {
@@ -499,6 +512,72 @@ const handlers: Handlers = {
   'ai:writeBusinessPlan': (_g, { text }) =>
     writePlan(session.requireDb(), session.requirePath(), text),
   'ai:startBusinessPlan': () => startPlan(session.requireDb(), session.requirePath()),
+
+  /* ---------------- Website tools ---------------- */
+
+  'site:status': () => siteStatus(session.requireDb()),
+
+  'site:browse': async (getWindow) => {
+    const window = getWindow()
+    const result = await (window
+      ? dialog.showOpenDialog(window, {
+          title: 'Choose your website folder',
+          properties: ['openDirectory']
+        })
+      : dialog.showOpenDialog({ properties: ['openDirectory'] }))
+
+    return result.canceled ? '' : (result.filePaths[0] ?? '')
+  },
+
+  'site:setToken': async (_g, { token }) => {
+    await setSecret('github.token', token)
+    return siteStatus(session.requireDb())
+  },
+
+  'site:checkAccess': async () => {
+    const { repo, branch } = siteConnection(session.requireDb())
+    const parsed = parseRepo(repo)
+    if (!parsed) return { ok: false, message: `“${repo}” is not a repository name. Use owner/repo.` }
+
+    try {
+      const access = await checkAccess(parsed.owner, parsed.name)
+      if (!access.permissions) {
+        return { ok: false, message: 'The token can read that repository but not write to it.' }
+      }
+      // Not an error — plenty of repos default to something other than main —
+      // but publishing to a branch nothing deploys from is a silent no-op.
+      if (access.defaultBranch !== branch) {
+        return {
+          ok: true,
+          message: `Connected. Note the repository's default branch is “${access.defaultBranch}”, and you are publishing to “${branch}”.`
+        }
+      }
+      return { ok: true, message: `Connected to ${repo}.` }
+    } catch (cause) {
+      return { ok: false, message: cause instanceof Error ? cause.message : 'Could not reach GitHub.' }
+    }
+  },
+
+  'site:open': (_g, { what }) => {
+    const connection = siteConnection(session.requireDb())
+
+    if (what === 'live' && connection.url !== '') void shell.openExternal(connection.url)
+    if (what === 'repo' && connection.repo !== '') {
+      void shell.openExternal(`https://github.com/${connection.repo}`)
+    }
+    if (what === 'folder' && connection.path !== '') void shell.openPath(connection.path)
+  },
+
+  'site:deploys': (_g, args) => listDeploys(session.requireDb(), args?.limit ?? 20),
+  'site:lastDeploy': () => lastDeploy(session.requireDb()),
+
+  'blog:list': () => listBlogPosts(session.requireDb()),
+  'blog:get': (_g, { slug }) => getBlogPost(session.requireDb(), slug),
+  'blog:create': (_g, { title }) => createBlogPost(session.requireDb(), title),
+  'blog:save': (_g, { slug, patch }) => saveBlogPost(session.requireDb(), slug, patch),
+  'blog:delete': (_g, { slug }) => deleteBlogPost(session.requireDb(), slug),
+  'blog:publish': (_g, { slug, unpublish }) =>
+    publishPost(session.requireDb(), slug, { unpublish }),
 
   'marketing:campaigns': (_g, args) =>
     listCampaigns(session.requireDb(), args?.includeArchived ?? false),

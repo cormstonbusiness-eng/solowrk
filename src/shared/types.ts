@@ -52,6 +52,62 @@ export interface BusinessSettings {
 
   /** Workspace-relative path to the attached business plan document. */
   businessPlanFile: string
+
+  /** Absolute path to the website's git repository, outside the workspace. */
+  sitePath: string
+  /** GitHub `owner/repo` the site is published from. */
+  siteRepo: string
+  siteBranch: string
+  /** The live address, e.g. https://www.blockoutdigital.com */
+  siteUrl: string
+  /** Endpoint polled for contact-form enquiries. Its token is not stored here. */
+  enquiriesUrl: string
+}
+
+/** The website connection, and which parts of it are actually working. */
+export interface SiteConnection {
+  path: string
+  repo: string
+  branch: string
+  url: string
+}
+
+export interface SiteStatus extends SiteConnection {
+  folderExists: boolean
+  isRepo: boolean
+  /** Whether `content/blog` is there — i.e. the site has the blog wired up. */
+  hasContentDir: boolean
+  repoValid: boolean
+  /** Whether a GitHub token is saved. The token itself never crosses the bridge. */
+  tokenSet: boolean
+}
+
+/** One publish, recorded so the app knows what it put live and when. */
+export interface WebsiteDeploy {
+  id: number
+  slug: string
+  title: string
+  sha: string
+  commitUrl: string
+  action: 'publish' | 'update' | 'unpublish'
+  createdAt: string
+}
+
+/** A contact-form submission pulled in from the website. */
+export interface Enquiry {
+  id: number
+  externalId: string
+  name: string
+  email: string
+  business: string
+  phone: string
+  budget: string
+  projectType: string
+  message: string
+  clientId: number | null
+  readAt: string | null
+  archived: boolean
+  receivedAt: string
 }
 
 /** The attached business plan, as the Settings page sees it. */

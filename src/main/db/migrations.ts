@@ -677,5 +677,68 @@ export const migrations: Migration[] = [
       CREATE UNIQUE INDEX idx_notifications_dedupe ON notifications(dedupe_key)
         WHERE dedupe_key IS NOT NULL;
     `
+  },
+
+  {
+    id: 13,
+    name: 'website_tools',
+    sql: `
+      -- The user's own website, which lives in a separate git repository
+      -- outside the workspace. SoloWrk writes blog posts into it and publishes
+      -- by committing, so the site's host rebuilds.
+      ALTER TABLE settings ADD COLUMN site_path   TEXT NOT NULL DEFAULT '';
+      ALTER TABLE settings ADD COLUMN site_repo   TEXT NOT NULL DEFAULT '';
+      ALTER TABLE settings ADD COLUMN site_branch TEXT NOT NULL DEFAULT 'main';
+      ALTER TABLE settings ADD COLUMN site_url    TEXT NOT NULL DEFAULT '';
+      -- Endpoint SoloWrk polls for contact-form enquiries. Its bearer token is
+      -- NOT here: like every other secret it lives in an encrypted blob in
+      -- userData, so a workspace that is zipped or synced carries no
+      -- credentials with it.
+      ALTER TABLE settings ADD COLUMN enquiries_url TEXT NOT NULL DEFAULT '';
+
+      -- There is deliberately no table of blog posts. The markdown files in the
+      -- site repository are the record and git is their history; a cache here
+      -- would only be a second version of the truth that disagrees with the
+      -- first. What git does NOT record is which of them SoloWrk published and
+      -- when, so that is what this table is for.
+      CREATE TABLE website_deploys (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        slug       TEXT    NOT NULL,
+        title      TEXT    NOT NULL DEFAULT '',
+        -- The commit this publish created, so its build status can be looked up.
+        sha        TEXT    NOT NULL,
+        commit_url TEXT    NOT NULL DEFAULT '',
+        action     TEXT    NOT NULL DEFAULT 'publish'
+                           CHECK (action IN ('publish', 'update', 'unpublish')),
+        created_at TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_website_deploys_slug ON website_deploys(slug, id);
+
+      -- Enquiries from the site's contact form, pulled in and kept so a lead
+      -- can become a client without being retyped.
+      CREATE TABLE website_enquiries (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        -- The sender's id from the website, so polling the same enquiry twice
+        -- cannot create it twice.
+        external_id TEXT    NOT NULL,
+        name        TEXT    NOT NULL DEFAULT '',
+        email       TEXT    NOT NULL DEFAULT '',
+        business    TEXT    NOT NULL DEFAULT '',
+        phone       TEXT    NOT NULL DEFAULT '',
+        budget      TEXT    NOT NULL DEFAULT '',
+        project_type TEXT   NOT NULL DEFAULT '',
+        message     TEXT    NOT NULL DEFAULT '',
+        -- Set once the enquiry has been turned into a client.
+        client_id   INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+        read_at     TEXT,
+        archived    INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
+        received_at TEXT    NOT NULL,
+        created_at  TEXT    NOT NULL
+      );
+
+      CREATE UNIQUE INDEX idx_website_enquiries_external ON website_enquiries(external_id);
+      CREATE INDEX idx_website_enquiries_unread ON website_enquiries(archived, read_at, id);
+    `
   }
 ]

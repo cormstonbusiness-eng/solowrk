@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import {
   Check,
+  CircleCheck,
   Compass,
   FileText,
   FolderOpen,
   Image as ImageIcon,
   Loader2,
+  Lock,
   TriangleAlert,
   Upload
 } from 'lucide-react'
@@ -26,11 +28,12 @@ import { transition } from '@/lib/motion'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useTour } from '@/tour/TourProvider'
 
-type Tab = 'business' | 'money' | 'assistant' | 'appearance' | 'app'
+type Tab = 'business' | 'money' | 'website' | 'assistant' | 'appearance' | 'app'
 
 const TABS: { value: Tab; label: string }[] = [
   { value: 'business', label: 'Business' },
   { value: 'money', label: 'Invoicing & tax' },
+  { value: 'website', label: 'Website' },
   { value: 'assistant', label: 'Assistant' },
   { value: 'appearance', label: 'Appearance' },
   { value: 'app', label: 'App' }
@@ -50,7 +53,13 @@ export function Settings(): React.JSX.Element {
     queryFn: () => window.solo.invoke('settings:get')
   })
 
-  const [tab, setTab] = useState<Tab>('business')
+  // ?tab=website lets the Website pages link straight to their own settings
+  // rather than saying "go to Settings and find it".
+  const [search] = useSearchParams()
+  const requested = search.get('tab')
+  const [tab, setTab] = useState<Tab>(
+    TABS.some((entry) => entry.value === requested) ? (requested as Tab) : 'business'
+  )
   const [draft, setDraft] = useState<SettingsType | null>(null)
   useEffect(() => {
     if (settings) setDraft(settings)
@@ -305,6 +314,8 @@ export function Settings(): React.JSX.Element {
         </Card>
             </>}
 
+          {tab === 'website' && <WebsiteCard draft={draft} set={set} />}
+
           {tab === 'assistant' && <BusinessPlanCard />}
 
           {tab === 'appearance' && (
@@ -436,6 +447,174 @@ function LogoCard({ logoFile }: { logoFile: string }): React.JSX.Element {
  * to bother. The text is pulled out once and cached, and the preview is here so
  * you can see it read the right thing rather than taking it on trust.
  */
+/**
+ * Connecting the website SoloWrk publishes to.
+ *
+ * The token is handled apart from every other field here, and deliberately:
+ * the rest are saved with the page's Save button into the workspace database,
+ * while the token goes straight to the OS keystore in userData the moment it is
+ * entered. It is never read back — the field shows whether one is saved, not
+ * what it is — so it cannot end up in a screenshot, a query cache or a backup.
+ */
+function WebsiteCard({
+  draft,
+  set
+}: {
+  draft: SettingsType
+  set: <K extends keyof BusinessSettings>(key: K, value: BusinessSettings[K]) => void
+}): React.JSX.Element {
+  const queryClient = useQueryClient()
+  const [token, setToken] = useState('')
+  const [check, setCheck] = useState<{ ok: boolean; message: string } | null>(null)
+
+  const { data: status } = useQuery({
+    queryKey: ['site', 'status'],
+    queryFn: () => window.solo.invoke('site:status')
+  })
+
+  const browse = useMutation({
+    mutationFn: () => window.solo.invoke('site:browse'),
+    onSuccess: (path) => path && set('sitePath', path)
+  })
+
+  const saveToken = useMutation({
+    mutationFn: (value: string) => window.solo.invoke('site:setToken', { token: value }),
+    onSuccess: (next) => {
+      setToken('')
+      setCheck(null)
+      queryClient.setQueryData(['site', 'status'], next)
+    }
+  })
+
+  const test = useMutation({
+    mutationFn: () => window.solo.invoke('site:checkAccess'),
+    onSuccess: setCheck
+  })
+
+  return (
+    <>
+      <Card>
+        <CardHeader title="Your website" />
+        <p className="mb-3 text-[12px] leading-relaxed text-muted">
+          Point SoloWrk at the folder your site lives in and it can write blog posts straight
+          into it. Publishing commits the post to GitHub, and your host rebuilds from there.
+        </p>
+
+        <div className="flex flex-col gap-3.5">
+          <Field label="Website folder" hint="The git repository your site is in.">
+            <div className="flex gap-2">
+              <TextInput
+                value={draft.sitePath}
+                onChange={(e) => set('sitePath', e.target.value)}
+                placeholder="C:\Users\you\Documents\my-website"
+                className="flex-1"
+              />
+              <Button variant="secondary" onClick={() => browse.mutate()}>
+                Browse
+              </Button>
+            </div>
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="GitHub repository" hint="owner/repo">
+              <TextInput
+                value={draft.siteRepo}
+                onChange={(e) => set('siteRepo', e.target.value)}
+                placeholder="yourname/your-website"
+              />
+            </Field>
+            <Field label="Branch" hint="The one your host deploys from.">
+              <TextInput
+                value={draft.siteBranch}
+                onChange={(e) => set('siteBranch', e.target.value)}
+                placeholder="main"
+              />
+            </Field>
+          </div>
+
+          <Field label="Live address" hint="Used for links and previews.">
+            <TextInput
+              value={draft.siteUrl}
+              onChange={(e) => set('siteUrl', e.target.value)}
+              placeholder="https://www.example.com"
+            />
+          </Field>
+        </div>
+      </Card>
+
+      <Card>
+        <CardHeader title="GitHub token" />
+        <p className="mb-3 text-[12px] leading-relaxed text-muted">
+          Publishing needs a token that can commit to that repository. Use a{' '}
+          <strong className="font-medium text-ink">fine-grained</strong> personal access token
+          limited to the one repository, with <strong className="font-medium text-ink">Contents:
+          read and write</strong> — a classic token would reach every repository on your account.
+          It is encrypted by Windows and stored outside your workspace, so it never travels with
+          a backup.
+        </p>
+
+        {status?.tokenSet ? (
+          <div className="flex items-center gap-3 rounded-control border border-line bg-raised px-3 py-2.5">
+            <Lock size={15} strokeWidth={1.5} className="shrink-0 text-success" />
+            <p className="flex-1 text-[12.5px] text-ink">
+              A token is saved
+              <span className="mt-0.5 block text-[11px] text-faint">
+                SoloWrk cannot show it back to you — replace it if you need to change it.
+              </span>
+            </p>
+            <Button variant="ghost" size="sm" onClick={() => test.mutate()} disabled={test.isPending}>
+              {test.isPending ? 'Checking…' : 'Test'}
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => saveToken.mutate('')}>
+              Remove
+            </Button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <TextInput
+              type="password"
+              value={token}
+              onChange={(e) => setToken(e.target.value)}
+              placeholder="github_pat_…"
+              className="flex-1"
+            />
+            <Button
+              variant="primary"
+              onClick={() => saveToken.mutate(token)}
+              disabled={token.trim() === '' || saveToken.isPending}
+            >
+              Save token
+            </Button>
+          </div>
+        )}
+
+        {saveToken.isError && (
+          <p className="mt-2.5 flex items-start gap-1.5 text-[11.5px] text-danger">
+            <TriangleAlert size={12} strokeWidth={2} className="mt-0.5 shrink-0" />
+            {saveToken.error instanceof Error ? saveToken.error.message : 'Could not save that.'}
+          </p>
+        )}
+
+        {check && (
+          <p
+            className={cn(
+              'mt-2.5 flex items-start gap-1.5 text-[11.5px]',
+              check.ok ? 'text-success' : 'text-danger'
+            )}
+          >
+            {check.ok ? (
+              <CircleCheck size={12} strokeWidth={2} className="mt-0.5 shrink-0" />
+            ) : (
+              <TriangleAlert size={12} strokeWidth={2} className="mt-0.5 shrink-0" />
+            )}
+            {check.message}
+          </p>
+        )}
+      </Card>
+    </>
+  )
+}
+
 function BusinessPlanCard(): React.JSX.Element {
   const queryClient = useQueryClient()
   const navigate = useNavigate()

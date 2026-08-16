@@ -7,9 +7,11 @@ import {
   FileText,
   FolderKanban,
   FolderOpen,
+  Globe,
   LayoutDashboard,
   Megaphone,
   NotebookPen,
+  PenLine,
   ReceiptText,
   Settings,
   Sparkles,
@@ -51,6 +53,13 @@ export const navGroups: NavGroup[] = [
       { label: 'Goals', path: '/goals', icon: Target },
       { label: 'Invoices', path: '/invoices', icon: ReceiptText },
       { label: 'Finance', path: '/finance', icon: ChartNoAxesCombined }
+    ]
+  },
+  {
+    label: 'Website Tools',
+    items: [
+      { label: 'Overview', path: '/website', icon: Globe },
+      { label: 'Blog', path: '/website/blog', icon: PenLine }
     ]
   },
   {

@@ -33,6 +33,11 @@ interface SettingsRow extends Row {
   business_plan_file: string
   business_plan_text: string
   business_plan_read_at: string | null
+  site_path: string
+  site_repo: string
+  site_branch: string
+  site_url: string
+  enquiries_url: string
   created_at: string
   updated_at: string
 }
@@ -63,6 +68,11 @@ function toSettings(row: SettingsRow): Settings {
     nextQuoteNumber: row.next_quote_number,
     logoFile: row.logo_file,
     businessPlanFile: row.business_plan_file,
+    sitePath: row.site_path,
+    siteRepo: row.site_repo,
+    siteBranch: row.site_branch,
+    siteUrl: row.site_url,
+    enquiriesUrl: row.enquiries_url,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -95,7 +105,12 @@ const COLUMNS: {
   quotePrefix: { column: 'quote_prefix', toDb: String },
   nextQuoteNumber: { column: 'next_quote_number', toDb: Number },
   logoFile: { column: 'logo_file', toDb: String },
-  businessPlanFile: { column: 'business_plan_file', toDb: String }
+  businessPlanFile: { column: 'business_plan_file', toDb: String },
+  sitePath: { column: 'site_path', toDb: String },
+  siteRepo: { column: 'site_repo', toDb: String },
+  siteBranch: { column: 'site_branch', toDb: String },
+  siteUrl: { column: 'site_url', toDb: String },
+  enquiriesUrl: { column: 'enquiries_url', toDb: String }
 }
 
 export function getSettings(db: Database): Settings {

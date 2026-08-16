@@ -32,6 +32,8 @@ import type {
   PostInput,
   PostWithContext,
   SocialAccount,
+  SiteStatus,
+  WebsiteDeploy,
   Client,
   ClientInput,
   ClientTotal,
@@ -65,6 +67,7 @@ import type {
   WorkspaceSetup,
   WorkspaceStatus
 } from './types'
+import type { BlogPost } from './blog'
 import type { Period } from './taxYear'
 
 export interface WindowState {
@@ -134,6 +137,29 @@ export interface IpcContract {
   'ai:detachBusinessPlan': { req: void; res: BusinessPlanStatus }
   /** Opens the attached document in whatever the OS uses for it. */
   'ai:openBusinessPlan': { req: void; res: void }
+  /** ---------------- Website tools ---------------- */
+  'site:status': { req: void; res: SiteStatus }
+  /** Picks the website folder with a native dialog. Empty string when cancelled. */
+  'site:browse': { req: void; res: string }
+  /** Saves the GitHub token to the OS keystore. Passing '' removes it. */
+  'site:setToken': { req: { token: string }; res: SiteStatus }
+  /** Confirms the token can actually reach the repository, before publishing. */
+  'site:checkAccess': { req: void; res: { ok: boolean; message: string } }
+  'site:open': { req: { what: 'live' | 'repo' | 'folder' }; res: void }
+  'site:deploys': { req: { limit?: number } | void; res: WebsiteDeploy[] }
+  'site:lastDeploy': {
+    req: void
+    res: { deploy: WebsiteDeploy | null; state: string; url: string }
+  }
+
+  'blog:list': { req: void; res: BlogPost[] }
+  'blog:get': { req: { slug: string }; res: BlogPost }
+  'blog:create': { req: { title: string }; res: BlogPost }
+  'blog:save': { req: { slug: string; patch: Partial<BlogPost> }; res: BlogPost }
+  'blog:delete': { req: { slug: string }; res: void }
+  /** Commits the post to the site repository. The host rebuilds from there. */
+  'blog:publish': { req: { slug: string; unpublish?: boolean }; res: WebsiteDeploy }
+
   /** Saves edited text back. Only markdown and text plans can be written to. */
   'ai:writeBusinessPlan': { req: { text: string }; res: BusinessPlanStatus }
   /**
@@ -420,6 +446,19 @@ export const IPC_CHANNELS = [
   'ai:openBusinessPlan',
   'ai:writeBusinessPlan',
   'ai:startBusinessPlan',
+  'site:status',
+  'site:browse',
+  'site:setToken',
+  'site:checkAccess',
+  'site:open',
+  'site:deploys',
+  'site:lastDeploy',
+  'blog:list',
+  'blog:get',
+  'blog:create',
+  'blog:save',
+  'blog:delete',
+  'blog:publish',
   'state:get',
   'state:set',
   'clients:list',
