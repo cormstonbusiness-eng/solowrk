@@ -20,11 +20,34 @@ import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const packagePath = join(root, 'package.json')
 
+/**
+ * `npm` and `npx` are `.cmd` shims on Windows, and Node refuses to spawn those
+ * without a shell. Everything else runs without one — and that distinction
+ * matters rather than being pedantry: `shell: true` concatenates arguments into
+ * one string without quoting them, so `git commit -m "Release v0.1.1"` arrives
+ * as `-m Release` plus a pathspec that does not exist, and the commit fails
+ * *after* the installer has already been published.
+ *
+ * The npm calls below pass no argument containing a space, so the shell is
+ * safe there. Git's commit message does, so it must not have one.
+ */
+const needsShell = (command) =>
+  process.platform === 'win32' && (command === 'npm' || command === 'npx')
+
 const run = (command, args, options = {}) =>
-  execFileSync(command, args, { cwd: root, stdio: 'inherit', shell: true, ...options })
+  execFileSync(command, args, {
+    cwd: root,
+    stdio: 'inherit',
+    shell: needsShell(command),
+    ...options
+  })
 
 const capture = (command, args) =>
-  execFileSync(command, args, { cwd: root, encoding: 'utf8', shell: true }).trim()
+  execFileSync(command, args, {
+    cwd: root,
+    encoding: 'utf8',
+    shell: needsShell(command)
+  }).trim()
 
 function fail(message) {
   console.error(`\n  ${message}\n`)
