@@ -274,6 +274,31 @@ export interface NoteWithContext extends Note {
  * Notifications
  * ------------------------------------------------------------------ */
 
+/**
+ * Where the app is up to with updating itself.
+ *
+ * `unsupported` means a development build or one run from a checkout: there is
+ * no installer to replace, so a check would be meaningless rather than failed.
+ */
+export type UpdateStatus =
+  | 'idle'
+  | 'checking'
+  | 'current'
+  | 'downloading'
+  | 'ready'
+  | 'error'
+  | 'unsupported'
+
+export interface UpdateState {
+  status: UpdateStatus
+  /** The version on offer, once one is known. */
+  version: string
+  notes: string
+  /** Download progress, 0–100. */
+  percent: number
+  error: string
+}
+
 export type NotificationKind = 'info' | 'due' | 'late' | 'money' | 'assistant'
 
 export interface AppNotification {

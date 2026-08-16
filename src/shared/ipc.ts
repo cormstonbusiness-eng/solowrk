@@ -57,6 +57,7 @@ import type {
   ProjectInput,
   ProjectSummary,
   Settings,
+  UpdateState,
   TaskFilter,
   TaskInput,
   TaskStatus,
@@ -106,6 +107,13 @@ export interface IpcContract {
   'settings:logo': { req: void; res: string | null }
   /** App version, for the footer in Settings. */
   'app:version': { req: void; res: string }
+
+  /** Current update state. Live changes arrive on the `updates:state` event. */
+  'updates:get': { req: void; res: UpdateState }
+  /** Check now, rather than waiting for the next scheduled check. */
+  'updates:check': { req: void; res: UpdateState }
+  /** Restart into a downloaded update. Does nothing unless one is ready. */
+  'updates:install': { req: void; res: void }
 
   'notifications:list': { req: { archived?: boolean } | void; res: AppNotification[] }
   'notifications:unread': { req: void; res: number }
@@ -375,6 +383,8 @@ export interface IpcEvents {
   'marketing:focusPost': { id: number }
   /** A new notification, to slide into the corner of the window. */
   'notifications:new': AppNotification
+  /** Update progress, so the UI follows a download rather than polling it. */
+  'updates:state': UpdateState
 }
 
 export type IpcEvent = keyof IpcEvents
@@ -398,6 +408,9 @@ export const IPC_CHANNELS = [
   'settings:clearLogo',
   'settings:logo',
   'app:version',
+  'updates:get',
+  'updates:check',
+  'updates:install',
   'notifications:list',
   'notifications:unread',
   'notifications:read',
@@ -532,5 +545,6 @@ export const IPC_EVENTS = [
   'calendar:focusEvent',
   'ai:event',
   'marketing:focusPost',
-  'notifications:new'
+  'notifications:new',
+  'updates:state'
 ] as const satisfies readonly IpcEvent[]

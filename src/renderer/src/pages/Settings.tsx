@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import {
+  ArrowUpCircle,
   Check,
   Compass,
   FileText,
@@ -19,6 +20,7 @@ import { Button } from '@/components/ui/Button'
 import { Field, MoneyInput, NumberInput, TextInput, Toggle } from '@/components/ui/Field'
 import { DECOR_INTENSITIES, THEMES, isInSeason, themeById } from '@shared/themes'
 import { useTheme } from '@/hooks/useTheme'
+import { useUpdates } from '@/hooks/useUpdates'
 import { cn } from '@/lib/utils'
 import { today as todayString } from '@shared/taxYear'
 import { formatDate } from '@/lib/format'
@@ -316,6 +318,7 @@ export function Settings(): React.JSX.Element {
 
           {tab === 'app' && (
             <>
+        <UpdatesCard />
         <Card>
           <CardHeader title="Help" />
           <div className="flex items-center justify-between gap-4">
@@ -748,5 +751,90 @@ function VersionFooter(): React.JSX.Element {
     <p className="py-2 text-center text-[11px] text-white/25">
       SoloWrk v{version ?? '—'}
     </p>
+  )
+}
+
+/**
+ * Updates.
+ *
+ * The app checks and downloads on its own; this exists so the state is
+ * somewhere you can look rather than something you have to trust, and so a
+ * check can be forced without waiting six hours for the next one.
+ */
+function UpdatesCard(): React.JSX.Element {
+  const updates = useUpdates()
+
+  const { data: version } = useQuery({
+    queryKey: ['app', 'version'],
+    queryFn: () => window.solo.invoke('app:version')
+  })
+
+  const line = (): string => {
+    switch (updates.status) {
+      case 'checking':
+        return 'Checking for updates…'
+      case 'downloading':
+        return `Downloading ${updates.version} — ${updates.percent}%`
+      case 'ready':
+        return `Version ${updates.version} is ready to install`
+      case 'current':
+        return 'You are on the latest version.'
+      case 'error':
+        return updates.error
+      case 'unsupported':
+        // Honest about why, rather than showing a check button that cannot work.
+        return 'Updates apply to the installed app. This is running from source.'
+      default:
+        return 'Updates are checked a few times a day, and download in the background.'
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader
+        title="Updates"
+        action={
+          updates.status === 'ready' ? (
+            <Button variant="primary" size="sm" onClick={updates.install}>
+              <ArrowUpCircle size={13} strokeWidth={2} />
+              Restart and update
+            </Button>
+          ) : updates.status === 'unsupported' ? undefined : (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={updates.check}
+              disabled={updates.status === 'checking' || updates.status === 'downloading'}
+            >
+              Check now
+            </Button>
+          )
+        }
+      />
+
+      <p
+        className={cn(
+          'text-[12px] leading-relaxed',
+          updates.status === 'error' ? 'text-danger' : 'text-muted'
+        )}
+      >
+        {line()}
+      </p>
+
+      {updates.status === 'downloading' && (
+        <div className="mt-2.5 h-1 overflow-hidden rounded-full bg-raised">
+          <motion.div
+            className="h-full bg-accent"
+            animate={{ width: `${updates.percent}%` }}
+            transition={transition.press}
+          />
+        </div>
+      )}
+
+      <p className="mt-3 border-t border-line pt-2.5 text-[11px] text-faint">
+        Installed version {version ?? '—'} · Nothing installs itself — an update
+        waits until you restart.
+      </p>
+    </Card>
   )
 }

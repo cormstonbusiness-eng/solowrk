@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Copy, Minus, Square, X } from 'lucide-react'
+import { ArrowUpCircle, Copy, Minus, Square, X } from 'lucide-react'
 import type { WindowState } from '@shared/ipc'
 import { Timer } from './Timer'
 import { themeById, type DecorKind } from '@shared/themes'
 import { useTheme } from '@/hooks/useTheme'
+import { useUpdates } from '@/hooks/useUpdates'
 import { Petal, Pumpkin, Snowflake, Sparkle } from '@/components/seasonal/sprites'
 import { cn } from '@/lib/utils'
 
@@ -60,6 +61,34 @@ function Flourish(): React.JSX.Element | null {
   return <Mark className="h-3 w-3 text-muted opacity-70" />
 }
 
+/**
+ * Shown only when a new version has finished downloading and is waiting.
+ *
+ * Nothing appears while it checks or downloads — those are the app's business,
+ * not yours. The one moment worth a word is when a restart is all that is left,
+ * and even then it is a button rather than a countdown: nobody should have the
+ * app close on them mid-invoice.
+ */
+function UpdatePrompt(): React.JSX.Element | null {
+  const updates = useUpdates()
+  if (updates.status !== 'ready') return null
+
+  return (
+    <button
+      type="button"
+      onClick={updates.install}
+      title={`Version ${updates.version} is downloaded and ready`}
+      className={cn(
+        'no-drag mr-2 flex items-center gap-1.5 rounded-full px-2.5 py-0.5',
+        'bg-accent/15 text-[11px] text-accent transition-colors hover:bg-accent/25'
+      )}
+    >
+      <ArrowUpCircle size={11} strokeWidth={2} />
+      Restart to update
+    </button>
+  )
+}
+
 export function TitleBar(): React.JSX.Element {
   const [state, setState] = useState<WindowState>({ isMaximized: false, isFocused: true })
 
@@ -86,6 +115,7 @@ export function TitleBar(): React.JSX.Element {
 
       {/* Centred so it reads as a status, not another control. */}
       <div className="flex flex-1 justify-center">
+        <UpdatePrompt />
         <Timer />
       </div>
 

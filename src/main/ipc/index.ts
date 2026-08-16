@@ -143,6 +143,7 @@ import { writePdf } from '../services/pdf'
 import { rangeFor } from '@shared/taxYear'
 import { updateSettings } from '../services/settings'
 import { getState, setState } from '../services/appState'
+import { check, installNow, updateState } from '../services/updates'
 
 type WindowGetter = () => BrowserWindow | null
 
@@ -437,6 +438,10 @@ const handlers: Handlers = {
     upcomingEvents(session.requireDb(), nowStamp(), payload?.limit ?? 5),
 
   'app:version': () => app.getVersion(),
+
+  'updates:get': () => updateState(),
+  'updates:check': () => check(),
+  'updates:install': () => installNow(),
 
   'settings:setLogo': async (_g, { sourcePath }) => {
     await setLogo(session.requireDb(), session.requirePath(), sourcePath)

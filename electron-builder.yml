@@ -25,11 +25,29 @@ win:
     - target: nsis
       arch: [x64]
   artifactName: ${productName}-Setup-${version}.${ext}
+  # Replace resources/icon.png with real artwork and every Windows size is
+  # regenerated from it. `npm run icon` redraws the placeholder.
+  icon: resources/icon.png
 
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  # Per-user rather than per-machine: no admin prompt to install or update,
+  # which is what makes an unattended background update possible at all.
   perMachine: false
   createDesktopShortcut: true
   createStartMenuShortcut: true
   shortcutName: SoloWrk
+  # Leave the previous install's files alone on upgrade. The workspace lives in
+  # Documents and the config in userData, so neither is touched either way —
+  # but a full wipe would drop the pinned taskbar shortcut's target.
+  deleteAppDataOnUninstall: false
+
+# Where the app looks for updates, and where `npm run release` publishes them.
+# A public repository, so the app carries no credentials: it reads the release
+# feed anonymously like any other download.
+publish:
+  provider: github
+  owner: cormstonbusiness-eng
+  repo: solowrk
+  releaseType: release

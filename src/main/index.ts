@@ -6,6 +6,7 @@ import { broadcastWindowState } from './ipc/window'
 import { session } from './services/session'
 import { startReminders, stopReminders } from './services/reminders'
 import { startScheduler, stopScheduler } from './services/scheduler'
+import { startUpdates, stopUpdates } from './services/updates'
 import { assistant } from './ai/assistant'
 
 /** Matches `--ground` in the renderer theme so there is no white flash on launch. */
@@ -85,6 +86,10 @@ void app.whenReady().then(() => {
   startReminders(getMainWindow)
   startScheduler(getMainWindow)
 
+  // Checks GitHub releases and downloads in the background. Never installs on
+  // its own — restarting mid-invoice would be worse than being a version behind.
+  startUpdates(getMainWindow)
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()
   })
@@ -98,6 +103,7 @@ app.on('window-all-closed', () => {
 // next launch to recover.
 app.on('before-quit', () => {
   stopReminders()
+  stopUpdates()
   stopScheduler()
   // Ends any in-flight turn and drops the "always allow" grants, which are
   // deliberately per-run rather than persisted.
