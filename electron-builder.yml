@@ -44,10 +44,13 @@ nsis:
   deleteAppDataOnUninstall: false
 
 # Where the app looks for updates, and where `npm run release` publishes them.
-# A public repository, so the app carries no credentials: it reads the release
-# feed anonymously like any other download.
+#
+# Deliberately NOT the source repository. Installers are published to a public
+# repo so the app can read the feed anonymously and carries no credentials,
+# while the source stays private — a public licence check is a public guide to
+# removing it. The two are split for that reason and no other.
 publish:
   provider: github
   owner: cormstonbusiness-eng
-  repo: solowrk
+  repo: solowrk-releases
   releaseType: release
