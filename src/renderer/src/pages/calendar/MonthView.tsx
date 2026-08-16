@@ -1,11 +1,10 @@
 import { useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import type { CalendarEventWithContext, PostWithContext } from '@shared/types'
+import type { CalendarEventWithContext } from '@shared/types'
 import { dayOf, daysBetween, isSameMonth, monthGrid, occursOn, timeOf } from '@shared/calendar'
 import { cn } from '@/lib/utils'
 import { transition } from '@/lib/motion'
 import { WEEKDAY_LABELS } from './grid'
-import { CalendarPostChip } from './PostChip'
 
 /** How far the pointer must travel before a click becomes a drag. */
 const DRAG_THRESHOLD = 4
@@ -14,7 +13,6 @@ export function MonthView({
   month,
   today,
   events,
-  posts,
   onOpenEvent,
   onCreateAt,
   onMoveEvent
@@ -23,7 +21,6 @@ export function MonthView({
   month: string
   today: string
   events: CalendarEventWithContext[]
-  posts: PostWithContext[]
   onOpenEvent: (event: CalendarEventWithContext) => void
   onCreateAt: (day: string) => void
   onMoveEvent: (event: CalendarEventWithContext, days: number) => void
@@ -107,7 +104,6 @@ export function MonthView({
       <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6">
         {days.map((day) => {
           const dayEvents = events.filter((event) => occursOn(event, day))
-          const dayPosts = posts.filter((post) => post.scheduledAt?.slice(0, 10) === day)
           const outside = !isSameMonth(day, month)
           const isToday = day === today
 
@@ -162,13 +158,10 @@ export function MonthView({
                   </motion.button>
                 ))}
 
-                {dayPosts.slice(0, 2).map((post) => (
-                  <CalendarPostChip key={`post-${post.id}`} post={post} compact />
-                ))}
 
-                {dayEvents.length + dayPosts.length > 5 && (
+                {dayEvents.length > 5 && (
                   <span className="px-1 text-[10.5px] text-faint">
-                    +{dayEvents.length + dayPosts.length - 5} more
+                    +{dayEvents.length - 5} more
                   </span>
                 )}
               </div>

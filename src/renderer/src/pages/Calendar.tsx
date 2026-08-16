@@ -103,12 +103,10 @@ export function Calendar(): React.JSX.Element {
     queryFn: () => window.solo.invoke('projects:list', {})
   })
 
-  // Scheduled posts sit alongside events and task deadlines: what is going out
-  // this week is part of the week, not a separate calendar to remember to check.
-  const { data: posts = [] } = useQuery({
-    queryKey: keys.posts({ from, to }),
-    queryFn: () => window.solo.invoke('marketing:posts', { from, to })
-  })
+  // Scheduled posts are deliberately NOT here. Marketing has its own content
+  // calendar, and this one is for meetings and things you put in it yourself —
+  // mixing a month of scheduled posts into the working week buries the two
+  // appointments that actually needed your attention.
 
   const reschedule = useMutation({
     mutationFn: (input: { id: number; startsAt: string; endsAt: string }) =>
@@ -224,7 +222,6 @@ export function Calendar(): React.JSX.Element {
               month={anchor}
               today={today}
               events={events}
-              posts={posts}
               onOpenEvent={setEditing}
               onCreateAt={(day) => openNew(day)}
               onMoveEvent={(event, dayDelta) =>
@@ -242,7 +239,6 @@ export function Calendar(): React.JSX.Element {
               days={view === 'day' ? [anchor] : weekDays(anchor)}
               today={today}
               events={events}
-              posts={posts}
               onOpenEvent={setEditing}
               onCreateSlot={(startsAt, endsAt) =>
                 openNew(startsAt.slice(0, 10), startsAt.slice(11, 16), endsAt.slice(11, 16))
@@ -257,7 +253,6 @@ export function Calendar(): React.JSX.Element {
                 days={days}
                 today={today}
                 events={events}
-                posts={posts}
                 onOpenEvent={setEditing}
               />
             </div>

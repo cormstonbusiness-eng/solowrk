@@ -20,7 +20,9 @@ interface ClientRow extends Row {
   notes: string
   colour: string
   folder: string
-  active: number
+  status: string
+  interested_at: string | null
+  became_active_at: string | null
   archived: number
   created_at: string
   updated_at: string
@@ -40,7 +42,9 @@ function toClient(row: ClientRow): Client {
     notes: row.notes,
     colour: row.colour,
     folder: row.folder,
-    active: row.active === 1,
+    status: row.status as Client['status'],
+    interestedAt: row.interested_at,
+    becameActiveAt: row.became_active_at,
     archived: row.archived === 1,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -75,11 +79,14 @@ export async function createClient(
   // pointing at a directory that does not exist.
   await mkdir(resolveInWorkspace(workspacePath, join(folder, '_client')), { recursive: true })
 
+  const status = input.status ?? 'active'
+
   db.run(
     `INSERT INTO clients
        (name, contact_name, email, phone, address, vat_number, default_rate,
-        payment_terms_days, notes, colour, folder, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+        payment_terms_days, notes, colour, folder, status,
+        interested_at, became_active_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
     [
       input.name,
       input.contactName ?? '',
@@ -91,7 +98,12 @@ export async function createClient(
       input.paymentTermsDays ?? null,
       input.notes ?? '',
       input.colour ?? '#6E56CF',
-      folder
+      folder,
+      status,
+      // Stamped on the way in as well as on transition, so a client added
+      // straight in as active still counts towards the goal for this period.
+      status === 'interested' ? nowIso() : null,
+      status === 'active' ? nowIso() : null
     ]
   )
 
@@ -111,7 +123,13 @@ const UPDATABLE: Record<string, string> = {
   paymentTermsDays: 'payment_terms_days',
   notes: 'notes',
   colour: 'colour',
+  status: 'status',
   archived: 'archived'
+}
+
+/** SQLite's own format, so stamps written here sort against `datetime('now')`. */
+function nowIso(): string {
+  return new Date().toISOString().slice(0, 19).replace('T', ' ')
 }
 
 export async function updateClient(
@@ -130,6 +148,24 @@ export async function updateClient(
     if (!column || value === undefined) continue
     assignments.push(`${column} = ?`)
     values.push(typeof value === 'boolean' ? (value ? 1 : 0) : (value as string | number | null))
+  }
+
+  /**
+   * The first time they reach a status, record when.
+   *
+   * `COALESCE` so it is only ever written once: these stamps are what the
+   * goals count, and a client moved from active to past and back would
+   * otherwise be counted as a new client twice.
+   */
+  if (patch.status && patch.status !== current.status) {
+    if (patch.status === 'interested') {
+      assignments.push('interested_at = COALESCE(interested_at, ?)')
+      values.push(nowIso())
+    }
+    if (patch.status === 'active') {
+      assignments.push('became_active_at = COALESCE(became_active_at, ?)')
+      values.push(nowIso())
+    }
   }
 
   if (assignments.length > 0) {

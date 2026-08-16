@@ -677,5 +677,83 @@ export const migrations: Migration[] = [
       CREATE UNIQUE INDEX idx_notifications_dedupe ON notifications(dedupe_key)
         WHERE dedupe_key IS NOT NULL;
     `
+  },
+
+  /**
+   * Id 13 is deliberately skipped.
+   *
+   * A migration numbered 13 shipped briefly and was reverted, so a database
+   * that ran it already has 13 recorded as applied — and the runner skips any
+   * id it has seen. Reusing the number would mean this migration silently
+   * never ran on exactly the machines that had it. The gap costs nothing; the
+   * collision would cost a broken install with no error to show for it.
+   *
+   * The DROP TABLE IF EXISTS lines below clear up after that reverted work.
+   * They are no-ops on a database that never ran it.
+   */
+  {
+    id: 14,
+    name: 'client_status',
+    sql: `
+      DROP TABLE IF EXISTS website_deploys;
+      DROP TABLE IF EXISTS website_enquiries;
+
+      -- A client is not simply on or off. Someone who enquired and has not
+      -- decided is not a client yet, someone who said no is worth keeping the
+      -- details of, and someone you finished with two years ago is neither.
+      -- The old boolean could only express two of those four.
+      ALTER TABLE clients ADD COLUMN status TEXT NOT NULL DEFAULT 'active'
+        CHECK (status IN ('active', 'interested', 'not_interested', 'past'));
+
+      -- When they first became each thing. Goals count transitions, not
+      -- creation: a lead added in January and won in June is a new client in
+      -- June, and counting them in January would make both quarters wrong.
+      -- Never cleared once set, so a past client still counts for the period
+      -- they were won in.
+      ALTER TABLE clients ADD COLUMN interested_at    TEXT;
+      ALTER TABLE clients ADD COLUMN became_active_at TEXT;
+
+      -- Backfilled from the boolean it replaces. active = 0 meant "dormant",
+      -- which is 'past' and emphatically not 'not_interested' — mapping it
+      -- that way would relabel every finished client as a lost lead.
+      UPDATE clients SET status = CASE WHEN active = 1 THEN 'active' ELSE 'past' END;
+      UPDATE clients SET became_active_at = created_at WHERE active = 1;
+
+      CREATE INDEX idx_clients_status ON clients(status, archived);
+
+      -- Goals gains a 'leads' kind, for a target like "5 new interested
+      -- clients this quarter". SQLite cannot widen a CHECK constraint in
+      -- place, so the table is rebuilt — the same shape migration 9 used to
+      -- drop a NOT NULL from notes.
+      CREATE TABLE goals_new (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        name        TEXT    NOT NULL,
+        description TEXT    NOT NULL DEFAULT '',
+        kind        TEXT    NOT NULL DEFAULT 'custom'
+                            CHECK (kind IN ('revenue','profit','clients','leads','projects',
+                                            'hours','posts','custom')),
+        target      INTEGER NOT NULL DEFAULT 0,
+        manual      INTEGER NOT NULL DEFAULT 0,
+        period      TEXT    NOT NULL DEFAULT 'year'
+                            CHECK (period IN ('month','quarter','year','once')),
+        starts_on   TEXT,
+        ends_on     TEXT,
+        colour      TEXT    NOT NULL DEFAULT '#6E56CF',
+        status      TEXT    NOT NULL DEFAULT 'active'
+                            CHECK (status IN ('active','achieved','missed','archived')),
+        created_at  TEXT    NOT NULL,
+        updated_at  TEXT    NOT NULL
+      );
+
+      INSERT INTO goals_new
+        SELECT id, name, description, kind, target, manual, period, starts_on,
+               ends_on, colour, status, created_at, updated_at
+          FROM goals;
+
+      DROP TABLE goals;
+      ALTER TABLE goals_new RENAME TO goals;
+
+      CREATE INDEX idx_goals_status ON goals(status);
+    `
   }
 ]

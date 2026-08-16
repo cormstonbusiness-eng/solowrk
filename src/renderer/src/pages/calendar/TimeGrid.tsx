@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { CalendarEventWithContext, PostWithContext } from '@shared/types'
+import type { CalendarEventWithContext } from '@shared/types'
 import {
   MINUTES_PER_DAY,
   clamp,
@@ -22,7 +22,6 @@ import {
   columnLabel,
   hourLabel
 } from './grid'
-import { CalendarPostChip } from './PostChip'
 
 const DRAG_THRESHOLD = 3
 const MIN_EVENT_MINUTES = 15
@@ -40,7 +39,6 @@ export function TimeGrid({
   days,
   today,
   events,
-  posts,
   onOpenEvent,
   onCreateSlot,
   onReschedule
@@ -48,7 +46,6 @@ export function TimeGrid({
   days: string[]
   today: string
   events: CalendarEventWithContext[]
-  posts: PostWithContext[]
   onOpenEvent: (event: CalendarEventWithContext) => void
   onCreateSlot: (startsAt: string, endsAt: string) => void
   onReschedule: (event: CalendarEventWithContext, span: { startsAt: string; endsAt: string }) => void
@@ -201,7 +198,7 @@ export function TimeGrid({
         })}
       </div>
 
-      {/* All-day strip: whole-day events and scheduled posts */}
+      {/* All-day strip: whole-day events */}
       <div className="flex shrink-0 border-b border-line bg-ground/40">
         <div className="flex w-[52px] shrink-0 items-center justify-end border-r border-line pr-2 text-[10px] text-faint">
           All day
@@ -228,11 +225,6 @@ export function TimeGrid({
                 </button>
               ))}
 
-            {posts
-              .filter((post) => post.scheduledAt?.slice(0, 10) === day)
-              .map((post) => (
-                <CalendarPostChip key={`post-${post.id}`} post={post} compact />
-              ))}
 
           </div>
         ))}

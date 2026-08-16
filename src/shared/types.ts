@@ -121,6 +121,27 @@ export interface FolderInspection {
  * Clients, projects and tasks
  * ------------------------------------------------------------------ */
 
+/**
+ * Where a client stands with you.
+ *
+ * `past` exists because the boolean this replaced used `false` for "dormant" —
+ * work that finished — and folding that into `not_interested` would relabel
+ * every completed client as a lost lead.
+ */
+export type ClientStatus = 'active' | 'interested' | 'not_interested' | 'past'
+
+export const CLIENT_STATUSES: {
+  value: ClientStatus
+  label: string
+  hint: string
+  colour: string
+}[] = [
+  { value: 'interested', label: 'Interested', colour: '#F5A623', hint: 'Enquired, not decided' },
+  { value: 'active', label: 'Active', colour: '#30A46C', hint: 'Working with them now' },
+  { value: 'past', label: 'Past', colour: '#8a8a93', hint: 'Worked with them before' },
+  { value: 'not_interested', label: 'Not interested', colour: '#E5484D', hint: 'Said no' }
+]
+
 export interface Client {
   id: number
   name: string
@@ -136,8 +157,12 @@ export interface Client {
   colour: string
   /** Relative to the workspace root. */
   folder: string
-  /** A live relationship. Distinct from `archived`, which hides the record. */
-  active: boolean
+  /** Where they stand. Distinct from `archived`, which hides the record. */
+  status: ClientStatus
+  /** When they were first marked interested, for the leads goal. Never cleared. */
+  interestedAt: string | null
+  /** When they first became an active client, for the new-clients goal. */
+  becameActiveAt: string | null
   archived: boolean
   createdAt: string
   updatedAt: string
@@ -283,7 +308,15 @@ export interface NotificationInput {
  * Everything but `custom` is measured from data the app already holds, so a
  * goal cannot drift from reality by being updated by hand.
  */
-export type GoalKind = 'revenue' | 'profit' | 'clients' | 'projects' | 'hours' | 'posts' | 'custom'
+export type GoalKind =
+  | 'revenue'
+  | 'profit'
+  | 'clients'
+  | 'leads'
+  | 'projects'
+  | 'hours'
+  | 'posts'
+  | 'custom'
 
 export type GoalPeriod = 'month' | 'quarter' | 'year' | 'once'
 
@@ -297,7 +330,20 @@ export const GOAL_KINDS: {
 }[] = [
   { value: 'revenue', label: 'Revenue', hint: 'Invoices paid in the period', money: true },
   { value: 'profit', label: 'Profit', hint: 'Paid income less expenses', money: true },
-  { value: 'clients', label: 'New clients', hint: 'Clients added in the period', money: false },
+  {
+    value: 'clients',
+    label: 'New clients',
+    // Won, not added. A lead who has not decided is not a client yet, and
+    // counting them as one makes the number flattering and useless.
+    hint: 'Clients who became active in the period',
+    money: false
+  },
+  {
+    value: 'leads',
+    label: 'New interested clients',
+    hint: 'Enquiries marked interested in the period',
+    money: false
+  },
   { value: 'projects', label: 'Projects finished', hint: 'Marked completed', money: false },
   { value: 'hours', label: 'Hours tracked', hint: 'From your timer', money: false },
   { value: 'posts', label: 'Posts published', hint: 'From Marketing', money: false },

@@ -14,11 +14,12 @@ import {
   Trash2,
   Users
 } from 'lucide-react'
-import type { ClientInput } from '@shared/types'
+import type { ClientInput, ClientStatus } from '@shared/types'
+import { CLIENT_STATUSES } from '@shared/types'
 import { Page } from '@/components/Page'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Field, MoneyInput, NumberInput, TextInput, Toggle } from '@/components/ui/Field'
+import { Field, MoneyInput, NumberInput, TextInput } from '@/components/ui/Field'
 import { ColourPicker } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Dot, Empty } from '@/components/ui/Empty'
@@ -30,7 +31,7 @@ import { cn } from '@/lib/utils'
 
 const BLANK: ClientInput = {
   name: '',
-  active: true,
+  status: 'interested',
   contactName: '',
   email: '',
   phone: '',
@@ -42,7 +43,7 @@ const BLANK: ClientInput = {
 }
 
 /** The directory columns, in reading order. */
-type SortKey = 'name' | 'contactName' | 'email' | 'defaultRate' | 'paymentTermsDays' | 'active'
+type SortKey = 'name' | 'contactName' | 'email' | 'defaultRate' | 'paymentTermsDays' | 'status'
 
 const COLUMNS: { key: SortKey; label: string; className?: string }[] = [
   { key: 'name', label: 'Client' },
@@ -50,12 +51,31 @@ const COLUMNS: { key: SortKey; label: string; className?: string }[] = [
   { key: 'email', label: 'Email' },
   { key: 'defaultRate', label: 'Rate', className: 'text-right' },
   { key: 'paymentTermsDays', label: 'Terms', className: 'text-right' },
-  { key: 'active', label: 'Status', className: 'text-right' }
+  { key: 'status', label: 'Status', className: 'text-right' }
 ]
 
 /** An empty cell, so a gap in the directory reads as blank rather than as broken. */
 function Blank(): React.JSX.Element {
   return <span className="text-faint">—</span>
+}
+
+/**
+ * Where a client stands, as a coloured pill.
+ *
+ * The colour carries the meaning at a glance down a column, but the label is
+ * always there too — status is not something to encode in colour alone.
+ */
+function StatusPill({ status }: { status: ClientStatus }): React.JSX.Element {
+  const entry = CLIENT_STATUSES.find((item) => item.value === status)
+
+  return (
+    <span
+      className="rounded-full border px-1.5 py-0.5 text-[10px] whitespace-nowrap"
+      style={{ borderColor: `${entry?.colour}66`, color: entry?.colour }}
+    >
+      {entry?.label ?? status}
+    </span>
+  )
 }
 
 export function Clients(): React.JSX.Element {
@@ -205,7 +225,7 @@ export function Clients(): React.JSX.Element {
                     className={cn(
                       'cursor-pointer border-b border-line/60 transition-colors last:border-b-0',
                       'hover:bg-raised',
-                      !client.active && 'opacity-60'
+                      client.status === 'not_interested' && 'opacity-60'
                     )}
                   >
                     <td className="px-3 py-2.5">
@@ -251,16 +271,7 @@ export function Clients(): React.JSX.Element {
                     </td>
 
                     <td className="px-3 py-2.5 text-right">
-                      <span
-                        className={cn(
-                          'rounded-full border px-1.5 py-0.5 text-[10px]',
-                          client.active
-                            ? 'border-line text-muted'
-                            : 'border-line text-faint'
-                        )}
-                      >
-                        {client.active ? 'Active' : 'Dormant'}
-                      </span>
+                      <StatusPill status={client.status} />
                     </td>
                   </motion.tr>
                 ))}
@@ -394,12 +405,40 @@ function ClientModal({
           </div>
 
           <div className="border-t border-line pt-3.5">
-            <Toggle
-              checked={draft.active ?? true}
-              onChange={(checked) => set('active', checked)}
-              label="Active client"
-              hint="Dormant clients stay in the directory with their details — they just read as past work."
-            />
+            <Field
+              label="Status"
+              hint="Only clients you mark active count towards your new-client goal."
+            >
+              <div className="grid grid-cols-2 gap-2">
+                {CLIENT_STATUSES.map((entry) => {
+                  const chosen = (draft.status ?? 'interested') === entry.value
+
+                  return (
+                    <button
+                      key={entry.value}
+                      type="button"
+                      onClick={() => set('status', entry.value)}
+                      className={cn(
+                        'rounded-control border px-3 py-2 text-left transition-colors',
+                        chosen ? 'bg-raised' : 'border-line hover:border-line-strong'
+                      )}
+                      style={chosen ? { borderColor: entry.colour } : undefined}
+                    >
+                      <span
+                        className="flex items-center gap-1.5 text-[12.5px]"
+                        style={{ color: chosen ? entry.colour : undefined }}
+                      >
+                        <Dot colour={entry.colour} />
+                        {entry.label}
+                      </span>
+                      <span className="mt-0.5 block pl-3.5 text-[11px] text-faint">
+                        {entry.hint}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </Field>
           </div>
 
           <Field label="Colour">

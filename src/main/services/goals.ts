@@ -84,9 +84,26 @@ function measure(db: Database, goal: Goal, range: { from: string; to: string }):
     }
 
     case 'clients': {
+      // Counted from when they became active, not when the row was created.
+      // A lead added in January and won in June is a new client in June, and
+      // counting on creation would credit the wrong quarter — as well as
+      // counting people who enquired and never bought.
       const row = db.get<Row & { n: number }>(
         `SELECT COUNT(*) AS n FROM clients
-          WHERE substr(created_at, 1, 10) BETWEEN ? AND ?`,
+          WHERE became_active_at IS NOT NULL
+            AND substr(became_active_at, 1, 10) BETWEEN ? AND ?`,
+        [range.from, range.to]
+      )
+      return row?.n ?? 0
+    }
+
+    case 'leads': {
+      // The stamp is never cleared, so a lead who has since been won — or
+      // turned down — still counts for the period they came in.
+      const row = db.get<Row & { n: number }>(
+        `SELECT COUNT(*) AS n FROM clients
+          WHERE interested_at IS NOT NULL
+            AND substr(interested_at, 1, 10) BETWEEN ? AND ?`,
         [range.from, range.to]
       )
       return row?.n ?? 0
