@@ -1,4 +1,5 @@
 import {
+  BookOpen,
   CalendarDays,
   ChartNoAxesCombined,
   CircleCheckBig,
@@ -44,6 +45,7 @@ export const navGroups: NavGroup[] = [
   {
     label: 'Business',
     items: [
+      { label: 'Business plan', path: '/business-plan', icon: BookOpen },
       { label: 'Clients', path: '/clients', icon: Users },
       { label: 'Marketing', path: '/marketing', icon: Megaphone },
       { label: 'Goals', path: '/goals', icon: Target },

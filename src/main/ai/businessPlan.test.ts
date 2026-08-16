@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { planSection } from './businessPlan'
+import { isEditablePlan, isNewerThan, planSection } from './businessPlan'
 
 describe('planSection', () => {
   it('sends a real-sized plan in full', () => {
@@ -53,5 +53,43 @@ describe('planSection', () => {
     expect(section).toContain('was cut here')
     // Still bounded, so one oversized attachment cannot break every turn.
     expect(section.length).toBeLessThan(420_000)
+  })
+})
+
+describe('isNewerThan', () => {
+  it('does not re-extract a file that has not changed since it was read', () => {
+    // The bug this replaced: `toISOString` writes `2026-08-16T18:40:29Z` while
+    // SQLite writes `2026-08-16 18:40:29`, and `T` sorts above a space. Every
+    // same-day file therefore looked newer than its own read timestamp, so a
+    // forty-page PDF was re-parsed before every single reply.
+    expect(isNewerThan(new Date('2026-08-16T18:40:29Z'), '2026-08-16 18:40:29')).toBe(false)
+    expect(isNewerThan(new Date('2026-08-16T09:00:00Z'), '2026-08-16 18:40:29')).toBe(false)
+  })
+
+  it('re-extracts a file edited since', () => {
+    expect(isNewerThan(new Date('2026-08-16T18:40:30Z'), '2026-08-16 18:40:29')).toBe(true)
+    expect(isNewerThan(new Date('2026-08-17T00:00:00Z'), '2026-08-16 18:40:29')).toBe(true)
+  })
+
+  it('ignores sub-second precision on either side', () => {
+    // SQLite's datetime() truncates to the second, so a millisecond difference
+    // is not a change — it is the same read.
+    expect(isNewerThan(new Date('2026-08-16T18:40:29.998Z'), '2026-08-16 18:40:29')).toBe(false)
+    expect(isNewerThan(new Date('2026-08-16T18:40:29Z'), '2026-08-16 18:40:29.500')).toBe(false)
+  })
+})
+
+describe('isEditablePlan', () => {
+  it('allows the formats SoloWrk can write back to', () => {
+    expect(isEditablePlan('Documents/Business/Business Plan.md')).toBe(true)
+    expect(isEditablePlan('plan.TXT')).toBe(true)
+  })
+
+  it('refuses the ones it can only read', () => {
+    // Rewriting a PDF or a Word file would mean regenerating a document the
+    // user formatted themselves.
+    expect(isEditablePlan('plan.pdf')).toBe(false)
+    expect(isEditablePlan('plan.docx')).toBe(false)
+    expect(isEditablePlan('')).toBe(false)
   })
 })

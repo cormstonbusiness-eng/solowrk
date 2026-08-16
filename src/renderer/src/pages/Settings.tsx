@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import {
@@ -437,6 +438,7 @@ function LogoCard({ logoFile }: { logoFile: string }): React.JSX.Element {
  */
 function BusinessPlanCard(): React.JSX.Element {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const [error, setError] = useState<string | null>(null)
 
   const { data: plan } = useQuery({
@@ -493,8 +495,10 @@ function BusinessPlanCard(): React.JSX.Element {
               {plan.readAt && ` · ${formatDate(plan.readAt)}`}
             </p>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => void window.solo.invoke('ai:openBusinessPlan')}>
-            Open
+          {/* The plan has its own page now — this card stays for attaching and
+              detaching, and sends you there for anything to do with the content. */}
+          <Button variant="ghost" size="sm" onClick={() => navigate('/business-plan')}>
+            View plan
           </Button>
           <Button variant="ghost" size="sm" onClick={() => attach.mutate()}>
             Replace

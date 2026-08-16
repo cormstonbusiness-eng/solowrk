@@ -124,7 +124,13 @@ import {
   unreadCount
 } from '../services/notifications'
 import { listStandaloneNotes, renameNote, setNotePinned } from '../services/notes'
-import { attachPlan, detachPlan, planStatus } from '../ai/businessPlan'
+import {
+  attachPlan,
+  detachPlan,
+  planStatus,
+  startPlan,
+  writePlan
+} from '../ai/businessPlan'
 import { today } from '@shared/taxYear'
 import { assistant } from '../ai/assistant'
 import {
@@ -490,6 +496,9 @@ const handlers: Handlers = {
     if (businessPlanFile === '') return
     void shell.openPath(resolveInWorkspace(session.requirePath(), businessPlanFile))
   },
+  'ai:writeBusinessPlan': (_g, { text }) =>
+    writePlan(session.requireDb(), session.requirePath(), text),
+  'ai:startBusinessPlan': () => startPlan(session.requireDb(), session.requirePath()),
 
   'marketing:campaigns': (_g, args) =>
     listCampaigns(session.requireDb(), args?.includeArchived ?? false),

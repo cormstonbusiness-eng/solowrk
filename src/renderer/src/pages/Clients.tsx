@@ -1,8 +1,19 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
-import { ArrowLeft, FolderKanban, Mail, Phone, Plus, Trash2, Users } from 'lucide-react'
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowUp,
+  FolderKanban,
+  Mail,
+  Phone,
+  Plus,
+  Search,
+  Trash2,
+  Users
+} from 'lucide-react'
 import type { ClientInput } from '@shared/types'
 import { Page } from '@/components/Page'
 import { Card, CardHeader } from '@/components/ui/Card'
@@ -30,9 +41,32 @@ const BLANK: ClientInput = {
   colour: '#6E56CF'
 }
 
+/** The directory columns, in reading order. */
+type SortKey = 'name' | 'contactName' | 'email' | 'defaultRate' | 'paymentTermsDays' | 'active'
+
+const COLUMNS: { key: SortKey; label: string; className?: string }[] = [
+  { key: 'name', label: 'Client' },
+  { key: 'contactName', label: 'Contact' },
+  { key: 'email', label: 'Email' },
+  { key: 'defaultRate', label: 'Rate', className: 'text-right' },
+  { key: 'paymentTermsDays', label: 'Terms', className: 'text-right' },
+  { key: 'active', label: 'Status', className: 'text-right' }
+]
+
+/** An empty cell, so a gap in the directory reads as blank rather than as broken. */
+function Blank(): React.JSX.Element {
+  return <span className="text-faint">—</span>
+}
+
 export function Clients(): React.JSX.Element {
   const invalidate = useInvalidate()
+  const navigate = useNavigate()
   const [editing, setEditing] = useState<ClientInput & { id?: number } | null>(null)
+  const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<{ key: SortKey; descending: boolean }>({
+    key: 'name',
+    descending: false
+  })
 
   useOpenParam('new', () => setEditing({ ...BLANK }))
 
@@ -40,6 +74,47 @@ export function Clients(): React.JSX.Element {
     queryKey: keys.clients,
     queryFn: () => window.solo.invoke('clients:list', {})
   })
+
+  const rows = useMemo(() => {
+    const needle = search.trim().toLowerCase()
+
+    const matched = clients.filter((client) =>
+      needle === ''
+        ? true
+        : // Every column is searchable, plus the phone number, which people
+          // reach for far more often than they sort by it.
+          [client.name, client.contactName, client.email, client.phone, client.address]
+            .filter(Boolean)
+            .some((field) => field!.toLowerCase().includes(needle))
+    )
+
+    const direction = sort.descending ? -1 : 1
+
+    return [...matched].sort((a, b) => {
+      const left = a[sort.key]
+      const right = b[sort.key]
+
+      // Blanks sort to the bottom whichever way the column is pointing: a
+      // client with no rate is not "the cheapest".
+      const leftEmpty = left === null || left === '' || left === undefined
+      const rightEmpty = right === null || right === '' || right === undefined
+      if (leftEmpty !== rightEmpty) return leftEmpty ? 1 : -1
+
+      if (typeof left === 'number' && typeof right === 'number') {
+        return (left - right) * direction
+      }
+      if (typeof left === 'boolean' && typeof right === 'boolean') {
+        return (Number(right) - Number(left)) * direction
+      }
+
+      return String(left).localeCompare(String(right), 'en-GB') * direction
+    })
+  }, [clients, search, sort])
+
+  const toggleSort = (key: SortKey): void =>
+    setSort((current) =>
+      current.key === key ? { key, descending: !current.descending } : { key, descending: false }
+    )
 
   const save = useMutation({
     mutationFn: (draft: ClientInput & { id?: number }) =>
@@ -76,57 +151,129 @@ export function Clients(): React.JSX.Element {
           }
         />
       ) : (
-        <motion.div
-          variants={listVariants}
-          initial="initial"
-          animate="animate"
-          className="grid grid-cols-3 gap-3"
-        >
-          {clients.map((client) => (
-            <motion.div key={client.id} variants={listItemVariants}>
-              <Link to={`/clients/${client.id}`}>
-                <Card
-                  className={cn(
-                    'h-full transition-colors duration-150 hover:border-line-strong',
-                    !client.active && 'opacity-60'
-                  )}
-                >
-                  <div className="mb-2 flex items-center gap-2">
-                    <Dot colour={client.colour} />
-                    <p className="truncate text-[14px] font-medium text-ink">{client.name}</p>
-                    {!client.active && (
-                      <span className="ml-auto shrink-0 rounded-full border border-line px-1.5 py-0.5 text-[10px] text-faint">
-                        Dormant
+        <div className="flex min-h-0 flex-col gap-3">
+          <div className="relative w-[280px] shrink-0">
+            <Search
+              size={13}
+              strokeWidth={1.75}
+              className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-faint"
+            />
+            <TextInput
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search name, contact, email, phone"
+              className="pl-8"
+            />
+          </div>
+
+          <div className="overflow-hidden rounded-card border border-line">
+            <table className="w-full border-collapse text-left">
+              <thead>
+                <tr className="border-b border-line bg-raised">
+                  {COLUMNS.map((column) => (
+                    <th key={column.key} scope="col" className={cn('px-3 py-2', column.className)}>
+                      <button
+                        type="button"
+                        onClick={() => toggleSort(column.key)}
+                        className={cn(
+                          'inline-flex items-center gap-1 text-[10.5px] font-medium tracking-[0.08em] uppercase',
+                          'transition-colors hover:text-ink',
+                          sort.key === column.key ? 'text-ink' : 'text-faint'
+                        )}
+                      >
+                        {column.label}
+                        {/* Only the active column shows an arrow — one on every
+                            header reads as decoration rather than as state. */}
+                        {sort.key === column.key &&
+                          (sort.descending ? (
+                            <ArrowDown size={11} strokeWidth={2} />
+                          ) : (
+                            <ArrowUp size={11} strokeWidth={2} />
+                          ))}
+                      </button>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+
+              <motion.tbody variants={listVariants} initial="initial" animate="animate">
+                {rows.map((client) => (
+                  <motion.tr
+                    key={client.id}
+                    variants={listItemVariants}
+                    onClick={() => navigate(`/clients/${client.id}`)}
+                    className={cn(
+                      'cursor-pointer border-b border-line/60 transition-colors last:border-b-0',
+                      'hover:bg-raised',
+                      !client.active && 'opacity-60'
+                    )}
+                  >
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-2">
+                        <Dot colour={client.colour} />
+                        <span className="truncate text-[12.5px] font-medium text-ink">
+                          {client.name}
+                        </span>
+                      </div>
+                    </td>
+
+                    <td className="px-3 py-2.5 text-[12px] text-muted">
+                      {client.contactName || <Blank />}
+                    </td>
+
+                    <td className="px-3 py-2.5 text-[12px]">
+                      {client.email ? (
+                        // A directory exists to be acted on, so the address is a
+                        // real mailto rather than text to retype. It must not
+                        // also trigger the row's navigation.
+                        <a
+                          href={`mailto:${client.email}`}
+                          onClick={(event) => event.stopPropagation()}
+                          className="truncate text-muted underline-offset-2 hover:text-ink hover:underline"
+                        >
+                          {client.email}
+                        </a>
+                      ) : (
+                        <Blank />
+                      )}
+                    </td>
+
+                    <td className="numeric px-3 py-2.5 text-right text-[12px] text-muted">
+                      {client.defaultRate === null ? <Blank /> : formatRate(client.defaultRate)}
+                    </td>
+
+                    <td className="numeric px-3 py-2.5 text-right text-[12px] text-muted">
+                      {client.paymentTermsDays === null ? (
+                        <Blank />
+                      ) : (
+                        `${client.paymentTermsDays} days`
+                      )}
+                    </td>
+
+                    <td className="px-3 py-2.5 text-right">
+                      <span
+                        className={cn(
+                          'rounded-full border px-1.5 py-0.5 text-[10px]',
+                          client.active
+                            ? 'border-line text-muted'
+                            : 'border-line text-faint'
+                        )}
+                      >
+                        {client.active ? 'Active' : 'Dormant'}
                       </span>
-                    )}
-                  </div>
+                    </td>
+                  </motion.tr>
+                ))}
+              </motion.tbody>
+            </table>
 
-                  <div className="flex flex-col gap-0.5">
-                    {client.contactName && (
-                      <p className="truncate text-[12px] text-muted">{client.contactName}</p>
-                    )}
-                    {client.email && (
-                      <p className="flex items-center gap-1.5 truncate text-[11.5px] text-faint">
-                        <Mail size={10} strokeWidth={1.75} />
-                        {client.email}
-                      </p>
-                    )}
-                    {client.phone && (
-                      <p className="flex items-center gap-1.5 truncate text-[11.5px] text-faint">
-                        <Phone size={10} strokeWidth={1.75} />
-                        {client.phone}
-                      </p>
-                    )}
-                  </div>
-
-                  <p className="mt-3 text-[11px] text-faint">
-                    {formatRate(client.defaultRate)} · {client.paymentTermsDays ?? '—'} day terms
-                  </p>
-                </Card>
-              </Link>
-            </motion.div>
-          ))}
-        </motion.div>
+            {rows.length === 0 && (
+              <p className="px-3 py-8 text-center text-[12px] text-faint">
+                No client matches “{search}”.
+              </p>
+            )}
+          </div>
+        </div>
       )}
 
       <ClientModal

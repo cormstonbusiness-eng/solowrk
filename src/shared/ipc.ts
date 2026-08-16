@@ -134,6 +134,13 @@ export interface IpcContract {
   'ai:detachBusinessPlan': { req: void; res: BusinessPlanStatus }
   /** Opens the attached document in whatever the OS uses for it. */
   'ai:openBusinessPlan': { req: void; res: void }
+  /** Saves edited text back. Only markdown and text plans can be written to. */
+  'ai:writeBusinessPlan': { req: { text: string }; res: BusinessPlanStatus }
+  /**
+   * Starts an editable markdown plan and attaches it — from the blank template,
+   * or carrying across the text of a PDF or Word plan already attached.
+   */
+  'ai:startBusinessPlan': { req: void; res: BusinessPlanStatus }
 
   /** Small workspace-scoped UI flags — see app_state in the database. */
   'state:get': { req: { key: string }; res: string | null }
@@ -411,6 +418,8 @@ export const IPC_CHANNELS = [
   'ai:attachBusinessPlan',
   'ai:detachBusinessPlan',
   'ai:openBusinessPlan',
+  'ai:writeBusinessPlan',
+  'ai:startBusinessPlan',
   'state:get',
   'state:set',
   'clients:list',

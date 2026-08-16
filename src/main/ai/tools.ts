@@ -27,6 +27,8 @@ import {
   updatePost
 } from '../services/marketing'
 import { listAccounts } from '../social/accounts'
+import { editPlanSection, planStatus, readPlan } from './businessPlan'
+import { coverage, parsePlan, wordCount } from '@shared/plan'
 import { rangeFor, today as todayString, type Period } from '@shared/taxYear'
 import { nowStamp } from '@shared/calendar'
 
@@ -57,7 +59,8 @@ export const MUTATING = new Set([
   'create_campaign',
   'create_post',
   'update_post',
-  'create_content_plan'
+  'create_content_plan',
+  'update_business_plan'
 ])
 
 const ok = (text: string): { content: { type: 'text'; text: string }[] } => ({
@@ -98,6 +101,10 @@ export function describeCall(toolName: string, input: Record<string, unknown>): 
       }`
     case 'update_post':
       return `Update post #${name('id')}`
+    case 'update_business_plan':
+      return input.mode === 'append'
+        ? `Add to “${name('section')}” in your business plan`
+        : `Rewrite “${name('section')}” in your business plan`
     case 'create_content_plan': {
       // The one bulk tool: the count and the range are the whole decision, so
       // they go in the sentence rather than being buried in the JSON below it.
@@ -546,6 +553,61 @@ export const soloTools = createSdkMcpServer({
         'can still be planned for — the user posts it by hand.',
       {},
       async () => asJson(listAccounts(db()))
+    ),
+
+    /* ---------------- Business plan ---------------- */
+
+    tool(
+      'read_business_plan',
+      'The user’s business plan, section by section, with which of the standard ' +
+        'sections are missing. The full text is already in your instructions — read ' +
+        'this when you need the exact headings before editing, or to check an edit landed.',
+      {},
+      async () => {
+        const text = (await readPlan(db(), root())) ?? ''
+        if (text.trim() === '') return ok('No business plan is attached yet.')
+
+        const sections = parsePlan(text)
+        return asJson({
+          editable: planStatus(db()).editable,
+          sections: sections.map((section) => ({
+            heading: section.heading,
+            level: section.level,
+            words: wordCount(section.body),
+            body: section.body
+          })),
+          missing: coverage(sections)
+            .filter((entry) => entry.section === null)
+            .map((entry) => entry.spec.title)
+        })
+      }
+    ),
+
+    tool(
+      'update_business_plan',
+      'Rewrite or extend ONE section of the business plan, found by its heading. ' +
+        'A heading that is not in the plan is added as a new section at the end. ' +
+        'There is deliberately no way to rewrite the whole document — edit one ' +
+        'section at a time. Call `read_business_plan` first so you use the headings ' +
+        'the plan actually has. Requires the user to confirm.',
+      {
+        section: z
+          .string()
+          .describe('The section heading, without the leading #, e.g. "Financials"'),
+        content: z.string().describe('Markdown for the section body, without the heading'),
+        mode: z
+          .enum(['replace', 'append'])
+          .default('replace')
+          .describe('replace the section body, or add to the end of it')
+      },
+      async (args) => {
+        const { added } = await editPlanSection(db(), root(), args)
+        return ok(
+          added
+            ? `Added a new “${args.section}” section to the business plan.`
+            : `Updated “${args.section}” in the business plan.`
+        )
+      }
     ),
 
     tool(

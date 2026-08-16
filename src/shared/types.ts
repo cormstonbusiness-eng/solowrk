@@ -60,6 +60,8 @@ export interface BusinessPlanStatus {
   file: string
   /** Just the file name, for display. */
   name: string
+  /** True when SoloWrk can write back to it — markdown and text, not PDF or Word. */
+  editable: boolean
   /** Characters of readable text pulled out of it. */
   length: number
   /** When the text was last extracted. */
