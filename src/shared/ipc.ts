@@ -34,6 +34,7 @@ import type {
   SocialAccount,
   SiteStatus,
   SiteImage,
+  Enquiry,
   WebsiteDeploy,
   Client,
   ClientInput,
@@ -172,6 +173,17 @@ export interface IpcContract {
   }
   'media:delete': { req: { repoPath: string }; res: void }
   'media:publish': { req: { repoPaths: string[] }; res: { sha: string; url: string } }
+
+  'enquiries:list': { req: { archived?: boolean } | void; res: Enquiry[] }
+  'enquiries:unread': { req: void; res: number }
+  'enquiries:poll': { req: void; res: number }
+  'enquiries:read': { req: { id: number }; res: void }
+  'enquiries:archive': { req: { id: number; archived: boolean }; res: void }
+  /** Creates a client from the enquiry and links the two. */
+  'enquiries:toClient': { req: { id: number }; res: Client }
+  /** Saves the bearer token for the enquiries endpoint. '' removes it. */
+  'enquiries:setToken': { req: { token: string }; res: void }
+  'enquiries:tokenSet': { req: void; res: boolean }
 
   /** Saves edited text back. Only markdown and text plans can be written to. */
   'ai:writeBusinessPlan': { req: { text: string }; res: BusinessPlanStatus }
@@ -478,6 +490,14 @@ export const IPC_CHANNELS = [
   'media:add',
   'media:delete',
   'media:publish',
+  'enquiries:list',
+  'enquiries:unread',
+  'enquiries:poll',
+  'enquiries:read',
+  'enquiries:archive',
+  'enquiries:toClient',
+  'enquiries:setToken',
+  'enquiries:tokenSet',
   'state:get',
   'state:set',
   'clients:list',

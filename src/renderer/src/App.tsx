@@ -24,6 +24,7 @@ import {
   Clients,
   Dashboard,
   Documents,
+  Enquiries,
   Files,
   Finance,
   Goals,
@@ -72,6 +73,7 @@ function AnimatedRoutes(): React.JSX.Element {
         <Route path="/website" element={<WebsiteOverview />} />
         <Route path="/website/blog" element={<Blog />} />
         <Route path="/website/media" element={<Media />} />
+        <Route path="/website/enquiries" element={<Enquiries />} />
         <Route path="/marketing" element={<Marketing />} />
         <Route path="/goals" element={<Goals />} />
         <Route path="/notes" element={<Notes />} />

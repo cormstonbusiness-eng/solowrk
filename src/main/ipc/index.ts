@@ -132,7 +132,15 @@ import {
   writePlan
 } from '../ai/businessPlan'
 import { basename } from 'node:path'
-import { setSecret } from '../services/credentials'
+import { hasSecret, setSecret } from '../services/credentials'
+import {
+  archiveEnquiry,
+  enquiryToClient,
+  listEnquiries,
+  markEnquiryRead,
+  pollEnquiries,
+  unreadEnquiries
+} from '../services/enquiries'
 import {
   addImage,
   deleteImage,
@@ -597,6 +605,18 @@ const handlers: Handlers = {
   'media:add': (_g, input) => addImage(session.requireDb(), input),
   'media:delete': (_g, { repoPath }) => deleteImage(session.requireDb(), repoPath),
   'media:publish': (_g, { repoPaths }) => publishImages(session.requireDb(), repoPaths),
+
+  'enquiries:list': (_g, args) =>
+    listEnquiries(session.requireDb(), { archived: args?.archived ?? false }),
+  'enquiries:unread': () => unreadEnquiries(session.requireDb()),
+  'enquiries:poll': (getWindow) => pollEnquiries(session.requireDb(), getWindow),
+  'enquiries:read': (_g, { id }) => markEnquiryRead(session.requireDb(), id),
+  'enquiries:archive': (_g, { id, archived }) =>
+    archiveEnquiry(session.requireDb(), id, archived),
+  'enquiries:toClient': (_g, { id }) =>
+    enquiryToClient(session.requireDb(), session.requirePath(), id),
+  'enquiries:setToken': (_g, { token }) => setSecret('enquiries.token', token),
+  'enquiries:tokenSet': () => hasSecret('enquiries.token'),
 
   'marketing:campaigns': (_g, args) =>
     listCampaigns(session.requireDb(), args?.includeArchived ?? false),

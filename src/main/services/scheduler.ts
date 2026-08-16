@@ -5,6 +5,7 @@ import type { PostWithContext } from '@shared/types'
 import { duePosts, markNeedsAttention, runEvergreen } from './marketing'
 import { session } from './session'
 import { push } from './notifications'
+import { pollEnquiries } from './enquiries'
 
 /**
  * Drives scheduled posts.
@@ -20,8 +21,18 @@ import { push } from './notifications'
  */
 const TICK_MS = 60_000
 
+/**
+ * Enquiries are checked every five minutes rather than every tick.
+ *
+ * A new enquiry is not urgent to the minute, and this is a request over the
+ * internet to someone else's server — hitting it sixty times an hour, forever,
+ * to find nothing is a poor way to treat it.
+ */
+const ENQUIRY_POLL_MS = 5 * 60_000
+
 let timer: NodeJS.Timeout | null = null
 let lastEvergreenRun: string | null = null
+let lastEnquiryPoll = 0
 
 function notifyDue(getWindow: () => BrowserWindow | null, post: PostWithContext): void {
   const platforms = post.targets
@@ -83,6 +94,19 @@ async function tick(getWindow: () => BrowserWindow | null): Promise<void> {
     lastEvergreenRun = day
     await runEvergreen(db, session.requirePath(), day)
   }
+
+  // Website enquiries. Kept separate from everything above: a website that is
+  // unreachable, or a token that has expired, must not stop scheduled posts
+  // from being noticed.
+  const sinceLastPoll = Date.now() - lastEnquiryPoll
+  if (sinceLastPoll >= ENQUIRY_POLL_MS) {
+    lastEnquiryPoll = Date.now()
+    try {
+      await pollEnquiries(db, getWindow)
+    } catch (error) {
+      console.error('Enquiry poll failed:', error)
+    }
+  }
 }
 
 export function startScheduler(getWindow: () => BrowserWindow | null): void {
@@ -101,4 +125,5 @@ export function stopScheduler(): void {
   clearInterval(timer)
   timer = null
   lastEvergreenRun = null
+  lastEnquiryPoll = 0
 }

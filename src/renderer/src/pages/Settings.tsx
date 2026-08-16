@@ -611,7 +611,90 @@ function WebsiteCard({
           </p>
         )}
       </Card>
+
+      <EnquiriesCard draft={draft} set={set} />
     </>
+  )
+}
+
+/**
+ * Where enquiries are read from.
+ *
+ * A separate token from the GitHub one, and deliberately so: this one reads
+ * other people's contact details, and there is no reason for the same secret to
+ * be able to do both that and commit to your site.
+ */
+function EnquiriesCard({
+  draft,
+  set
+}: {
+  draft: SettingsType
+  set: <K extends keyof BusinessSettings>(key: K, value: BusinessSettings[K]) => void
+}): React.JSX.Element {
+  const queryClient = useQueryClient()
+  const [token, setToken] = useState('')
+
+  const { data: tokenSet = false } = useQuery({
+    queryKey: ['enquiries', 'tokenSet'],
+    queryFn: () => window.solo.invoke('enquiries:tokenSet')
+  })
+
+  const saveToken = useMutation({
+    mutationFn: (value: string) => window.solo.invoke('enquiries:setToken', { token: value }),
+    onSuccess: () => {
+      setToken('')
+      void queryClient.invalidateQueries({ queryKey: ['enquiries'] })
+    }
+  })
+
+  return (
+    <Card>
+      <CardHeader title="Enquiries" />
+      <p className="mb-3 text-[12px] leading-relaxed text-muted">
+        If your contact form keeps a copy of each enquiry, SoloWrk can collect them every few
+        minutes and turn one into a client in a click. Point it at the endpoint and give it the
+        token that endpoint expects.
+      </p>
+
+      <div className="flex flex-col gap-3.5">
+        <Field label="Enquiries endpoint" hint="Leave blank to turn this off.">
+          <TextInput
+            value={draft.enquiriesUrl}
+            onChange={(e) => set('enquiriesUrl', e.target.value)}
+            placeholder="https://www.example.com/api/enquiries"
+          />
+        </Field>
+
+        <Field label="Endpoint token">
+          {tokenSet ? (
+            <div className="flex items-center gap-3 rounded-control border border-line bg-raised px-3 py-2.5">
+              <Lock size={15} strokeWidth={1.5} className="shrink-0 text-success" />
+              <p className="flex-1 text-[12.5px] text-ink">A token is saved</p>
+              <Button variant="ghost" size="sm" onClick={() => saveToken.mutate('')}>
+                Remove
+              </Button>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <TextInput
+                type="password"
+                value={token}
+                onChange={(e) => setToken(e.target.value)}
+                placeholder="The token your endpoint expects"
+                className="flex-1"
+              />
+              <Button
+                variant="primary"
+                onClick={() => saveToken.mutate(token)}
+                disabled={token.trim() === '' || saveToken.isPending}
+              >
+                Save
+              </Button>
+            </div>
+          )}
+        </Field>
+      </div>
+    </Card>
   )
 }
 
