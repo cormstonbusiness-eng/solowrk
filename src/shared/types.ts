@@ -64,8 +64,12 @@ export interface BusinessPlanStatus {
   length: number
   /** When the text was last extracted. */
   readAt: string | null
-  /** The opening of the extracted text, so you can see it read the right thing. */
+  /** The full extracted text, so the preview can show what is actually read. */
   preview: string
+  /** How many characters reach the assistant — all of them, short of the ceiling. */
+  sentLength: number
+  /** True only when the document is so large it had to be cut. */
+  truncated: boolean
   /** Set when the last extraction failed — shown instead of the preview. */
   error?: string
 }

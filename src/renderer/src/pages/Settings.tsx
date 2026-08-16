@@ -475,7 +475,15 @@ function BusinessPlanCard(): React.JSX.Element {
           <div className="min-w-0 flex-1">
             <p className="truncate text-[12.5px] text-ink">{plan.name}</p>
             <p className="mt-0.5 text-[11px] text-faint">
-              {plan.length.toLocaleString('en-GB')} characters read
+              {plan.truncated ? (
+                <span className="text-warning">
+                  {plan.sentLength.toLocaleString('en-GB')} of{' '}
+                  {plan.length.toLocaleString('en-GB')} characters sent — this document is
+                  unusually large and had to be cut
+                </span>
+              ) : (
+                `All ${plan.length.toLocaleString('en-GB')} characters are sent to the assistant`
+              )}
               {plan.readAt && ` · ${formatDate(plan.readAt)}`}
             </p>
           </div>
@@ -512,15 +520,16 @@ function BusinessPlanCard(): React.JSX.Element {
       )}
 
       {attached && plan.preview && (
-        <div className="mt-3">
-          <p className="mb-1 text-[10.5px] tracking-[0.06em] text-faint uppercase">
-            What the assistant sees
-          </p>
-          <pre className="max-h-[180px] overflow-auto rounded-control bg-ground/60 px-3 py-2 text-[11px] leading-relaxed whitespace-pre-wrap text-muted">
+        <details className="mt-3 group">
+          <summary className="cursor-pointer list-none text-[10.5px] tracking-[0.06em] text-faint uppercase transition-colors hover:text-muted">
+            What the assistant sees ▸
+          </summary>
+          {/* The whole document, scrollable. Showing the first paragraph under
+              that heading implied the rest was not being read. */}
+          <pre className="mt-1.5 max-h-[320px] overflow-auto rounded-control bg-ground/60 px-3 py-2 text-[11px] leading-relaxed whitespace-pre-wrap text-muted">
             {plan.preview}
-            {plan.length > plan.preview.length && '…'}
           </pre>
-        </div>
+        </details>
       )}
     </Card>
   )

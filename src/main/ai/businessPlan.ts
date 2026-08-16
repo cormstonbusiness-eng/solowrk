@@ -19,8 +19,17 @@ import { extractText, isSupported } from '../services/extract'
 /** Filed with the user's own paperwork rather than hidden in `_app`. */
 const PLAN_FOLDER = join('Documents', 'Business')
 
-/** Enough for a real plan, short enough not to crowd out the conversation. */
-const MAX_CHARACTERS = 20_000
+/**
+ * A ceiling, not a budget.
+ *
+ * The whole plan goes to the model — a business plan is exactly the kind of
+ * document you want read in full, and 40,000 characters is only about 10,000
+ * tokens against a context measured in hundreds of thousands. This exists so
+ * that attaching a 5MB text file by mistake degrades one conversation instead
+ * of every conversation, and when it bites the user is told rather than
+ * quietly given a shorter plan than the one they attached.
+ */
+const MAX_CHARACTERS = 400_000
 
 /** Kept for anyone who wrote a plan in the app before attaching was possible. */
 export const LEGACY_PLAN_PATH = join('Documents', 'Business Plan.md')
@@ -37,7 +46,12 @@ export function planStatus(db: Database, extra: { error?: string } = {}): Busine
     name: businessPlanFile === '' ? '' : basename(businessPlanFile),
     length: text.length,
     readAt: row?.business_plan_read_at ?? null,
-    preview: text.slice(0, 600),
+    // The whole text, not an excerpt. It is a few tens of kilobytes over the
+    // bridge, and showing a fragment under the heading "what the assistant
+    // sees" was actively misleading about how much of it is read.
+    preview: text,
+    truncated: text.length > MAX_CHARACTERS,
+    sentLength: Math.min(text.length, MAX_CHARACTERS),
     ...extra
   }
 }
@@ -152,14 +166,18 @@ export async function readPlan(db: Database, workspacePath: string): Promise<str
  * ignoring them.
  */
 export function planSection(contents: string): string {
-  const cleaned = contents
-    .replace(/<!--[\s\S]*?-->/g, '')
-    .split('\n')
-    .filter((line) => line.trim() !== '')
-    .join('\n')
-    .slice(0, MAX_CHARACTERS)
+  // Only HTML comments go: they are template prompts the user never filled in,
+  // and the model would earnestly work around them. Blank lines stay — a real
+  // plan is markdown with headings, tables and lists, and stripping the blank
+  // lines between blocks turns all of that into one undifferentiated wall.
+  const stripped = contents.replace(/<!--[\s\S]*?-->/g, '').trim()
 
-  if (cleaned.trim() === '') return ''
+  if (stripped === '') return ''
+
+  const cleaned =
+    stripped.length > MAX_CHARACTERS
+      ? `${stripped.slice(0, MAX_CHARACTERS)}\n\n[The plan continues beyond this point and was cut here.]`
+      : stripped
 
   return [
     '',
