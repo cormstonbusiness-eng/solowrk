@@ -20,6 +20,9 @@ import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const packagePath = join(root, 'package.json')
 
+/** Installers live apart from the source. Must match electron-builder.yml. */
+const RELEASES_REPO = 'cormstonbusiness-eng/solowrk-releases'
+
 /**
  * `npm` and `npx` are `.cmd` shims on Windows, and Node refuses to spawn those
  * without a shell. Everything else runs without one — and that distinction
@@ -105,6 +108,33 @@ try {
   manifest.version = `${major}.${minor}.${patch}`
   writeFileSync(packagePath, `${JSON.stringify(manifest, null, 2)}\n`)
   fail('Release failed. The version has been put back.')
+}
+
+/* -------------------------------------------------------------- publish */
+
+/**
+ * Flip the draft live.
+ *
+ * electron-builder uploads into a draft (see electron-builder.yml), so nothing
+ * is downloadable until this runs. That ordering is the point: the release
+ * becomes visible with every asset already attached, rather than existing for
+ * ten minutes as an empty shell that an updater could find and choke on.
+ */
+try {
+  run('gh', [
+    'release',
+    'edit',
+    `v${next}`,
+    '--repo',
+    RELEASES_REPO,
+    '--draft=false',
+    '--latest'
+  ])
+} catch {
+  fail(
+    `The installer uploaded but the release is still a draft.\n` +
+      `  Publish it by hand:  gh release edit v${next} --repo ${RELEASES_REPO} --draft=false --latest`
+  )
 }
 
 /* --------------------------------------------------------------- record */

@@ -53,4 +53,11 @@ publish:
   provider: github
   owner: cormstonbusiness-eng
   repo: solowrk-releases
-  releaseType: release
+  # Draft, then flipped to published by `npm run release` once every asset has
+  # uploaded. Two reasons. GitHub refuses to create a *published* release for a
+  # tag that does not exist yet, which is a 422 on every first release in a
+  # repository that holds no source to tag from. And a published release
+  # appears the moment it is created — a good ten minutes before 190 MB of
+  # installer finishes uploading — so anything checking in that window finds a
+  # release with no download in it.
+  releaseType: draft
