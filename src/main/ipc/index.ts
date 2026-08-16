@@ -84,6 +84,14 @@ import {
   updateExpense
 } from '../services/expenses'
 import { projectProfitability, series, summary, topClients } from '../services/finance'
+import {
+  createEvent,
+  deleteEvent,
+  listEvents,
+  updateEvent,
+  upcomingEvents
+} from '../services/events'
+import { nowStamp } from '@shared/calendar'
 import { writePdf } from '../services/pdf'
 import { rangeFor } from '@shared/taxYear'
 import { updateSettings } from '../services/settings'
@@ -364,7 +372,20 @@ const handlers: Handlers = {
   'finance:topClients': (_g, { period, reference }) =>
     topClients(session.requireDb(), rangeFor(period, reference)),
 
-  'finance:profitability': () => projectProfitability(session.requireDb())
+  'finance:profitability': () => projectProfitability(session.requireDb()),
+
+  'events:list': (_g, range) => listEvents(session.requireDb(), range),
+
+  'events:create': (_g, input) => createEvent(session.requireDb(), input),
+
+  'events:update': (_g, { id, patch }) => updateEvent(session.requireDb(), id, patch),
+
+  'events:delete': (_g, { id }) => {
+    deleteEvent(session.requireDb(), id)
+  },
+
+  'events:upcoming': (_g, payload) =>
+    upcomingEvents(session.requireDb(), nowStamp(), payload?.limit ?? 5)
 }
 
 /**

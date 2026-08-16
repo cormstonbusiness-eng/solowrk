@@ -64,9 +64,10 @@ to compile and `npm install` works on any machine. Queries are hand-written SQL 
 ## Status
 
 Phases 0 (shell, design system, animated routing), 1 (data layer, first-run wizard, settings),
-2 (clients, projects, tasks, notes, templates), 3 (files, documents) and 4 (time, quotes,
-invoices, expenses, finance) are complete. Later phases add the calendar, the dashboard, the
-Claude assistant, and calendar sync. Sections not yet built say which phase builds them.
+2 (clients, projects, tasks, notes, templates), 3 (files, documents), 4 (time, quotes,
+invoices, expenses, finance) and 5 (calendar) are complete. Later phases add the dashboard and
+command palette, the Claude assistant, and calendar sync. Sections not yet built say which
+phase builds them.
 
 ### Gotchas worth knowing
 
@@ -87,6 +88,11 @@ Claude assistant, and calendar sync. Sections not yet built say which phase buil
   it back in UTC can shift a payment across the 6 April tax-year boundary.
 - **`Database.transaction` is re-entrant** (SAVEPOINT when nested), because services compose and
   SQLite has no nested `BEGIN`.
+- **Event times are local wall-clock stamps** (`yyyy-mm-ddThh:mm`), not UTC and not `Date`. A
+  10:00 meeting stays at 10:00 across the clock change, and a range query is a string
+  comparison. Phase 8's Google and Microsoft sync converts at that boundary and nowhere else.
+  Range queries compare `substr(starts_at, 1, 10)`, because `'2026-08-19' >= '2026-08-19T23:00'`
+  is false and would drop an evening event from its own day.
 - **The product is SoloWrk; the internals are still `solo`.** `solo.db`, `solo.config.json` and
   `window.solo` keep the old spelling deliberately — renaming them would orphan every workspace
   and pointer file already on disk. Rename the *display* name freely; leave those three alone.

@@ -235,6 +235,8 @@ export interface TaskFilter {
   topLevelOnly?: boolean
   search?: string
   dueBefore?: string
+  /** With `dueBefore`, bounds a window — the calendar asks for one month. */
+  dueAfter?: string
 }
 
 /* ------------------------------------------------------------------ *
@@ -493,6 +495,61 @@ export interface ClientTotal {
   invoiced: Pence
   paid: Pence
 }
+
+/* ------------------------------------------------------------------ *
+ * Calendar
+ * ------------------------------------------------------------------ */
+
+/** Where an event came from. Everything is `local` until phase 8 adds sync. */
+export type EventKind = 'local' | 'google' | 'teams'
+
+export interface CalendarEvent {
+  id: number
+  title: string
+  description: string
+  location: string
+  /** Local wall-clock stamp, `yyyy-mm-ddThh:mm` — see shared/calendar.ts. */
+  startsAt: string
+  endsAt: string
+  allDay: boolean
+  kind: EventKind
+  externalId: string | null
+  meetingUrl: string
+  projectId: number | null
+  clientId: number | null
+  /** Empty string means "use the project's colour". */
+  colour: string
+  /** Minutes before the start, or null for no reminder. */
+  reminderMinutes: number | null
+  remindedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CalendarEventWithContext extends CalendarEvent {
+  projectName: string | null
+  projectColour: string | null
+  clientName: string | null
+  /** `colour` if set, otherwise the project's, otherwise the neutral default. */
+  displayColour: string
+}
+
+export type EventInput = Partial<
+  Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt' | 'remindedAt'>
+> & { title: string; startsAt: string; endsAt: string }
+
+export const REMINDER_CHOICES: { value: number; label: string }[] = [
+  { value: 0, label: 'At the time' },
+  { value: 5, label: '5 minutes before' },
+  { value: 10, label: '10 minutes before' },
+  { value: 15, label: '15 minutes before' },
+  { value: 30, label: '30 minutes before' },
+  { value: 60, label: '1 hour before' },
+  { value: 1440, label: '1 day before' }
+]
+
+/** Colour an event falls back to when it has no project and no colour set. */
+export const DEFAULT_EVENT_COLOUR = '#6E56CF'
 
 /** Palette offered in colour pickers, matching the app's semantic colours. */
 export const COLOUR_CHOICES = [

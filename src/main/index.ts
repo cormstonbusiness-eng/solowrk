@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc'
 import { broadcastWindowState } from './ipc/window'
 import { session } from './services/session'
+import { startReminders, stopReminders } from './services/reminders'
 
 /** Matches `--ground` in the renderer theme so there is no white flash on launch. */
 const GROUND = '#0A0A0B'
@@ -77,6 +78,10 @@ void app.whenReady().then(() => {
 
   mainWindow = createWindow()
 
+  // Polls for due event reminders. It no-ops until a workspace is open, so it
+  // is safe to start before first-run setup has happened.
+  startReminders(getMainWindow)
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()
   })
@@ -88,4 +93,7 @@ app.on('window-all-closed', () => {
 
 // Close the database cleanly so WAL is checkpointed rather than left for the
 // next launch to recover.
-app.on('before-quit', () => session.close())
+app.on('before-quit', () => {
+  stopReminders()
+  session.close()
+})

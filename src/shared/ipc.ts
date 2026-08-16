@@ -9,10 +9,12 @@
 
 import type {
   BusinessSettings,
+  CalendarEventWithContext,
   Category,
   Client,
   ClientInput,
   ClientTotal,
+  EventInput,
   DocumentInput,
   DocumentRecord,
   ExpenseInput,
@@ -242,6 +244,16 @@ export interface IpcContract {
       hours: number
     }[]
   }
+
+  /** `from` and `to` are `yyyy-mm-dd`; anything overlapping them comes back. */
+  'events:list': {
+    req: { from: string; to: string; projectId?: number }
+    res: CalendarEventWithContext[]
+  }
+  'events:create': { req: EventInput; res: CalendarEventWithContext }
+  'events:update': { req: { id: number; patch: Partial<EventInput> }; res: CalendarEventWithContext }
+  'events:delete': { req: { id: number }; res: void }
+  'events:upcoming': { req: { limit?: number } | void; res: CalendarEventWithContext[] }
 }
 
 export type IpcChannel = keyof IpcContract
@@ -253,6 +265,8 @@ export type IpcResponse<C extends IpcChannel> = IpcContract[C]['res']
  */
 export interface IpcEvents {
   'window:stateChanged': WindowState
+  /** Sent when a reminder notification is clicked, to open that event. */
+  'calendar:focusEvent': { id: number }
 }
 
 export type IpcEvent = keyof IpcEvents
@@ -346,7 +360,15 @@ export const IPC_CHANNELS = [
   'finance:summary',
   'finance:series',
   'finance:topClients',
-  'finance:profitability'
+  'finance:profitability',
+  'events:list',
+  'events:create',
+  'events:update',
+  'events:delete',
+  'events:upcoming'
 ] as const satisfies readonly IpcChannel[]
 
-export const IPC_EVENTS = ['window:stateChanged'] as const satisfies readonly IpcEvent[]
+export const IPC_EVENTS = [
+  'window:stateChanged',
+  'calendar:focusEvent'
+] as const satisfies readonly IpcEvent[]

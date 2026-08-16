@@ -1,4 +1,4 @@
-import { CalendarDays, Sparkles } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { Page } from '@/components/Page'
 import { Placeholder } from '@/components/Placeholder'
 
@@ -12,19 +12,7 @@ export { Documents } from './Documents'
 export { Time } from './Time'
 export { Invoices } from './Invoices'
 export { Finance } from './Finance'
-
-export function Calendar(): React.JSX.Element {
-  return (
-    <Page title="Calendar" description="Your schedule, your deadlines, your meetings.">
-      <Placeholder
-        icon={CalendarDays}
-        phase="Phase 5, synced in phase 8"
-        summary="A local calendar first — month, week and day views with task due dates alongside events. Google and Teams meetings sync in later."
-        features={['Month / week / day', 'Drag to reschedule', 'Reminders', 'Google & Teams']}
-      />
-    </Page>
-  )
-}
+export { Calendar } from './Calendar'
 
 export function Assistant(): React.JSX.Element {
   return (

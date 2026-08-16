@@ -16,7 +16,9 @@ export const keys = {
   categories: ['categories'] as const,
   notes: (projectId: number) => ['notes', projectId] as const,
   note: (id: number) => ['note', id] as const,
-  templates: ['templates'] as const
+  templates: ['templates'] as const,
+  events: (from: string, to: string, projectId: number | null) =>
+    ['events', { from, to, projectId }] as const
 }
 
 /**
@@ -38,6 +40,7 @@ export type Domain =
   | 'quotes'
   | 'expenses'
   | 'finance'
+  | 'events'
 
 export function invalidate(queryClient: QueryClient, domains: Domain[]): void {
   for (const domain of domains) {

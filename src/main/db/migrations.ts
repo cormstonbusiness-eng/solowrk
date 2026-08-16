@@ -338,5 +338,52 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_time_unbilled     ON time_entries(invoice_line_id);
       CREATE INDEX idx_expenses_date     ON expenses(date);
     `
+  },
+
+  {
+    id: 6,
+    name: 'calendar',
+    sql: `
+      -- Times are local wall-clock stamps: 'yyyy-mm-ddThh:mm', no timezone.
+      -- See the reasoning in src/shared/calendar.ts. Because they sort
+      -- lexicographically, a date range is a plain BETWEEN with no conversion.
+      CREATE TABLE events (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        title            TEXT    NOT NULL,
+        description      TEXT    NOT NULL DEFAULT '',
+        location         TEXT    NOT NULL DEFAULT '',
+
+        starts_at        TEXT    NOT NULL,
+        ends_at          TEXT    NOT NULL,
+        all_day          INTEGER NOT NULL DEFAULT 0 CHECK (all_day IN (0, 1)),
+
+        -- Where the event came from. Everything is 'local' until phase 8 adds
+        -- Google and Teams sync; external_id is that phase's join key.
+        kind             TEXT    NOT NULL DEFAULT 'local'
+                                 CHECK (kind IN ('local', 'google', 'teams')),
+        external_id      TEXT,
+        meeting_url      TEXT    NOT NULL DEFAULT '',
+
+        project_id       INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+        client_id        INTEGER REFERENCES clients(id)  ON DELETE SET NULL,
+        -- Empty means "inherit the project's colour", so recolouring a project
+        -- recolours its meetings instead of leaving them stale.
+        colour           TEXT    NOT NULL DEFAULT '',
+
+        -- Minutes before the start; NULL for no reminder. reminded_at is set
+        -- once the notification has fired so it cannot fire twice.
+        reminder_minutes INTEGER,
+        reminded_at      TEXT,
+
+        created_at       TEXT    NOT NULL,
+        updated_at       TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_events_starts   ON events(starts_at);
+      CREATE INDEX idx_events_project  ON events(project_id);
+      CREATE INDEX idx_events_reminder ON events(reminded_at, reminder_minutes);
+      CREATE UNIQUE INDEX idx_events_external ON events(kind, external_id)
+        WHERE external_id IS NOT NULL;
+    `
   }
 ]

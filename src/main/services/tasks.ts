@@ -106,6 +106,11 @@ export function listTasks(db: Database, filter: TaskFilter = {}): TaskWithContex
     params.push(filter.dueBefore)
   }
 
+  if (filter.dueAfter) {
+    conditions.push('t.due_at IS NOT NULL AND t.due_at >= ?')
+    params.push(filter.dueAfter)
+  }
+
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
 
   return db
