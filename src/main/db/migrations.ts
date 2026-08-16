@@ -619,5 +619,20 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_notes_project ON notes(project_id);
       CREATE INDEX idx_goals_status  ON goals(status);
     `
+  },
+
+  {
+    id: 10,
+    name: 'task_archive',
+    sql: `
+      -- Archiving a task keeps it and everything hanging off it — subtasks,
+      -- tracked time, its place in a project — and only takes it off the board.
+      -- Distinct from deleting, which is still available and still permanent.
+      ALTER TABLE tasks ADD COLUMN archived INTEGER NOT NULL DEFAULT 0
+        CHECK (archived IN (0, 1));
+      ALTER TABLE tasks ADD COLUMN archived_at TEXT;
+
+      CREATE INDEX idx_tasks_archived ON tasks(archived);
+    `
   }
 ]

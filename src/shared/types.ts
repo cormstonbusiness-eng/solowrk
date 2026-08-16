@@ -189,6 +189,9 @@ export interface Task {
   colour: string
   sortOrder: number
   completedAt: string | null
+  /** Off the board, but kept whole. Nothing about the task is lost. */
+  archived: boolean
+  archivedAt: string | null
   createdAt: string
   updatedAt: string
 }
@@ -325,6 +328,11 @@ export interface TaskFilter {
   dueBefore?: string
   /** With `dueBefore`, bounds a window — the calendar asks for one month. */
   dueAfter?: string
+  /**
+   * Archived tasks are hidden everywhere unless asked for. `only` is the
+   * archive screen; `true` includes both, for search.
+   */
+  archived?: boolean | 'only'
 }
 
 /* ------------------------------------------------------------------ *

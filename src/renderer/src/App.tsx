@@ -12,6 +12,7 @@ import { Palette } from '@/palette/Palette'
 import { transition } from '@/lib/motion'
 import {
   ArchivedProjects,
+  ArchivedTasks,
   Assistant,
   Calendar,
   ClientDetail,
@@ -54,6 +55,7 @@ function AnimatedRoutes(): React.JSX.Element {
         <Route path="/projects/archived" element={<ArchivedProjects />} />
         <Route path="/projects/:id" element={<ProjectDetail />} />
         <Route path="/tasks" element={<Tasks />} />
+        <Route path="/tasks/archived" element={<ArchivedTasks />} />
         <Route path="/time" element={<Time />} />
         <Route path="/calendar" element={<Calendar />} />
         <Route path="/clients" element={<Clients />} />

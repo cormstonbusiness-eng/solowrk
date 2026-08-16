@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import {
   DndContext,
@@ -12,7 +13,7 @@ import {
 } from '@dnd-kit/core'
 import { useDraggable } from '@dnd-kit/core'
 import { AnimatePresence, motion } from 'motion/react'
-import { CircleCheckBig, Columns3, List, Plus, Tag } from 'lucide-react'
+import { Archive, CircleCheckBig, Columns3, List, Plus, Tag } from 'lucide-react'
 import type { TaskStatus, TaskWithContext } from '@shared/types'
 import { COLOUR_CHOICES, TASK_STATUSES } from '@shared/types'
 import { Page } from '@/components/Page'
@@ -102,6 +103,7 @@ function ColourDot({
 
 export function Tasks(): React.JSX.Element {
   const invalidate = useInvalidate()
+  const navigate = useNavigate()
   const [view, setView] = useState<View>('board')
   const [projectFilter, setProjectFilter] = useState<number | null>(null)
   const [categoryFilter, setCategoryFilter] = useState<number | null>(null)
@@ -166,6 +168,23 @@ export function Tasks(): React.JSX.Element {
     onSuccess: () => invalidate(['tasks'])
   })
 
+  const archive = useMutation({
+    mutationFn: (id: number) =>
+      window.solo.invoke('tasks:update', { id, patch: { archived: true } }),
+    onSuccess: () => invalidate(['tasks'])
+  })
+
+  const archiveDone = useMutation({
+    mutationFn: async () => {
+      // Sequential rather than parallel: these are local SQLite writes, and a
+      // burst of them racing gains nothing but makes a partial failure murky.
+      for (const task of tasks.filter((entry) => entry.status === 'done')) {
+        await window.solo.invoke('tasks:update', { id: task.id, patch: { archived: true } })
+      }
+    },
+    onSuccess: () => invalidate(['tasks'])
+  })
+
   const remove = useMutation({
     mutationFn: (id: number) => window.solo.invoke('tasks:delete', { id }),
     onSuccess: () => invalidate(['tasks'])
@@ -204,6 +223,19 @@ export function Tasks(): React.JSX.Element {
       description="Everything to do, across every project."
       actions={
         <>
+          {tasks.some((task) => task.status === 'done') && (
+            <Button
+              variant="ghost"
+              onClick={() => archiveDone.mutate()}
+              disabled={archiveDone.isPending}
+            >
+              <Archive size={14} strokeWidth={1.75} />
+              Archive done
+            </Button>
+          )}
+          <Button variant="ghost" onClick={() => navigate('/tasks/archived')}>
+            Archived
+          </Button>
           <Button variant="ghost" onClick={() => setManagingCategories(true)}>
             <Tag size={14} strokeWidth={1.75} />
             Categories
@@ -340,6 +372,7 @@ export function Tasks(): React.JSX.Element {
                 showProject
                 onToggle={() => toggle.mutate(task)}
                 onOpen={() => setOpen(task)}
+                onArchive={() => archive.mutate(task.id)}
                 onDelete={() => remove.mutate(task.id)}
               />
             ))}
@@ -422,16 +455,24 @@ function BoardCard({
   task,
   onToggle,
   onOpen,
+  onArchive,
   dragging
 }: {
   task: TaskWithContext
   onToggle: () => void
   onOpen: () => void
+  onArchive?: () => void
   dragging?: boolean
 }): React.JSX.Element {
   return (
     <div className={cn(dragging && 'opacity-40')}>
-      <TaskRow task={task} onToggle={onToggle} onOpen={onOpen} showProject />
+      <TaskRow
+        task={task}
+        onToggle={onToggle}
+        onOpen={onOpen}
+        onArchive={onArchive}
+        showProject
+      />
     </div>
   )
 }

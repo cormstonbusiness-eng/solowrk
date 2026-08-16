@@ -1,5 +1,5 @@
 import { motion } from 'motion/react'
-import { Check, ChevronRight, GripVertical, Trash2 } from 'lucide-react'
+import { Archive, Check, ChevronRight, GripVertical, Trash2 } from 'lucide-react'
 import type { TaskWithContext } from '@shared/types'
 import { PRIORITIES } from '@shared/types'
 import { Dot } from '@/components/ui/Empty'
@@ -22,6 +22,7 @@ export function TaskRow({
   onToggle,
   onOpen,
   onDelete,
+  onArchive,
   showProject,
   dragHandle,
   dragging
@@ -29,8 +30,10 @@ export function TaskRow({
   task: TaskWithContext
   onToggle: () => void
   onOpen: () => void
-  /** Omit to hide the hover delete — the board uses drag, not deletion. */
+  /** Omit to hide the hover delete. */
   onDelete?: () => void
+  /** Omit to hide the hover archive. */
+  onArchive?: () => void
   showProject?: boolean
   dragHandle?: React.ReactNode
   dragging?: boolean
@@ -111,6 +114,22 @@ export function TaskRow({
 
         {task.dueAt && !done && (
           <span className={cn('text-[11px]', dueTone[due.tone])}>{due.label}</span>
+        )}
+
+        {onArchive && (
+          <button
+            type="button"
+            aria-label={`Archive ${task.title}`}
+            title="Archive — keeps everything, takes it off the board"
+            onClick={(event) => {
+              event.stopPropagation()
+              onArchive()
+            }}
+            onPointerDown={(event) => event.stopPropagation()}
+            className="text-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-ink"
+          >
+            <Archive size={13} strokeWidth={1.75} />
+          </button>
         )}
 
         {onDelete && (

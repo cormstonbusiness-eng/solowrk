@@ -190,9 +190,14 @@ export const soloTools = createSdkMcpServer({
         projectId: z.number().int().optional(),
         status: z.enum(['todo', 'doing', 'done']).optional(),
         dueBefore: z.string().optional().describe('yyyy-mm-dd'),
-        search: z.string().optional()
+        search: z.string().optional(),
+        archived: z
+          .boolean()
+          .default(false)
+          .describe('Archived tasks are excluded unless this is true')
       },
-      async (args) => asJson(listTasks(db(), args))
+      async (args) =>
+        asJson(listTasks(db(), { ...args, archived: args.archived ? 'only' : false }))
     ),
 
     tool(
@@ -211,14 +216,17 @@ export const soloTools = createSdkMcpServer({
 
     tool(
       'update_task',
-      'Update a task — status, due date, priority, project or title. Requires the user to confirm.',
+      'Update a task — status, due date, priority, project, title, or archive it. ' +
+        'Archiving keeps the task and everything on it, and only takes it off the board. ' +
+        'Requires the user to confirm.',
       {
         id: z.number().int(),
         title: z.string().optional(),
         status: z.enum(['todo', 'doing', 'done']).optional(),
         priority: z.number().int().min(0).max(3).optional(),
         dueAt: z.string().nullable().optional(),
-        projectId: z.number().int().nullable().optional()
+        projectId: z.number().int().nullable().optional(),
+        archived: z.boolean().optional()
       },
       async ({ id, ...patch }) => asJson(updateTask(db(), id, patch))
     ),

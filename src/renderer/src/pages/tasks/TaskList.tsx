@@ -34,6 +34,12 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
     }
   })
 
+  const archive = useMutation({
+    mutationFn: (id: number) =>
+      window.solo.invoke('tasks:update', { id, patch: { archived: true } }),
+    onSuccess: () => invalidate(['tasks'])
+  })
+
   const remove = useMutation({
     mutationFn: (id: number) => window.solo.invoke('tasks:delete', { id }),
     onSuccess: () => invalidate(['tasks'])
@@ -87,6 +93,7 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
                 task={task}
                 onToggle={() => toggle.mutate(task)}
                 onOpen={() => setOpen(task)}
+                onArchive={() => archive.mutate(task.id)}
                 onDelete={() => remove.mutate(task.id)}
               />
             ))}

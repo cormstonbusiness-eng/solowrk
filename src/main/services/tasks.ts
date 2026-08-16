@@ -14,6 +14,8 @@ interface TaskRow extends Row {
   colour: string
   sort_order: number
   completed_at: string | null
+  archived: number
+  archived_at: string | null
   created_at: string
   updated_at: string
 }
@@ -41,6 +43,8 @@ function toTask(row: TaskRow): Task {
     colour: row.colour,
     sortOrder: row.sort_order,
     completedAt: row.completed_at,
+    archived: row.archived === 1,
+    archivedAt: row.archived_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -96,6 +100,11 @@ export function listTasks(db: Database, filter: TaskFilter = {}): TaskWithContex
   }
 
   if (filter.topLevelOnly) conditions.push('t.parent_id IS NULL')
+
+  // Archived tasks stay out of every list unless explicitly asked for, so no
+  // caller has to remember to exclude them.
+  if (filter.archived === 'only') conditions.push('t.archived = 1')
+  else if (filter.archived !== true) conditions.push('t.archived = 0')
 
   if (filter.search) {
     conditions.push('(t.title LIKE ? OR t.notes LIKE ?)')
@@ -178,7 +187,8 @@ const UPDATABLE: Record<string, string> = {
   priority: 'priority',
   dueAt: 'due_at',
   colour: 'colour',
-  sortOrder: 'sort_order'
+  sortOrder: 'sort_order',
+  archived: 'archived'
 }
 
 export function updateTask(db: Database, id: number, patch: Partial<TaskInput>): TaskWithContext {
@@ -189,7 +199,15 @@ export function updateTask(db: Database, id: number, patch: Partial<TaskInput>):
     const column = UPDATABLE[key]
     if (!column || value === undefined) continue
     assignments.push(`${column} = ?`)
-    values.push(value as string | number | null)
+    values.push(typeof value === 'boolean' ? (value ? 1 : 0) : (value as string | number | null))
+  }
+
+  // archived_at is derived from the flag, for the same reason completed_at is
+  // derived from status: "when was this filed away" must not drift from
+  // "is this filed away".
+  if (patch.archived !== undefined) {
+    assignments.push('archived_at = ?')
+    values.push(patch.archived ? new Date().toISOString() : null)
   }
 
   // completed_at is derived from status rather than trusted from the caller,
@@ -248,7 +266,8 @@ export function listDueTasks(db: Database, date: string): TaskWithContext[] {
   return db
     .all<ContextRow>(
       `${SELECT_WITH_CONTEXT}
-        WHERE t.status != 'done' AND t.due_at IS NOT NULL AND t.due_at <= ?
+        WHERE t.archived = 0 AND t.status != 'done'
+          AND t.due_at IS NOT NULL AND t.due_at <= ?
         ORDER BY t.due_at`,
       [date]
     )
