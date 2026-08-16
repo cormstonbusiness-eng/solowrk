@@ -16,15 +16,28 @@ import {
 } from 'lucide-react'
 import { dayFromDate, describeSpan, occursOn } from '@shared/calendar'
 import { rangeFor } from '@shared/taxYear'
+import type { GoalProgress } from '@shared/types'
+import { GOAL_KINDS } from '@shared/types'
 import { Page } from '@/components/Page'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Dot } from '@/components/ui/Empty'
 import { AnimatedNumber, gbp } from '@/components/ui/AnimatedNumber'
 import { keys } from '@/lib/api'
-import { daysUntil, describeDue, formatDate } from '@/lib/format'
+import { daysUntil, describeDue, formatDate, formatMoney } from '@/lib/format'
 import { listItemVariants, listVariants, transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
+
+/**
+ * How many due tasks the Today card shows before handing over to the Tasks page.
+ *
+ * A dashboard that lists thirty tasks is not a dashboard, it is the Tasks page
+ * with worse filtering — past a point the useful information is the count.
+ */
+const TODAY_TASK_LIMIT = 10
+
+/** Four fits the row without the bars becoming decorative slivers. */
+const DASHBOARD_GOAL_LIMIT = 4
 
 function greeting(): string {
   const hour = new Date().getHours()
@@ -93,6 +106,21 @@ export function Dashboard(): React.JSX.Element {
   const { data: settings } = useQuery({
     queryKey: ['settings'],
     queryFn: () => window.solo.invoke('settings:get')
+  })
+
+  const { data: goals = [] } = useQuery({
+    queryKey: keys.goals,
+    queryFn: () => window.solo.invoke('goals:list', {}),
+    // Behind on it first, then closest to done: the one that needs attention
+    // should not be the one scrolled off the end.
+    select: (all) =>
+      [...all]
+        .filter((goal) => goal.status === 'active')
+        .sort((a, b) => {
+          const behind = (goal: GoalProgress): number =>
+            goal.projected !== null && goal.target > 0 && goal.projected < goal.target ? 0 : 1
+          return behind(a) - behind(b) || b.share - a.share
+        })
   })
 
   const { data: recent = [] } = useQuery({
@@ -306,7 +334,7 @@ export function Dashboard(): React.JSX.Element {
                 </motion.button>
               ))}
 
-              {dueToday.map((task) => (
+              {dueToday.slice(0, TODAY_TASK_LIMIT).map((task) => (
                 <motion.button
                   key={`task-${task.id}`}
                   variants={listItemVariants}
@@ -321,6 +349,18 @@ export function Dashboard(): React.JSX.Element {
                   </span>
                 </motion.button>
               ))}
+
+              {dueToday.length > TODAY_TASK_LIMIT && (
+                <motion.button
+                  variants={listItemVariants}
+                  type="button"
+                  onClick={() => navigate('/tasks')}
+                  className="mt-0.5 flex items-center justify-center gap-1.5 rounded-control border border-line px-3 py-2 text-[12px] text-muted transition-colors hover:border-line-strong hover:text-ink"
+                >
+                  See all {dueToday.length} tasks due today
+                  <ArrowUpRight size={12} strokeWidth={1.75} />
+                </motion.button>
+              )}
             </motion.div>
           )}
         </Card>
@@ -360,6 +400,32 @@ export function Dashboard(): React.JSX.Element {
           )}
         </Card>
       </div>
+
+      {goals.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={transition.page}
+          className="mt-3"
+        >
+          <Card>
+            <CardHeader
+              title="Goals"
+              action={
+                <Button variant="ghost" size="sm" onClick={() => navigate('/goals')}>
+                  All goals
+                  <ArrowUpRight size={13} strokeWidth={1.75} />
+                </Button>
+              }
+            />
+            <div className="grid grid-cols-4 gap-3">
+              {goals.slice(0, DASHBOARD_GOAL_LIMIT).map((goal) => (
+                <GoalBar key={goal.id} goal={goal} onOpen={() => navigate('/goals')} />
+              ))}
+            </div>
+          </Card>
+        </motion.div>
+      )}
 
       <motion.div
         initial={{ opacity: 0 }}
@@ -454,6 +520,58 @@ function QuickLink({
     >
       <Icon size={12} strokeWidth={1.75} />
       {label}
+    </button>
+  )
+}
+/**
+ * One goal, small enough for four to share a row.
+ *
+ * Shows where you are against the target and, once there is enough of the
+ * period elapsed to say so honestly, whether the current rate gets you there.
+ */
+function GoalBar({
+  goal,
+  onOpen
+}: {
+  goal: GoalProgress
+  onOpen: () => void
+}): React.JSX.Element {
+  const money = GOAL_KINDS.find((entry) => entry.value === goal.kind)?.money ?? false
+  const show = (value: number): string => (money ? formatMoney(value) : String(value))
+
+  const met = goal.target > 0 && goal.current >= goal.target
+  const behind = !met && goal.projected !== null && goal.target > 0 && goal.projected < goal.target
+
+  return (
+    <button type="button" onClick={onOpen} className="rounded-control text-left">
+      <p className="mb-1 truncate text-[11px] text-muted">{goal.name}</p>
+
+      <div className="mb-1.5 flex items-baseline gap-1.5">
+        <span className={cn('numeric text-[16px] font-medium', met ? 'text-success' : 'text-ink')}>
+          {show(goal.current)}
+        </span>
+        <span className="numeric text-[10.5px] text-faint">of {show(goal.target)}</span>
+      </div>
+
+      <div className="mb-1 h-1 overflow-hidden rounded-full bg-raised">
+        <motion.div
+          initial={{ width: 0 }}
+          animate={{ width: `${goal.share / 100}%` }}
+          transition={transition.page}
+          style={{ backgroundColor: met ? '#30A46C' : goal.colour }}
+          className="h-full rounded-full"
+        />
+      </div>
+
+      <p className={cn('truncate text-[10.5px]', behind ? 'text-warning' : 'text-faint')}>
+        {met
+          ? 'Reached'
+          : behind
+            ? `Tracking ${show(goal.projected!)}`
+            : goal.daysLeft !== null
+              ? `${goal.daysLeft} day${goal.daysLeft === 1 ? '' : 's'} left`
+              : `${Math.round(goal.share / 100)}%`}
+      </p>
     </button>
   )
 }
