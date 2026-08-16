@@ -28,6 +28,8 @@ import {
 } from '../services/marketing'
 import { listAccounts } from '../social/accounts'
 import { editPlanSection, planStatus, readPlan } from './businessPlan'
+import { getPost as getBlogPost, listPosts as listBlogPosts } from '../services/blog'
+import { siteConnection } from '../services/site'
 import { coverage, parsePlan, wordCount } from '@shared/plan'
 import { rangeFor, today as todayString, type Period } from '@shared/taxYear'
 import { nowStamp } from '@shared/calendar'
@@ -553,6 +555,47 @@ export const soloTools = createSdkMcpServer({
         'can still be planned for — the user posts it by hand.',
       {},
       async () => asJson(listAccounts(db()))
+    ),
+
+    /* ---------------- Website ---------------- */
+
+    tool(
+      'list_blog_posts',
+      'The posts on the user’s website blog, with which are live and which are still ' +
+        'drafts. Read this before writing about their blog rather than guessing.',
+      {},
+      async () =>
+        asJson(
+          (await listBlogPosts(db())).map((post) => ({
+            slug: post.slug,
+            title: post.title,
+            excerpt: post.excerpt,
+            category: post.category,
+            date: post.date,
+            status: post.draft ? 'draft' : 'live',
+            words: post.body.trim().split(/\s+/).filter(Boolean).length
+          }))
+        )
+    ),
+
+    tool(
+      'read_blog_post',
+      'The full markdown of one blog post. Use it before repurposing a post into ' +
+        'social content, so the drafts are about what the post actually says.',
+      { slug: z.string().describe('The post’s slug, from list_blog_posts') },
+      async (args) => {
+        const post = await getBlogPost(db(), args.slug)
+        return asJson({
+          slug: post.slug,
+          title: post.title,
+          excerpt: post.excerpt,
+          category: post.category,
+          date: post.date,
+          status: post.draft ? 'draft' : 'live',
+          url: post.draft ? '' : `${siteConnection(db()).url}/blog/${post.slug}`,
+          body: post.body
+        })
+      }
     ),
 
     /* ---------------- Business plan ---------------- */

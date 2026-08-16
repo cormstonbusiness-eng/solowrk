@@ -7,6 +7,7 @@ import {
   ExternalLink,
   Eye,
   Globe,
+  Megaphone,
   PenLine,
   Plus,
   Send,
@@ -288,6 +289,25 @@ export function Blog(): React.JSX.Element {
                       <ExternalLink size={12} strokeWidth={1.75} />
                       View
                     </Button>
+                  )}
+
+                  {/* Routed through the assistant rather than generating posts
+                      here: it already has create_content_plan, which is behind
+                      the confirmation gate and only ever makes drafts. */}
+                  {!draft.draft && (
+                    <Link
+                      to={`/assistant?mode=marketing&ask=${encodeURIComponent(
+                        `Repurpose my blog post "${draft.slug}" into social drafts for LinkedIn, ` +
+                          `Instagram, Facebook and Pinterest. Read it first with read_blog_post, ` +
+                          `write in my voice about what it actually says, and link to ` +
+                          `${status.url.replace(/\/$/, '')}/blog/${draft.slug} where it fits.`
+                      )}`}
+                    >
+                      <Button variant="ghost" size="sm">
+                        <Megaphone size={12} strokeWidth={1.75} />
+                        Repurpose
+                      </Button>
+                    </Link>
                   )}
 
                   {draft.published && !draft.draft ? (

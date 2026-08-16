@@ -8,6 +8,7 @@ import {
   FolderKanban,
   FolderOpen,
   Globe,
+  Image as ImageIcon,
   LayoutDashboard,
   Megaphone,
   NotebookPen,
@@ -59,7 +60,8 @@ export const navGroups: NavGroup[] = [
     label: 'Website Tools',
     items: [
       { label: 'Overview', path: '/website', icon: Globe },
-      { label: 'Blog', path: '/website/blog', icon: PenLine }
+      { label: 'Blog', path: '/website/blog', icon: PenLine },
+      { label: 'Media', path: '/website/media', icon: ImageIcon }
     ]
   },
   {

@@ -131,7 +131,16 @@ import {
   startPlan,
   writePlan
 } from '../ai/businessPlan'
+import { basename } from 'node:path'
 import { setSecret } from '../services/credentials'
+import {
+  addImage,
+  deleteImage,
+  imageDataUrl,
+  listImages,
+  publishImages,
+  sourceDataUrl
+} from '../services/media'
 import { parseRepo, siteConnection, siteStatus } from '../services/site'
 import { checkAccess } from '../services/github'
 import {
@@ -578,6 +587,16 @@ const handlers: Handlers = {
   'blog:delete': (_g, { slug }) => deleteBlogPost(session.requireDb(), slug),
   'blog:publish': (_g, { slug, unpublish }) =>
     publishPost(session.requireDb(), slug, { unpublish }),
+
+  'media:list': () => listImages(session.requireDb()),
+  'media:dataUrl': (_g, { repoPath }) => imageDataUrl(session.requireDb(), repoPath),
+  'media:readSource': async (_g, { path }) => ({
+    name: basename(path),
+    dataUrl: await sourceDataUrl(path)
+  }),
+  'media:add': (_g, input) => addImage(session.requireDb(), input),
+  'media:delete': (_g, { repoPath }) => deleteImage(session.requireDb(), repoPath),
+  'media:publish': (_g, { repoPaths }) => publishImages(session.requireDb(), repoPaths),
 
   'marketing:campaigns': (_g, args) =>
     listCampaigns(session.requireDb(), args?.includeArchived ?? false),

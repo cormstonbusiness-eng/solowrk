@@ -93,6 +93,19 @@ export interface WebsiteDeploy {
   createdAt: string
 }
 
+/** An image in the website's public folder. */
+export interface SiteImage {
+  /** The path the site uses in markup, e.g. "/images/hero.webp". */
+  webPath: string
+  /** The path in the repository, e.g. "public/images/hero.webp". */
+  repoPath: string
+  name: string
+  bytes: number
+  modifiedAt: string
+  /** Whether the filename appears anywhere in the site's source. */
+  used: boolean
+}
+
 /** A contact-form submission pulled in from the website. */
 export interface Enquiry {
   id: number

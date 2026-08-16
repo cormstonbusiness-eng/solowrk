@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import {
@@ -36,6 +37,26 @@ export function Assistant(): React.JSX.Element {
   const [permission, setPermission] = useState<PermissionRequest | null>(null)
   const [mode, setMode] = useState<AssistantMode>('general')
   const bottom = useRef<HTMLDivElement>(null)
+
+  /**
+   * `?ask=…&mode=…` seeds the box from elsewhere in the app — the blog's
+   * Repurpose button, for one. Deliberately prefilled rather than sent: you
+   * should see and be able to edit what is about to be asked on your behalf.
+   */
+  const [search, setSearch] = useSearchParams()
+  useEffect(() => {
+    const ask = search.get('ask')
+    if (ask === null) return
+
+    setInput(ask)
+    const requested = search.get('mode')
+    if (ASSISTANT_MODES.some((entry) => entry.value === requested)) {
+      setMode(requested as AssistantMode)
+    }
+
+    // Cleared so navigating back here later does not refill the box.
+    setSearch({}, { replace: true })
+  }, [search, setSearch])
 
   const { data: status } = useQuery({
     queryKey: ['ai', 'status'],

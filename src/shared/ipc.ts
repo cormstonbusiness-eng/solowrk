@@ -33,6 +33,7 @@ import type {
   PostWithContext,
   SocialAccount,
   SiteStatus,
+  SiteImage,
   WebsiteDeploy,
   Client,
   ClientInput,
@@ -159,6 +160,18 @@ export interface IpcContract {
   'blog:delete': { req: { slug: string }; res: void }
   /** Commits the post to the site repository. The host rebuilds from there. */
   'blog:publish': { req: { slug: string; unpublish?: boolean }; res: WebsiteDeploy }
+
+  'media:list': { req: void; res: SiteImage[] }
+  /** Data URLs, because the renderer is sandboxed and cannot read the folder. */
+  'media:dataUrl': { req: { repoPath: string }; res: string }
+  /** Reads a file being imported from outside the site, for conversion. */
+  'media:readSource': { req: { path: string }; res: { name: string; dataUrl: string } }
+  'media:add': {
+    req: { folder: string; name: string; base64: string }
+    res: SiteImage
+  }
+  'media:delete': { req: { repoPath: string }; res: void }
+  'media:publish': { req: { repoPaths: string[] }; res: { sha: string; url: string } }
 
   /** Saves edited text back. Only markdown and text plans can be written to. */
   'ai:writeBusinessPlan': { req: { text: string }; res: BusinessPlanStatus }
@@ -459,6 +472,12 @@ export const IPC_CHANNELS = [
   'blog:save',
   'blog:delete',
   'blog:publish',
+  'media:list',
+  'media:dataUrl',
+  'media:readSource',
+  'media:add',
+  'media:delete',
+  'media:publish',
   'state:get',
   'state:set',
   'clients:list',
