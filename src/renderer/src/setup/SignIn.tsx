@@ -170,6 +170,72 @@ export function SignIn({
         </AnimatePresence>
 
         <WhatTheAccountTouches />
+        <ServerRow onChanged={onSignedIn} />
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Which server is being asked, and a way to change it.
+ *
+ * Not a debug affordance. A sign-in screen is the one place someone can be
+ * completely stuck: if the address is wrong, or the server has moved, every
+ * other route into the app is behind the very screen that cannot work. Without
+ * this the only way out is hand-editing JSON in AppData, which is not a thing
+ * to ask of anyone.
+ *
+ * Clearing it turns licensing off and returns to the app. That is deliberate
+ * while SoloWrk has no licence server: it means setting one is reversible. When
+ * a real server ships as a compiled-in default, this becomes "change", not
+ * "clear".
+ */
+function ServerRow({ onChanged }: { onChanged: (next: AuthState) => void }): React.JSX.Element {
+  const [editing, setEditing] = useState(false)
+  const [url, setUrl] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  async function save(): Promise<void> {
+    setSaving(true)
+    try {
+      onChanged(await window.solo.invoke('auth:setServer', { url }))
+    } finally {
+      setSaving(false)
+      setEditing(false)
+    }
+  }
+
+  if (!editing) {
+    return (
+      <p className="mt-4 text-center text-[11.5px] text-faint">
+        Can’t sign in?{' '}
+        <button
+          type="button"
+          onClick={() => setEditing(true)}
+          className="underline-offset-2 hover:text-muted hover:underline"
+        >
+          Change the account server
+        </button>
+      </p>
+    )
+  }
+
+  return (
+    <div className="mt-4 rounded-card border border-line bg-surface p-3">
+      <p className="mb-2 text-[11.5px] leading-relaxed text-muted">
+        Where SoloWrk checks your licence. Leave it empty to use SoloWrk without an account.
+      </p>
+      <div className="flex gap-2">
+        <TextInput
+          autoFocus
+          value={url}
+          onChange={(event) => setUrl(event.target.value)}
+          placeholder="https://www.blockoutdigital.com/api"
+          className="flex-1"
+        />
+        <Button variant="secondary" onClick={() => void save()} disabled={saving}>
+          {saving ? 'Saving…' : 'Save'}
+        </Button>
       </div>
     </div>
   )
