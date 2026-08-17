@@ -143,6 +143,16 @@ export function App(): React.JSX.Element {
       )
   }, [])
 
+  /**
+   * The background licence check only speaks up when the answer changed, so
+   * every one of these is worth taking: a lapse raises the read-only bar, and
+   * a payment lowers it again without anyone having to restart or go looking
+   * for a button in Settings.
+   */
+  useEffect(() => {
+    return window.solo.on('auth:changed', setAuth)
+  }, [])
+
   useEffect(() => {
     window.solo
       .invoke('workspace:status')

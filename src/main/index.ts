@@ -4,6 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc'
 import { broadcastWindowState } from './ipc/window'
 import { session } from './services/session'
+import { startLicenceChecks, stopLicenceChecks } from './services/licence'
 import { startReminders, stopReminders } from './services/reminders'
 import { startScheduler, stopScheduler } from './services/scheduler'
 import { startUpdates, stopUpdates } from './services/updates'
@@ -90,6 +91,11 @@ void app.whenReady().then(() => {
   // its own — restarting mid-invoice would be worse than being a version behind.
   startUpdates(getMainWindow)
 
+  // Re-confirms the licence periodically. Without this the fourteen-day grace
+  // window is measured from the last time someone pressed a button, which means
+  // it always runs out. No-ops until an account server is configured.
+  startLicenceChecks(getMainWindow)
+
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) mainWindow = createWindow()
   })
@@ -105,6 +111,7 @@ app.on('before-quit', () => {
   stopReminders()
   stopUpdates()
   stopScheduler()
+  stopLicenceChecks()
   // Ends any in-flight turn and drops the "always allow" grants, which are
   // deliberately per-run rather than persisted.
   assistant.reset()

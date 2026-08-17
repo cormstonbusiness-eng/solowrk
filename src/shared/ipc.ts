@@ -396,6 +396,12 @@ export interface IpcEvents {
   'notifications:new': AppNotification
   /** Update progress, so the UI follows a download rather than polling it. */
   'updates:state': UpdateState
+  /**
+   * A licence check in the background changed the answer — the licence lapsed,
+   * was paid, or the plan moved. Only sent when something actually differs, so
+   * it is safe to treat every one of these as worth reacting to.
+   */
+  'auth:changed': AuthState
 }
 
 export type IpcEvent = keyof IpcEvents
@@ -625,5 +631,6 @@ export const IPC_EVENTS = [
   'ai:event',
   'marketing:focusPost',
   'notifications:new',
-  'updates:state'
+  'updates:state',
+  'auth:changed'
 ] as const satisfies readonly IpcEvent[]
