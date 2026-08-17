@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process'
-import { readFileSync, writeFileSync } from 'node:fs'
+import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -57,6 +57,36 @@ function fail(message) {
   process.exit(1)
 }
 
+/**
+ * Refuse to package a build older than the source it claims to be.
+ *
+ * The belt to the braces above. `npm run build` can fail in ways that leave the
+ * previous output in place, and the failure mode is invisible — you get an
+ * installer that works perfectly and is missing the thing you just wrote.
+ * Comparing timestamps is crude but it is the exact check that would have
+ * caught 0.1.5.
+ */
+function assertBuildIsCurrent() {
+  const newest = (dir) => {
+    let latest = 0
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const path = join(dir, entry.name)
+      latest = Math.max(latest, entry.isDirectory() ? newest(path) : statSync(path).mtimeMs)
+    }
+    return latest
+  }
+
+  const source = newest(join(root, 'src'))
+  const built = newest(join(root, 'out'))
+
+  if (built < source) {
+    fail(
+      'The build in out/ is older than the source in src/.\n' +
+        '  Something went wrong compiling — packaging now would ship stale code.'
+    )
+  }
+}
+
 /* ------------------------------------------------------------ preflight */
 
 // A release is built from what is committed, so anything uncommitted would be
@@ -98,9 +128,24 @@ writeFileSync(packagePath, `${JSON.stringify(manifest, null, 2)}\n`)
 /* ------------------------------------------------------ build & publish */
 
 try {
-  // Tests and typecheck first. Publishing a broken build is worse than not
-  // publishing, because the updater will hand it to you automatically.
+  // Tests first. Publishing a broken build is worse than not publishing,
+  // because the updater will hand it to you automatically.
   run('npm', ['test'])
+
+  /**
+   * Build from source before packaging.
+   *
+   * electron-builder packages whatever is sitting in `out/` — it does not
+   * compile anything. Without this line a release ships the last build someone
+   * happened to run, with a fresh version number on it, and nothing about the
+   * output says so: the tests pass, the installer builds, the upload succeeds,
+   * and the new version simply does not contain the change it was cut for.
+   * That shipped once, as 0.1.5.
+   *
+   * `npm run build` runs typecheck first, so this covers that too.
+   */
+  run('npm', ['run', 'build'])
+  assertBuildIsCurrent()
 
   /**
    * Create the draft release before building.
