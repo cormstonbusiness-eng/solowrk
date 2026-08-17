@@ -16,8 +16,8 @@ One base URL, set by the user in **Settings → Account**, stored in
 it, with any trailing slash on the base removed first.
 
 ```
-base https://www.blockoutdigital.com/api
-  →  POST https://www.blockoutdigital.com/api/licence/activate
+base https://solowrk.com/api
+  →  POST https://solowrk.com/api/licence/activate
 ```
 
 **An empty base URL turns licensing off entirely** and the app runs ungated.
@@ -36,7 +36,14 @@ Creating an account from inside the app.
 
 ```jsonc
 // request
-{ "name": "Alex Fisher", "email": "alex@example.com", "password": "…", "deviceId": "uuid" }
+{
+  "name": "Alex Fisher",
+  "email": "alex@example.com",
+  "password": "…",
+  "deviceId": "uuid",
+  "platform": "windows",
+  "deviceName": "CRAIG-LAPTOP"
+}
 ```
 
 ### `POST /licence/activate`
@@ -45,7 +52,13 @@ Signing in. Also claims a seat for this device.
 
 ```jsonc
 // request
-{ "email": "alex@example.com", "password": "…", "deviceId": "uuid" }
+{
+  "email": "alex@example.com",
+  "password": "…",
+  "deviceId": "uuid",
+  "platform": "windows",
+  "deviceName": "CRAIG-LAPTOP"
+}
 ```
 
 ### `POST /licence/status`
@@ -54,7 +67,7 @@ Re-confirming the licence. Sent with `Authorization: Bearer <token>`.
 
 ```jsonc
 // request
-{ "deviceId": "uuid" }
+{ "deviceId": "uuid", "platform": "windows", "deviceName": "CRAIG-LAPTOP" }
 ```
 
 The app calls this when the user presses **Check licence** in Settings. It is
@@ -67,7 +80,7 @@ Signing out. Sent with `Authorization: Bearer <token>`. Should release the seat.
 
 ```jsonc
 // request
-{ "deviceId": "uuid" }
+{ "deviceId": "uuid", "platform": "windows", "deviceName": "CRAIG-LAPTOP" }
 ```
 
 The response body is ignored. The app signs out locally regardless of what
@@ -127,10 +140,31 @@ ones a paying customer will actually hit.
 
 ## Behaviour the server should know about
 
+**Seats are counted per platform, not in total.**
+
+| Platform | Seats |
+|---|---|
+| `windows` | **2** |
+| mobile (`ios` / `android`) | **1**, once a mobile app exists |
+
+So a licence allows two computers *and* a phone — not three devices. A server
+that stores a single `seats` integer cannot express that, and retrofitting the
+distinction later means changing both sides at once. The app already sends
+`platform` for exactly this reason; only `windows` is possible today.
+
 **Seats are keyed on `deviceId`.** A UUID generated once per installation and
 stored in `userData`, so it survives app updates and does not change between
 sign-ins. It is not a hardware fingerprint — reinstalling Windows produces a
 new one, so leave a way to release seats or expire them after inactivity.
+
+**`deviceName` is the machine's own name**, sent so the account page can offer
+"release this seat" against something recognisable. Nobody can choose between
+four UUIDs. Treat it as display text — it is not unique and not trustworthy.
+
+**Return `409` when the seat limit for that platform is reached**, with a
+`message` naming which limit was hit. "You are already using SoloWrk on two
+computers. Sign out on one, or release it from your account page." is the sort
+of thing a customer can act on.
 
 **The app fails open.** If `/licence/status` cannot be reached, the app treats
 it as *offline*, keeps working, and retries later. Only a response that
@@ -149,7 +183,7 @@ true.
 
 ## Building it
 
-Suggested shape, given the site is Next.js on Vercel:
+Suggested shape for a Next.js site on Vercel:
 
 - `app/api/licence/activate/route.ts` and siblings — one route handler each.
 - A database for accounts, licences and seats. Accounts need password hashing
@@ -163,8 +197,10 @@ Minimum tables:
 
 ```
 accounts   id · email (unique) · name · password_hash · created_at
-licences   id · account_id · plan · status · seats · expires_on · stripe_customer_id
-devices    id · licence_id · device_id (unique per licence) · last_seen_at
+licences   id · account_id · plan · status · expires_on · stripe_customer_id
+           · seats_windows (2) · seats_mobile (1)
+devices    id · licence_id · device_id (unique per licence) · platform
+           · device_name · last_seen_at
 sessions   token (unique) · account_id · device_id · created_at · expires_at
 ```
 

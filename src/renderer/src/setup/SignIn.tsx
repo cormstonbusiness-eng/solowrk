@@ -256,7 +256,15 @@ function WhatTheAccountTouches(): React.JSX.Element {
         heading="Stays on this PC"
         items={['Clients and projects', 'Invoices and quotes', 'Time, files and notes']}
       />
-      <Column icon={Lock} heading="On your account" items={['Your licence', 'Your email']} />
+      <Column
+        icon={Lock}
+        heading="On your account"
+        // Kept exactly true. The app sends the computer's name so you can tell
+        // your machines apart when freeing up a licence, and a list that says
+        // "your licence, your email" while quietly sending a third thing is
+        // the sort of small dishonesty this panel exists to avoid.
+        items={['Your licence', 'Your email', 'This computer’s name']}
+      />
     </div>
   )
 }

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { hostname } from 'node:os'
 import type { AuthAccount, AuthState } from '@shared/types'
 import { readConfig, updateConfig } from './config'
 
@@ -49,6 +50,26 @@ async function deviceId(): Promise<string> {
   const id = randomUUID()
   await updateConfig({ deviceId: id })
   return id
+}
+
+/**
+ * What this device is, and what to call it.
+ *
+ * `platform` is sent because a licence allows a different number of computers
+ * than phones — two desktops and, later, one mobile. A server that only counts
+ * devices cannot tell those apart, and retrofitting the distinction means
+ * changing both sides at once. It costs one field now.
+ *
+ * `name` is the machine's own name, so the account page can offer "release
+ * this seat" against something recognisable. A list of four UUIDs is not a
+ * list anyone can choose from.
+ */
+async function device(): Promise<{ deviceId: string; platform: string; deviceName: string }> {
+  return {
+    deviceId: await deviceId(),
+    platform: process.platform === 'win32' ? 'windows' : process.platform,
+    deviceName: hostname()
+  }
 }
 
 async function call<T>(
@@ -140,7 +161,7 @@ export async function signIn(email: string, password: string): Promise<AuthState
   const result = await call<SignInResult>('/licence/activate', {
     email: email.trim().toLowerCase(),
     password,
-    deviceId: await deviceId()
+    ...(await device())
   })
 
   await store(result)
@@ -156,7 +177,7 @@ export async function signUp(
     name: name.trim(),
     email: email.trim().toLowerCase(),
     password,
-    deviceId: await deviceId()
+    ...(await device())
   })
 
   await store(result)
@@ -175,7 +196,7 @@ export async function signOut(): Promise<AuthState> {
 
   if (config.authToken && config.apiBaseUrl.trim() !== '') {
     try {
-      await call('/licence/deactivate', { deviceId: await deviceId() }, config.authToken)
+      await call('/licence/deactivate', await device(), config.authToken)
     } catch {
       // Nothing to do about it, and nothing that should stop the sign-out.
     }
@@ -207,7 +228,7 @@ export async function verify(): Promise<AuthState> {
   try {
     const result = await call<SignInResult>(
       '/licence/status',
-      { deviceId: await deviceId() },
+      await device(),
       config.authToken
     )
     await store(result)

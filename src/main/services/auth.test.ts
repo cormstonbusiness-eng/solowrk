@@ -111,6 +111,45 @@ describe('signing in', () => {
     expect(second).toBe(first)
   })
 
+  it('sends the platform, so seats can be counted per device type', async () => {
+    // A licence allows two computers AND a phone, not three devices. The
+    // server cannot tell those apart without this, and adding it later means
+    // changing both sides at once.
+    await setApiBaseUrl(SERVER)
+    const fetchMock = vi.fn(
+      async (_url: string, _init: RequestInit) =>
+        new Response(JSON.stringify(licence), { status: 200 })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await signIn('alex@example.com', 'hunter2')
+
+    const body = JSON.parse(String(fetchMock.mock.calls[0]![1].body))
+    expect(body.platform).toBe('windows')
+    expect(body.deviceName).toBeTruthy()
+  })
+
+  it('identifies the device the same way on every endpoint', async () => {
+    // The server matches a seat on deviceId, so a sign-out that described the
+    // device differently from the sign-in would fail to release it.
+    await setApiBaseUrl(SERVER)
+    const fetchMock = vi.fn(
+      async (_url: string, _init: RequestInit) =>
+        new Response(JSON.stringify(licence), { status: 200 })
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await signIn('alex@example.com', 'hunter2')
+    await signOut()
+
+    const [activate, deactivate] = fetchMock.mock.calls.map((call) =>
+      JSON.parse(String(call[1].body))
+    )
+
+    expect(deactivate.deviceId).toBe(activate.deviceId)
+    expect(deactivate.platform).toBe(activate.platform)
+  })
+
   it('surfaces the server’s own message rather than a status code', async () => {
     await setApiBaseUrl(SERVER)
     respondWith({ message: 'This licence was refunded.' }, 403)

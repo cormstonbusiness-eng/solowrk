@@ -43,7 +43,8 @@ first screen says: *"no cloud account, no sync, no subscription holding your
 files."*
 
 The account exists **only for the licence**. No work data ever leaves the
-machine — the app sends nothing but an email, a password and a device id. The
+machine — the app sends nothing but an email, a password, a device id and the
+computer's name. The
 sign-in screen inside the app states this plainly, so the website should not
 contradict it.
 
@@ -84,9 +85,12 @@ Checkout  →  webhook (checkout.session.completed)
           →  email a link to set a password if the account is new
 ```
 
-Decisions still open, and they change the schema: **one-off purchase or
-subscription**, and **how many computers per licence**. A freelancer commonly
-has a laptop and a desktop, so one seat is often too strict.
+**Seats are decided: two Windows computers per licence, plus one mobile device
+once a mobile app exists.** They are counted separately — two computers *and* a
+phone, not three devices — so the schema needs a limit per platform rather than
+a single number.
+
+Still open, and it changes the schema: **one-off purchase or subscription**.
 
 ---
 
@@ -96,8 +100,10 @@ Minimum tables:
 
 ```
 accounts   id · email (unique) · name · password_hash · created_at
-licences   id · account_id · plan · status · seats · expires_on · stripe_customer_id
-devices    id · licence_id · device_id (unique per licence) · last_seen_at
+licences   id · account_id · plan · status · expires_on · stripe_customer_id
+           · seats_windows (2) · seats_mobile (1)
+devices    id · licence_id · device_id (unique per licence) · platform
+           · device_name · last_seen_at
 sessions   token (unique) · account_id · device_id · created_at · expires_at
 ```
 
