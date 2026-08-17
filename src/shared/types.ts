@@ -274,6 +274,39 @@ export interface NoteWithContext extends Note {
  * Notifications
  * ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ *
+ * Account and licence
+ * ------------------------------------------------------------------ */
+
+/** The signed-in account, as the app is allowed to know it. */
+export interface AuthAccount {
+  email: string
+  name: string
+  /** What they bought, for display. Empty until a licence server says. */
+  plan: string
+  /** yyyy-mm-dd, or empty for a licence that does not expire. */
+  expiresOn: string
+}
+
+export interface AuthState {
+  /** True once a token is held. Not proof the licence is still valid. */
+  signedIn: boolean
+  account: AuthAccount | null
+  /**
+   * Whether an account server is configured at all. False means the app runs
+   * unlicensed and ungated — which is the state before a backend exists.
+   */
+  configured: boolean
+  /** When the licence was last confirmed with the server. */
+  verifiedAt: string | null
+  /**
+   * Set when the last check could not reach the server. The app keeps working:
+   * a licence that fails closed on a train is a licence that loses a customer.
+   */
+  offline: boolean
+  error: string
+}
+
 /**
  * Where the app is up to with updating itself.
  *

@@ -1,11 +1,13 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { useQuery } from '@tanstack/react-query'
-import { Bell, Sparkles } from 'lucide-react'
+import { useState } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Bell, LogOut, Sparkles } from 'lucide-react'
 import { transition } from '@/lib/motion'
 import { footerNav, navGroups, type NavItem } from '@/lib/nav'
 import { themeById } from '@shared/themes'
 import { useTheme } from '@/hooks/useTheme'
+import { ConfirmModal } from '@/components/ui/Modal'
 import { cn } from '@/lib/utils'
 
 /**
@@ -123,6 +125,65 @@ function NavRow({ item }: { item: NavItem }): React.JSX.Element {
   )
 }
 
+/**
+ * Signing out, under Settings.
+ *
+ * Shows the account it would sign out of rather than a bare "Log out" — on a
+ * machine that might be shared, whose account this is matters more than the
+ * verb. Hidden entirely when there is no account server, because a sign-out
+ * button that signs you out of nothing is a puzzle rather than a feature.
+ */
+function SignOutRow(): React.JSX.Element | null {
+  const queryClient = useQueryClient()
+  const [confirming, setConfirming] = useState(false)
+
+  const { data: auth } = useQuery({
+    queryKey: ['auth', 'state'],
+    queryFn: () => window.solo.invoke('auth:state')
+  })
+
+  const signOut = useMutation({
+    mutationFn: () => window.solo.invoke('auth:signOut'),
+    onSuccess: () => {
+      // A full reload is the honest way back to the sign-in screen: it clears
+      // every cached query, and none of it belongs to the next person.
+      queryClient.clear()
+      window.location.reload()
+    }
+  })
+
+  if (!auth?.configured || !auth.signedIn) return null
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setConfirming(true)}
+        className={cn(
+          'flex items-center gap-2.5 rounded-control px-2.5 py-[7px]',
+          'text-[13px] text-muted transition-colors duration-150 hover:text-ink'
+        )}
+      >
+        <LogOut size={16} strokeWidth={1.75} className="shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-left">Sign out</span>
+      </button>
+
+      <ConfirmModal
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        onConfirm={() => signOut.mutate()}
+        title="Sign out?"
+        body={
+          `You will need to sign in again as ${auth.account?.email ?? 'your account'} to use ` +
+          'SoloWrk on this computer. Your workspace stays exactly where it is — nothing in it ' +
+          'is touched, and nothing is uploaded.'
+        }
+        confirmLabel="Sign out"
+      />
+    </>
+  )
+}
+
 export function Sidebar(): React.JSX.Element {
   return (
     <nav
@@ -163,6 +224,7 @@ export function Sidebar(): React.JSX.Element {
           .map((item) => (
             <NavRow key={item.path} item={item} />
           ))}
+        <SignOutRow />
       </div>
     </nav>
   )

@@ -11,6 +11,7 @@ import type {
   AppNotification,
   AssistantEvent,
   AssistantStatus,
+  AuthState,
   AssistantMode,
   BusinessPlanStatus,
   BusinessSettings,
@@ -107,6 +108,16 @@ export interface IpcContract {
   'settings:logo': { req: void; res: string | null }
   /** App version, for the footer in Settings. */
   'app:version': { req: void; res: string }
+
+  /** The signed-in account. Nothing about the workspace is ever sent. */
+  'auth:state': { req: void; res: AuthState }
+  'auth:signIn': { req: { email: string; password: string }; res: AuthState }
+  'auth:signUp': { req: { name: string; email: string; password: string }; res: AuthState }
+  'auth:signOut': { req: void; res: AuthState }
+  /** Re-confirms the licence. Being offline is not a failure. */
+  'auth:verify': { req: void; res: AuthState }
+  /** Points the app at an account server. Empty turns licensing off. */
+  'auth:setServer': { req: { url: string }; res: AuthState }
 
   /** Current update state. Live changes arrive on the `updates:state` event. */
   'updates:get': { req: void; res: UpdateState }
@@ -408,6 +419,12 @@ export const IPC_CHANNELS = [
   'settings:clearLogo',
   'settings:logo',
   'app:version',
+  'auth:state',
+  'auth:signIn',
+  'auth:signUp',
+  'auth:signOut',
+  'auth:verify',
+  'auth:setServer',
   'updates:get',
   'updates:check',
   'updates:install',

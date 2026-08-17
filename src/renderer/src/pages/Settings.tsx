@@ -28,11 +28,12 @@ import { transition } from '@/lib/motion'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useTour } from '@/tour/TourProvider'
 
-type Tab = 'business' | 'money' | 'assistant' | 'appearance' | 'app'
+type Tab = 'business' | 'money' | 'account' | 'assistant' | 'appearance' | 'app'
 
 const TABS: { value: Tab; label: string }[] = [
   { value: 'business', label: 'Business' },
   { value: 'money', label: 'Invoicing & tax' },
+  { value: 'account', label: 'Account' },
   { value: 'assistant', label: 'Assistant' },
   { value: 'appearance', label: 'Appearance' },
   { value: 'app', label: 'App' }
@@ -307,6 +308,8 @@ export function Settings(): React.JSX.Element {
         </Card>
             </>}
 
+          {tab === 'account' && <AccountCard />}
+
           {tab === 'assistant' && <BusinessPlanCard />}
 
           {tab === 'appearance' && (
@@ -439,6 +442,138 @@ function LogoCard({ logoFile }: { logoFile: string }): React.JSX.Element {
  * to bother. The text is pulled out once and cached, and the preview is here so
  * you can see it read the right thing rather than taking it on trust.
  */
+/**
+ * The account a licence belongs to.
+ *
+ * Two cards rather than one, because they answer different questions: who is
+ * signed in, and where the app asks. The second only matters while there is a
+ * choice to make about it — once SoloWrk ships with a server baked in, that
+ * card can go.
+ */
+function AccountCard(): React.JSX.Element {
+  const queryClient = useQueryClient()
+  const [server, setServer] = useState<string | null>(null)
+
+  const { data: auth } = useQuery({
+    queryKey: ['auth', 'state'],
+    queryFn: () => window.solo.invoke('auth:state')
+  })
+
+  const settle = (next: Awaited<ReturnType<typeof window.solo.invoke<'auth:state'>>>): void => {
+    queryClient.setQueryData(['auth', 'state'], next)
+  }
+
+  const setUrl = useMutation({
+    mutationFn: (url: string) => window.solo.invoke('auth:setServer', { url }),
+    onSuccess: (next) => {
+      settle(next)
+      setServer(null)
+    }
+  })
+
+  const verify = useMutation({
+    mutationFn: () => window.solo.invoke('auth:verify'),
+    onSuccess: settle
+  })
+
+  const signOut = useMutation({
+    mutationFn: () => window.solo.invoke('auth:signOut'),
+    onSuccess: () => {
+      queryClient.clear()
+      window.location.reload()
+    }
+  })
+
+  if (!auth) return <></>
+
+  return (
+    <>
+      <Card>
+        <CardHeader
+          title="Account"
+          action={
+            auth.signedIn ? (
+              <Button variant="ghost" size="sm" onClick={() => verify.mutate()} disabled={verify.isPending}>
+                {verify.isPending ? 'Checking…' : 'Check licence'}
+              </Button>
+            ) : undefined
+          }
+        />
+
+        {auth.signedIn ? (
+          <>
+            <div className="flex items-center gap-3 rounded-control border border-line bg-raised px-3 py-2.5">
+              <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent/15 text-[12px] font-medium text-accent">
+                {(auth.account?.name || auth.account?.email || '?').slice(0, 1).toUpperCase()}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[12.5px] text-ink">
+                  {auth.account?.name || auth.account?.email}
+                </p>
+                <p className="mt-0.5 truncate text-[11px] text-faint">
+                  {auth.account?.plan || 'Licensed'}
+                  {auth.account?.expiresOn && ` · renews ${formatDate(auth.account.expiresOn)}`}
+                  {auth.verifiedAt && ` · checked ${formatDate(auth.verifiedAt)}`}
+                </p>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => signOut.mutate()}>
+                Sign out
+              </Button>
+            </div>
+
+            {auth.offline && (
+              <p className="mt-2.5 text-[11.5px] text-warning">
+                Could not reach the account server at the last check. SoloWrk keeps working —
+                being offline is not a reason to lose access to your own records.
+              </p>
+            )}
+          </>
+        ) : auth.configured ? (
+          <p className="text-[12px] leading-relaxed text-muted">
+            Not signed in. SoloWrk will ask the next time it starts.
+          </p>
+        ) : (
+          <p className="text-[12px] leading-relaxed text-muted">
+            No account server is set, so SoloWrk is not asking anyone to sign in. Set one below
+            to turn licensing on.
+          </p>
+        )}
+      </Card>
+
+      <Card>
+        <CardHeader title="Account server" />
+        <p className="mb-3 text-[12px] leading-relaxed text-muted">
+          Where SoloWrk checks licences. Leaving this empty turns sign-in off entirely, which is
+          how it behaves before a licence server exists. Setting it makes signing in required on
+          the next launch.
+        </p>
+
+        <div className="flex gap-2">
+          <TextInput
+            value={server ?? (auth.configured ? '' : '')}
+            onChange={(event) => setServer(event.target.value)}
+            placeholder="https://www.blockoutdigital.com/api"
+            className="flex-1"
+          />
+          <Button
+            variant="secondary"
+            onClick={() => setUrl.mutate(server ?? '')}
+            disabled={server === null || setUrl.isPending}
+          >
+            {setUrl.isPending ? 'Saving…' : 'Save'}
+          </Button>
+        </div>
+
+        <p className="mt-2.5 text-[11px] text-faint">
+          {auth.configured
+            ? 'A server is set. Clear the box and save to turn licensing off again.'
+            : 'Nothing set — the app is ungated.'}
+        </p>
+      </Card>
+    </>
+  )
+}
+
 function BusinessPlanCard(): React.JSX.Element {
   const queryClient = useQueryClient()
   const navigate = useNavigate()

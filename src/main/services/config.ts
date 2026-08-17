@@ -11,9 +11,36 @@ import { app } from 'electron'
 export interface AppConfig {
   workspacePath: string | null
   lastBackupAt: string | null
+
+  /**
+   * The account server. Empty means there is not one, and the app runs
+   * ungated — which is how it behaves until a licence backend exists.
+   */
+  apiBaseUrl: string
+  /** Session token from signing in. Held here, never in the workspace. */
+  authToken: string | null
+  accountEmail: string | null
+  accountName: string | null
+  accountPlan: string | null
+  accountExpiresOn: string | null
+  /** When the licence was last confirmed, for the offline grace window. */
+  verifiedAt: string | null
+  /** Identifies this installation to the seat count. Generated once. */
+  deviceId: string | null
 }
 
-const DEFAULT_CONFIG: AppConfig = { workspacePath: null, lastBackupAt: null }
+const DEFAULT_CONFIG: AppConfig = {
+  workspacePath: null,
+  lastBackupAt: null,
+  apiBaseUrl: '',
+  authToken: null,
+  accountEmail: null,
+  accountName: null,
+  accountPlan: null,
+  accountExpiresOn: null,
+  verifiedAt: null,
+  deviceId: null
+}
 
 const CONFIG_FILENAME = 'solo.config.json'
 
@@ -32,14 +59,30 @@ function legacyConfigPath(): string {
   return join(app.getPath('appData'), 'solo', CONFIG_FILENAME)
 }
 
+/**
+ * Every field is read explicitly.
+ *
+ * That is deliberate — it means a hand-edited or truncated file cannot inject
+ * anything unexpected. It also means **a new field added above without a line
+ * here is silently dropped on the next write**, which is the one trap in this
+ * file worth knowing about.
+ */
 function parseConfig(raw: string): AppConfig {
   const parsed = JSON.parse(raw) as Partial<AppConfig>
+  const text = (value: unknown): string | null =>
+    typeof value === 'string' && value.length > 0 ? value : null
+
   return {
-    workspacePath:
-      typeof parsed.workspacePath === 'string' && parsed.workspacePath.length > 0
-        ? parsed.workspacePath
-        : null,
-    lastBackupAt: typeof parsed.lastBackupAt === 'string' ? parsed.lastBackupAt : null
+    workspacePath: text(parsed.workspacePath),
+    lastBackupAt: text(parsed.lastBackupAt),
+    apiBaseUrl: text(parsed.apiBaseUrl) ?? '',
+    authToken: text(parsed.authToken),
+    accountEmail: text(parsed.accountEmail),
+    accountName: text(parsed.accountName),
+    accountPlan: text(parsed.accountPlan),
+    accountExpiresOn: text(parsed.accountExpiresOn),
+    verifiedAt: text(parsed.verifiedAt),
+    deviceId: text(parsed.deviceId)
   }
 }
 

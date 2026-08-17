@@ -144,6 +144,14 @@ import { rangeFor } from '@shared/taxYear'
 import { updateSettings } from '../services/settings'
 import { getState, setState } from '../services/appState'
 import { check, installNow, updateState } from '../services/updates'
+import {
+  authState,
+  setApiBaseUrl,
+  signIn,
+  signOut,
+  signUp,
+  verify
+} from '../services/auth'
 
 type WindowGetter = () => BrowserWindow | null
 
@@ -438,6 +446,13 @@ const handlers: Handlers = {
     upcomingEvents(session.requireDb(), nowStamp(), payload?.limit ?? 5),
 
   'app:version': () => app.getVersion(),
+
+  'auth:state': () => authState(),
+  'auth:signIn': (_g, { email, password }) => signIn(email, password),
+  'auth:signUp': (_g, { name, email, password }) => signUp(name, email, password),
+  'auth:signOut': () => signOut(),
+  'auth:verify': () => verify(),
+  'auth:setServer': (_g, { url }) => setApiBaseUrl(url),
 
   'updates:get': () => updateState(),
   'updates:check': () => check(),

@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react'
 import { HashRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { AnimatePresence, MotionConfig, motion } from 'motion/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import type { WorkspaceStatus } from '@shared/types'
+import type { AuthState, WorkspaceStatus } from '@shared/types'
 import { TitleBar } from '@/components/TitleBar'
 import { Sidebar } from '@/components/Sidebar'
 import { FirstRun } from '@/setup/FirstRun'
+import { SignIn } from '@/setup/SignIn'
 import { WorkspaceContext } from '@/hooks/useWorkspace'
 import { ThemeContext, useThemeState } from '@/hooks/useTheme'
 import { TourProvider } from '@/tour/TourProvider'
@@ -112,7 +113,32 @@ function Shell(): React.JSX.Element {
  */
 export function App(): React.JSX.Element {
   const [status, setStatus] = useState<WorkspaceStatus | null>(null)
+  const [auth, setAuth] = useState<AuthState | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  /**
+   * The account is resolved before the workspace, and deliberately so: a
+   * licence is a fact about the app, a workspace is a document it opens, and
+   * asking someone to pick a folder before finding out they cannot use the app
+   * would be the wrong way round.
+   */
+  useEffect(() => {
+    window.solo
+      .invoke('auth:state')
+      .then(setAuth)
+      .catch(() =>
+        // An unreadable config must not be a locked door. Treat it as "no
+        // account server", which is how the app behaves for everyone today.
+        setAuth({
+          signedIn: false,
+          account: null,
+          configured: false,
+          verifiedAt: null,
+          offline: false,
+          error: ''
+        })
+      )
+  }, [])
 
   useEffect(() => {
     window.solo
@@ -122,6 +148,9 @@ export function App(): React.JSX.Element {
         setError(cause instanceof Error ? cause.message : 'SoloWrk could not start')
       )
   }, [])
+
+  // Only stands in the way once an account server exists to check against.
+  const needsSignIn = auth !== null && auth.configured && !auth.signedIn
 
   const workspace = useMemo(() => ({ status, setStatus }), [status])
   // Themes live in the workspace, so the stored choice can only be read once
@@ -149,7 +178,18 @@ export function App(): React.JSX.Element {
                     <p className="mt-1 text-[12px] text-muted">{error}</p>
                   </div>
                 </motion.div>
-              ) : !status ? (
+              ) : needsSignIn ? (
+                <motion.div
+                  key="signin"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={transition.page}
+                  className="min-h-0 flex-1"
+                >
+                  <SignIn state={auth} onSignedIn={setAuth} />
+                </motion.div>
+              ) : !status || !auth ? (
                 // Deliberately blank: startup is near-instant, and a spinner
                 // that flashes for 80ms reads as jank rather than progress.
                 <motion.div key="loading" className="flex-1" />
