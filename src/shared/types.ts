@@ -284,6 +284,16 @@ export interface AuthAccount {
   name: string
   /** What they bought, for display. Empty until a licence server says. */
   plan: string
+  /**
+   * What the plan unlocks, as opaque names the server chooses — `assistant`,
+   * `marketing`, and whatever comes later.
+   *
+   * Separate from `plan` on purpose. `plan` is text to show a person, so it can
+   * be reworded freely; this is the part the app acts on. Keeping them apart
+   * means pricing can be restructured on the server without shipping a release,
+   * and without every install that never updates disagreeing about what Pro is.
+   */
+  features: string[]
   /** yyyy-mm-dd, or empty for a licence that does not expire. */
   expiresOn: string
 }
@@ -304,6 +314,18 @@ export interface AuthState {
    * a licence that fails closed on a train is a licence that loses a customer.
    */
   offline: boolean
+  /**
+   * The licence has lapsed, but the app still opens — read what is there,
+   * export it, print it, change nothing.
+   *
+   * A local-first app that goes dark when a card expires locks someone out of
+   * their own files, sitting on their own disk, which is the exact promise it
+   * was sold on. Read-only keeps that promise, and a working app they cannot
+   * type into is a better reminder to renew than one they cannot open.
+   */
+  readOnly: boolean
+  /** Why, in the server's own words. Shown verbatim while read-only. */
+  lapsedReason: string
   error: string
 }
 

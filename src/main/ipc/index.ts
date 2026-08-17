@@ -7,7 +7,7 @@ import {
   type BrowserWindow,
   type OpenDialogOptions
 } from 'electron'
-import type { IpcChannel, IpcContract } from '@shared/ipc'
+import { allowedWhenReadOnly, type IpcChannel, type IpcContract } from '@shared/ipc'
 import { readWindowState } from './window'
 import { session } from '../services/session'
 import { suggestedWorkspacePath } from '../services/config'
@@ -146,6 +146,8 @@ import { getState, setState } from '../services/appState'
 import { check, installNow, updateState } from '../services/updates'
 import {
   authState,
+  hasFeature,
+  isReadOnly,
   setApiBaseUrl,
   signIn,
   signOut,
@@ -628,11 +630,34 @@ function draftChaser(
   }
 }
 
+/**
+ * The single gate every call passes through.
+ *
+ * Enforced here rather than in the renderer for the obvious reason — a
+ * disabled button is a suggestion, not a rule — and in one place rather than
+ * per handler so that adding a channel cannot accidentally opt out of it.
+ */
+async function guard(channel: IpcChannel): Promise<void> {
+  // Only sending. The rest of `ai:*` is the business plan and the status the
+  // upsell panel reads, both of which Basic keeps.
+  if (channel === 'ai:send' && !(await hasFeature('assistant'))) {
+    throw new Error('The assistant is part of SoloWrk Pro.')
+  }
+
+  if (!allowedWhenReadOnly(channel) && (await isReadOnly())) {
+    const { lapsedReason } = await authState()
+    throw new Error(
+      `${lapsedReason} SoloWrk is read-only until it is renewed — everything is still here, and can still be exported.`
+    )
+  }
+}
+
 export function registerIpcHandlers(getWindow: WindowGetter): void {
   for (const channel of Object.keys(handlers) as IpcChannel[]) {
     const handler = handlers[channel]
-    ipcMain.handle(channel, (_event, payload: unknown) =>
-      (handler as (g: WindowGetter, p: unknown) => unknown)(getWindow, payload)
-    )
+    ipcMain.handle(channel, async (_event, payload: unknown) => {
+      await guard(channel)
+      return (handler as (g: WindowGetter, p: unknown) => unknown)(getWindow, payload)
+    })
   }
 }

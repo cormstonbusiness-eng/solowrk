@@ -85,12 +85,46 @@ Checkout  →  webhook (checkout.session.completed)
           →  email a link to set a password if the account is new
 ```
 
-**Seats are decided: two Windows computers per licence, plus one mobile device
-once a mobile app exists.** They are counted separately — two computers *and* a
-phone, not three devices — so the schema needs a limit per platform rather than
-a single number.
+Webhooks needed: `checkout.session.completed`, `invoice.paid` (push
+`expires_on` forward), `invoice.payment_failed` and
+`customer.subscription.deleted` (→ `past_due` / `canceled`, which make
+`/licence/status` answer `402`).
 
-Still open, and it changes the schema: **one-off purchase or subscription**.
+Worth knowing rather than fixing: Stripe retries a failed card for around two
+weeks, and the app then allows its own 14-day offline grace on top. Someone
+with a dead card keeps full access for roughly a month before read-only bites.
+That is forgiving in the right direction — just don't be surprised by it.
+
+**Decided: subscription, two tiers, 14-day free trial with no card.**
+
+| | Basic | Pro |
+|---|---|---|
+| Monthly | **£5.99** | **£11.99** |
+| Yearly | **£59** | **£119** |
+| Clients, projects, time, invoices, quotes, expenses, finance, calendar, notes, goals | ✓ | ✓ |
+| Computers | 1 | **2** |
+| Mobile app, when it exists | — | **✓** |
+| AI assistant | — | ✓ |
+| Marketing, when it ships | — | ✓ |
+
+Prices are **VAT-inclusive** — Stripe is merchant of record under Managed
+Payments, so £5.99 is what the customer pays and roughly £4.99 before fees is
+what arrives. Lead with yearly; it is two months free and removes eleven
+chances a year for a card to fail.
+
+Seats are counted **per platform, not in total** — a Pro licence is two
+computers *and* a phone, not three devices — so the schema needs a limit per
+platform rather than a single number.
+
+**The trial is Pro**, then drops to whatever they buy. It needs no card and no
+new API: sign-up returns `plan: "Trial"`, `features: ["assistant"]` and an
+`expiresOn` 14 days out, which the app already displays as-is.
+
+**When a subscription lapses the app must not lock anyone out.** It returns
+`402`, the app stays signed in and goes **read-only** — everything opens,
+invoices still export, nothing can be edited. `403` is only for refunds and
+revocations. Getting these two the wrong way round is the single most damaging
+mistake this server can make; `docs/licence-api.md` spells it out.
 
 ---
 
@@ -100,12 +134,19 @@ Minimum tables:
 
 ```
 accounts   id · email (unique) · name · password_hash · created_at
-licences   id · account_id · plan · status · expires_on · stripe_customer_id
-           · seats_windows (2) · seats_mobile (1)
+licences   id · account_id · tier ('basic'|'pro') · status · expires_on
+           · stripe_customer_id · stripe_subscription_id
+           · seats_windows · seats_mobile · trial_ends_on
 devices    id · licence_id · device_id (unique per licence) · platform
            · device_name · last_seen_at
 sessions   token (unique) · account_id · device_id · created_at · expires_at
+
+status: 'trialing' | 'active' | 'past_due' | 'canceled'
 ```
+
+The app is told what a tier unlocks through a `features` array rather than
+reading `tier` itself, so pricing can be restructured server-side without
+shipping an app release. Keep the two apart.
 
 Pages: sign up, sign in, password reset, and an account page showing the
 licence, its seats, which computers are using them, and a way to release one —

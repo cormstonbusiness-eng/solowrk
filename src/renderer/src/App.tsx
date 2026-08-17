@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { HashRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { AnimatePresence, MotionConfig, motion } from 'motion/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { Lock } from 'lucide-react'
 import type { AuthState, WorkspaceStatus } from '@shared/types'
 import { TitleBar } from '@/components/TitleBar'
 import { Sidebar } from '@/components/Sidebar'
@@ -135,6 +136,8 @@ export function App(): React.JSX.Element {
           configured: false,
           verifiedAt: null,
           offline: false,
+          readOnly: false,
+          lapsedReason: '',
           error: ''
         })
       )
@@ -164,6 +167,7 @@ export function App(): React.JSX.Element {
           <ThemeContext.Provider value={theme}>
           <div className="flex h-full flex-col bg-ground">
             <TitleBar />
+            {auth?.readOnly && <ReadOnlyBar reason={auth.lapsedReason} />}
 
             <AnimatePresence mode="wait">
               {error ? (
@@ -221,5 +225,54 @@ export function App(): React.JSX.Element {
         </WorkspaceContext.Provider>
       </QueryClientProvider>
     </MotionConfig>
+  )
+}
+
+/**
+ * The strip that appears when a licence has lapsed.
+ *
+ * Its job is to be unmissable and not frightening, in that order. Someone
+ * seeing this has had a card decline, not lost anything, and the sentence that
+ * matters most to them is that their work is still there — so that sentence is
+ * in the bar rather than in a dialog they have to open.
+ *
+ * There is no dismiss button, because a persistent bar is the whole mechanism:
+ * it is what makes a read-only app better at collecting a renewal than a locked
+ * one. There is a way to act on it, which is the part that stops it being nagging.
+ */
+function ReadOnlyBar({ reason }: { reason: string }): React.JSX.Element {
+  const [checking, setChecking] = useState(false)
+
+  async function recheck(): Promise<void> {
+    setChecking(true)
+    try {
+      // A full reload rather than threading state back up: this runs after a
+      // renewal, once, and every query in the app is now stale.
+      const next = await window.solo.invoke('auth:verify')
+      if (!next.readOnly) window.location.reload()
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-3 border-b border-warning/25 bg-warning/10 px-4 py-2">
+      <Lock size={13} strokeWidth={1.75} className="shrink-0 text-warning" />
+      <p className="min-w-0 flex-1 text-[12px] leading-snug text-ink">
+        {reason}{' '}
+        <span className="text-muted">
+          Everything is still here and can still be exported — you just can’t make changes until
+          it’s renewed.
+        </span>
+      </p>
+      <button
+        type="button"
+        onClick={() => void recheck()}
+        disabled={checking}
+        className="shrink-0 rounded-control px-2 py-1 text-[11.5px] font-medium text-warning underline-offset-2 hover:underline disabled:opacity-50"
+      >
+        {checking ? 'Checking…' : 'I’ve renewed — check again'}
+      </button>
+    </div>
   )
 }

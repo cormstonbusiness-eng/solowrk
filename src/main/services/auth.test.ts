@@ -10,7 +10,8 @@ vi.mock('electron', () => ({
 }))
 
 const { readConfig, updateConfig } = await import('./config')
-const { authState, isEntitled, setApiBaseUrl, signIn, signOut } = await import('./auth')
+const { authState, hasFeature, isEntitled, isReadOnly, setApiBaseUrl, signIn, signOut } =
+  await import('./auth')
 
 const SERVER = 'https://example.com/api'
 
@@ -185,11 +186,21 @@ describe('the offline grace window', () => {
     // invoices because a tunnel ate the licence check.
     await verifiedDaysAgo(13)
     expect(await isEntitled()).toBe(true)
+    expect((await authState()).readOnly).toBe(false)
   })
 
-  it('stops once the window has run out', async () => {
+  it('drops to read-only once the window has run out, rather than locking', async () => {
+    // The app still opens. Someone whose licence cannot be confirmed keeps
+    // reading and exporting their own invoices — the data is theirs and it is
+    // on their disk, and a locked door would be the app breaking its own
+    // promise at the worst possible moment.
     await verifiedDaysAgo(15)
-    expect(await isEntitled()).toBe(false)
+
+    expect(await isEntitled()).toBe(true)
+    const state = await authState()
+    expect(state.readOnly).toBe(true)
+    expect(state.signedIn).toBe(true)
+    expect(state.lapsedReason).not.toBe('')
   })
 
   it('treats an unreachable server as offline, not as unlicensed', async () => {
@@ -252,13 +263,110 @@ describe('signing out', () => {
   })
 })
 
+describe('what the plan unlocks', () => {
+  it('is ungated when there is no account server', async () => {
+    // Nothing to check a tier against, so nothing is withheld.
+    expect(await hasFeature('assistant')).toBe(true)
+  })
+
+  it('reads the features the server sent', async () => {
+    await setApiBaseUrl(SERVER)
+    respondWith({ ...licence, account: { ...licence.account, features: ['assistant'] } })
+    await signIn('alex@example.com', 'hunter2')
+
+    expect(await hasFeature('assistant')).toBe(true)
+    expect(await hasFeature('marketing')).toBe(false)
+  })
+
+  it('unlocks nothing for a plan that sent no features', async () => {
+    // Basic. Signed in, licensed, and simply does not include the assistant.
+    await setApiBaseUrl(SERVER)
+    respondWith(licence)
+    await signIn('alex@example.com', 'hunter2')
+
+    expect(await hasFeature('assistant')).toBe(false)
+    expect((await authState()).account?.features).toEqual([])
+  })
+
+  it('forgets them on sign-out', async () => {
+    await setApiBaseUrl(SERVER)
+    respondWith({ ...licence, account: { ...licence.account, features: ['assistant'] } })
+    await signIn('alex@example.com', 'hunter2')
+    await signOut()
+
+    expect(await hasFeature('assistant')).toBe(false)
+  })
+})
+
+describe('a lapsed subscription', () => {
+  beforeEach(async () => {
+    await setApiBaseUrl(SERVER)
+    respondWith(licence)
+    await signIn('alex@example.com', 'hunter2')
+  })
+
+  it('goes read-only instead of signing the user out', async () => {
+    // 402 means the account is real and the subscription is not paid. Ending
+    // the session there would put someone's own files behind a login they
+    // cannot pass, which is the one outcome this app must never produce.
+    respondWith({ message: 'Your subscription payment failed.' }, 402)
+
+    const { verify } = await import('./auth')
+    const state = await verify()
+
+    expect(state.signedIn).toBe(true)
+    expect(state.readOnly).toBe(true)
+    expect(state.lapsedReason).toBe('Your subscription payment failed.')
+    expect(await isEntitled()).toBe(true)
+    expect(await isReadOnly()).toBe(true)
+  })
+
+  it('lifts as soon as the licence is good again', async () => {
+    respondWith({ message: 'Your subscription payment failed.' }, 402)
+    const { verify } = await import('./auth')
+    await verify()
+
+    // They pay. No signing in again — the token was never thrown away.
+    respondWith(licence)
+    const state = await verify()
+
+    expect(state.readOnly).toBe(false)
+    expect(state.lapsedReason).toBe('')
+    expect(await isReadOnly()).toBe(false)
+  })
+
+  it('still ends the session when the licence is revoked outright', async () => {
+    // A refund or a chargeback is not a missed payment, and 403 still closes
+    // the door. The two cases have to stay distinguishable.
+    respondWith({ message: 'This licence was refunded.' }, 403)
+
+    const { verify } = await import('./auth')
+    const state = await verify()
+
+    expect(state.signedIn).toBe(false)
+    expect(state.readOnly).toBe(false)
+  })
+
+  it('is not read-only merely for being offline', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new Error('offline')
+      })
+    )
+
+    const { verify } = await import('./auth')
+    expect((await verify()).readOnly).toBe(false)
+  })
+})
+
 describe('config round-trip', () => {
   it('keeps every account field across a read and write', async () => {
     // parseConfig reads field by field, so a field added to AppConfig without
     // a line there is silently dropped on the next write — which would sign
     // the user out on the next launch for no visible reason.
     await setApiBaseUrl(SERVER)
-    respondWith(licence)
+    respondWith({ ...licence, account: { ...licence.account, features: ['assistant'] } })
     await signIn('alex@example.com', 'hunter2')
 
     // Force a write, then a fresh read from disk.
@@ -270,6 +378,7 @@ describe('config round-trip', () => {
     expect(config.accountEmail).toBe('alex@example.com')
     expect(config.accountName).toBe('Alex')
     expect(config.accountPlan).toBe('Solo')
+    expect(config.accountFeatures).toBe('assistant')
     expect(config.accountExpiresOn).toBe('2027-01-01')
     expect(config.deviceId).toBeTruthy()
     expect(config.verifiedAt).toBeTruthy()

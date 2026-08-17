@@ -99,18 +99,27 @@ not a sign-out.
   "account": {
     "email": "alex@example.com",
     "name": "Alex Fisher",
-    "plan": "Solo",          // shown as-is in the UI. "" is fine
-    "expiresOn": "2027-01-01" // yyyy-mm-dd, or "" for a licence that never expires
+    "plan": "Pro",                          // shown as-is in the UI
+    "features": ["assistant", "marketing"], // what the plan unlocks
+    "expiresOn": "2027-01-01"               // yyyy-mm-dd, or ""
   }
 }
 ```
 
 - `token` is opaque to the app. It is stored and sent back as a bearer token.
-- `plan` is display text, not an identifier — write what you want the user to
-  read.
-- `expiresOn` is shown as "renews …". Use `""` for a one-off purchase.
+- `plan` is **display text, not an identifier** — write what you want the user
+  to read, and reword it whenever you like.
+- `features` is **the part the app acts on.** Opaque names, server's choice.
+  Today only `assistant` means anything; `marketing` is reserved. Omit it or
+  send `[]` for Basic.
+- `expiresOn` is shown as "renews …". `""` for a licence that never expires.
 
-Every field must be present. The app reads them directly.
+**Keep `plan` and `features` separate even though they look redundant.** It is
+what lets pricing be restructured — a feature moved between tiers, a tier
+renamed, a promotion — without shipping an app release, and without every
+install that never updates disagreeing with you about what Pro includes.
+
+Every field except `features` must be present. The app reads them directly.
 
 ---
 
@@ -132,25 +141,39 @@ Without a `message`, the app falls back on the status code:
 | `409` | That licence is already in use on the maximum number of computers. |
 | anything else | The account server returned *N*. |
 
-Use `402` for a valid account with no licence, and `409` when the seat limit is
-reached — those two are the cases worth getting right, because they are the
-ones a paying customer will actually hit.
+**`402` and `403` are not interchangeable, and picking the wrong one is the
+most damaging mistake this server can make.**
+
+- **`402`** — the account is real, the subscription is not paid. The app stays
+  signed in and drops to **read-only**: everything opens, nothing can be
+  edited, invoices can still be exported. Paying lifts it on the next check
+  with no second sign-in. **Use this for every billing failure**, including a
+  cancelled subscription that has run out.
+- **`403`** — the licence is disowned: refunded, charged back, revoked. This
+  **ends the session** and returns the user to the sign-in screen.
+
+Send `403` for a missed payment and you lock a paying customer out of their own
+files over a card that expired. Send `402` for a chargeback and you have given
+the app away.
+
+Use `409` when the seat limit is reached, with a `message` naming which limit.
 
 ---
 
 ## Behaviour the server should know about
 
-**Seats are counted per platform, not in total.**
+**Seats are counted per platform, not in total, and they vary by plan.**
 
-| Platform | Seats |
-|---|---|
-| `windows` | **2** |
-| mobile (`ios` / `android`) | **1**, once a mobile app exists |
+| Plan | `windows` | mobile (`ios` / `android`) |
+|---|---|---|
+| Basic | **1** | — |
+| Pro | **2** | **1**, once a mobile app exists |
 
-So a licence allows two computers *and* a phone — not three devices. A server
-that stores a single `seats` integer cannot express that, and retrofitting the
-distinction later means changing both sides at once. The app already sends
-`platform` for exactly this reason; only `windows` is possible today.
+So a Pro licence allows two computers *and* a phone — not three devices. A
+server that stores a single `seats` integer cannot express that, and
+retrofitting the distinction later means changing both sides at once. The app
+already sends `platform` for exactly this reason; only `windows` is possible
+today.
 
 **Seats are keyed on `deviceId`.** A UUID generated once per installation and
 stored in `userData`, so it survives app updates and does not change between
@@ -166,11 +189,12 @@ four UUIDs. Treat it as display text — it is not unique and not trustworthy.
 computers. Sign out on one, or release it from your account page." is the sort
 of thing a customer can act on.
 
-**The app fails open.** If `/licence/status` cannot be reached, the app treats
-it as *offline*, keeps working, and retries later. Only a response that
-actually says no ends the session. After **14 days** without a successful check
-the app stops. So a server that is down does not lock out your customers, but a
-cancelled licence still takes effect within a fortnight.
+**The app fails open, and it never fails shut.** If `/licence/status` cannot be
+reached, the app treats it as *offline*, keeps working, and retries later.
+After **14 days** without a successful check it drops to read-only — it does
+not close. Nothing this server can say will lock a signed-in user out of
+reading and exporting their own work; the strongest outcome is `403`, which
+returns them to the sign-in screen with their files untouched on disk.
 
 **Requests time out after 20 seconds.**
 
@@ -197,11 +221,15 @@ Minimum tables:
 
 ```
 accounts   id · email (unique) · name · password_hash · created_at
-licences   id · account_id · plan · status · expires_on · stripe_customer_id
-           · seats_windows (2) · seats_mobile (1)
+licences   id · account_id · tier ('basic'|'pro') · status · expires_on
+           · stripe_customer_id · stripe_subscription_id
+           · seats_windows · seats_mobile · trial_ends_on
 devices    id · licence_id · device_id (unique per licence) · platform
            · device_name · last_seen_at
 sessions   token (unique) · account_id · device_id · created_at · expires_at
+
+status: 'trialing' | 'active' | 'past_due' | 'canceled'
+        past_due and canceled  →  402  →  the app goes read-only
 ```
 
 ---

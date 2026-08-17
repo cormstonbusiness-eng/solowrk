@@ -22,7 +22,14 @@ export interface AppConfig {
   accountEmail: string | null
   accountName: string | null
   accountPlan: string | null
+  /** What the plan unlocks, comma-separated. Null until a server says. */
+  accountFeatures: string | null
   accountExpiresOn: string | null
+  /**
+   * Set when the server says the licence has lapsed, in its own words. Its
+   * presence is what puts the app into read-only; clearing it restores writing.
+   */
+  lapsedReason: string | null
   /** When the licence was last confirmed, for the offline grace window. */
   verifiedAt: string | null
   /** Identifies this installation to the seat count. Generated once. */
@@ -37,7 +44,9 @@ const DEFAULT_CONFIG: AppConfig = {
   accountEmail: null,
   accountName: null,
   accountPlan: null,
+  accountFeatures: null,
   accountExpiresOn: null,
+  lapsedReason: null,
   verifiedAt: null,
   deviceId: null
 }
@@ -80,7 +89,9 @@ function parseConfig(raw: string): AppConfig {
     accountEmail: text(parsed.accountEmail),
     accountName: text(parsed.accountName),
     accountPlan: text(parsed.accountPlan),
+    accountFeatures: text(parsed.accountFeatures),
     accountExpiresOn: text(parsed.accountExpiresOn),
+    lapsedReason: text(parsed.lapsedReason),
     verifiedAt: text(parsed.verifiedAt),
     deviceId: text(parsed.deviceId)
   }
