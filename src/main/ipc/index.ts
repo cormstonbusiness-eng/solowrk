@@ -453,7 +453,21 @@ const handlers: Handlers = {
   'auth:signIn': (_g, { email, password }) => signIn(email, password),
   'auth:signUp': (_g, { name, email, password }) => signUp(name, email, password),
   'auth:signOut': () => signOut(),
-  'auth:verify': () => verify(),
+  /**
+   * Broadcast as well as return.
+   *
+   * Settings owns this button, and it keeps the answer in its own react-query
+   * cache. App.tsx — which decides whether the read-only bar is on screen —
+   * reads the auth state once into `useState` when it mounts and never again.
+   * So pressing "Check licence" on a lapsed licence used to block every edit
+   * in the main process while the banner explaining why stayed hidden until
+   * the next launch: the app would simply refuse to save, and say nothing.
+   */
+  'auth:verify': async (getWindow) => {
+    const state = await verify()
+    getWindow()?.webContents.send('auth:changed', state)
+    return state
+  },
   'auth:setServer': (_g, { url }) => setApiBaseUrl(url),
 
   'updates:get': () => updateState(),
