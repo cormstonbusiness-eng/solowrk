@@ -126,12 +126,16 @@ function NavRow({ item }: { item: NavItem }): React.JSX.Element {
 }
 
 /**
- * Signing out, under Settings.
+ * Logging out, under Settings.
  *
- * Shows the account it would sign out of rather than a bare "Log out" — on a
- * machine that might be shared, whose account this is matters more than the
- * verb. Hidden entirely when there is no account server, because a sign-out
- * button that signs you out of nothing is a puzzle rather than a feature.
+ * The one loud thing in the sidebar, and deliberately so — everything above it
+ * is a place to go, this is an action that ends the session, and it should not
+ * look like another nav row you might click by accident on the way to Settings.
+ * The confirm names the account, because on a shared machine whose session is
+ * ending matters more than the verb.
+ *
+ * Hidden entirely when there is no account server, because a log-out button
+ * that logs you out of nothing is a puzzle rather than a feature.
  */
 function SignOutRow(): React.JSX.Element | null {
   const queryClient = useQueryClient()
@@ -160,25 +164,32 @@ function SignOutRow(): React.JSX.Element | null {
         type="button"
         onClick={() => setConfirming(true)}
         className={cn(
-          'flex items-center gap-2.5 rounded-control px-2.5 py-[7px]',
-          'text-[13px] text-muted transition-colors duration-150 hover:text-ink'
+          'mt-1 flex items-center justify-center gap-2 rounded-control px-2.5 py-2',
+          // Mixed down from the danger token rather than used neat: #e5484d
+          // under white text is about 3.9:1, which fails AA at this size. The
+          // mix keeps one source of truth for the colour and lands near 5.5:1,
+          // and it follows the token if the theme ever changes it.
+          'bg-[color-mix(in_srgb,var(--color-danger)_85%,black)]',
+          'hover:bg-[color-mix(in_srgb,var(--color-danger)_72%,black)]',
+          'text-[12px] font-bold tracking-[0.09em] text-white uppercase',
+          'transition-colors duration-150'
         )}
       >
-        <LogOut size={16} strokeWidth={1.75} className="shrink-0" />
-        <span className="min-w-0 flex-1 truncate text-left">Sign out</span>
+        <LogOut size={15} strokeWidth={2.25} className="shrink-0" />
+        Log out
       </button>
 
       <ConfirmModal
         open={confirming}
         onClose={() => setConfirming(false)}
         onConfirm={() => signOut.mutate()}
-        title="Sign out?"
+        title="Log out?"
         body={
           `You will need to sign in again as ${auth.account?.email ?? 'your account'} to use ` +
           'SoloWrk on this computer. Your workspace stays exactly where it is — nothing in it ' +
           'is touched, and nothing is uploaded.'
         }
-        confirmLabel="Sign out"
+        confirmLabel="Log out"
       />
     </>
   )
