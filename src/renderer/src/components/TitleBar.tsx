@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
-import { ArrowUpCircle, Copy, Minus, Square, X } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { ArrowUpCircle, Check, Copy, Minus, RotateCw, Square, X } from 'lucide-react'
 import type { WindowState } from '@shared/ipc'
 import { Timer } from './Timer'
 import { themeById, type DecorKind } from '@shared/themes'
@@ -121,6 +122,102 @@ function UpdatePrompt(): React.JSX.Element | null {
   )
 }
 
+/**
+ * Refresh, beside the wordmark.
+ *
+ * Three things at once, because they are the three reasons somebody thinks the
+ * app looks stale: re-read everything on screen from the workspace, re-check
+ * the licence, and ask whether there is a newer version.
+ *
+ * The licence check is in here deliberately. Buying Pro, or having a payment
+ * go through, otherwise takes up to six hours to show up — and telling someone
+ * to go to Settings and press a different button to see what they have just
+ * paid for is not an answer.
+ *
+ * Deliberately not a page reload. A reload would throw away the route and
+ * anything half-typed in a form, to fix a problem that is almost always just
+ * cached data — and the workspace is the source of truth either way.
+ */
+function RefreshButton(): React.JSX.Element {
+  const queryClient = useQueryClient()
+  const [phase, setPhase] = useState<'idle' | 'working' | 'done' | 'failed'>('idle')
+  const [note, setNote] = useState('')
+
+  async function refresh(): Promise<void> {
+    if (phase === 'working') return
+    setPhase('working')
+    setNote('')
+
+    // Held for a beat even when everything answers instantly. A spinner that
+    // appears and disappears inside one frame reads as a button that did
+    // nothing, and the honest signal here is "I heard you", not the millisecond
+    // count.
+    const beat = new Promise((resolve) => setTimeout(resolve, 550))
+
+    const [update, auth] = await Promise.all([
+      window.solo.invoke('updates:check').catch(() => null),
+      window.solo.invoke('auth:verify').catch(() => null),
+      queryClient.invalidateQueries(),
+      beat
+    ])
+
+    // Straight into the cache the sidebar and every feature gate read, so an
+    // upgrade bought a minute ago unlocks without a restart.
+    if (auth) queryClient.setQueryData(['auth', 'state'], auth)
+
+    if (update?.status === 'error') {
+      setNote(update.error || 'Could not check for updates')
+      setPhase('failed')
+    } else {
+      // Nothing to say when an update is downloading or ready — the prompt in
+      // the middle of the titlebar is already saying it, louder.
+      setNote(update?.status === 'current' ? 'You have the latest version' : '')
+      setPhase('done')
+    }
+
+    setTimeout(() => setPhase('idle'), 2400)
+  }
+
+  const working = phase === 'working'
+
+  return (
+    <button
+      type="button"
+      onClick={() => void refresh()}
+      disabled={working}
+      aria-label="Refresh, and check for updates"
+      title={
+        note ||
+        (working ? 'Refreshing…' : 'Refresh — reload your data and check for a new version')
+      }
+      className={cn(
+        // 22px rather than the 24px target-size minimum, which it meets on the
+        // spacing exception instead: nothing else is clickable for 200px in
+        // either direction. A 24px hover square starts to dominate a 32px bar.
+        'no-drag grid h-[22px] w-[22px] place-items-center rounded-[4px]',
+        'transition-colors duration-150',
+        // The app's global reduced-motion rule stops `animate-spin` dead, so
+        // the spinner cannot be the only sign that anything is happening.
+        working && 'opacity-55',
+        phase === 'done'
+          ? 'text-success'
+          : phase === 'failed'
+            ? 'text-danger'
+            : // Matches the wordmark it sits beside rather than the flourish.
+            // `faint` measures 2.9:1 on the titlebar, under the 3:1 floor for
+            // a control somebody is meant to find and press; `muted` is 5.8:1.
+            'text-muted hover:bg-hover hover:text-ink'
+      )}
+    >
+      {phase === 'done' ? (
+        <Check size={12} strokeWidth={2.5} />
+      ) : (
+        <RotateCw size={12} strokeWidth={2} className={cn(working && 'animate-spin')} />
+      )}
+    </button>
+  )
+}
+
 export function TitleBar(): React.JSX.Element {
   const [state, setState] = useState<WindowState>({ isMaximized: false, isFocused: true })
 
@@ -142,6 +239,7 @@ export function TitleBar(): React.JSX.Element {
         <div className="h-3 w-3 rounded-[3px] bg-accent" aria-hidden />
         {/* Not uppercased: the capital W is the whole point of the wordmark. */}
         <span className="text-[11px] font-medium tracking-[0.06em] text-muted">SoloWrk</span>
+        <RefreshButton />
         <Flourish />
       </div>
 
