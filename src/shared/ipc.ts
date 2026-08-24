@@ -39,6 +39,7 @@ import type {
   EventInput,
   DocumentInput,
   DocumentRecord,
+  Dataset,
   DueChase,
   ExpenseInput,
   ExpenseWithContext,
@@ -66,7 +67,8 @@ import type {
   TaskWithContext,
   Template,
   WorkspaceSetup,
-  WorkspaceStatus
+  WorkspaceStatus,
+  YearEndPack
 } from './types'
 import type { Period } from './taxYear'
 
@@ -334,6 +336,24 @@ export interface IpcContract {
     res: string
   }
 
+  /**
+   * Raw CSV of one dataset, written into the workspace. Returns its path.
+   *
+   * Never gated, in either tier, and classified as a read so it survives a
+   * lapsed licence — `/terms` promises exactly that, and the argument for a
+   * local-first app collapses if getting the work out costs money.
+   */
+  'export:csv': {
+    req: { dataset: Dataset; from?: string; to?: string }
+    res: string
+  }
+  /**
+   * The year-end pack: summary, CSVs and every invoice PDF for a tax year, in
+   * one folder. Pro, on convenience rather than access — every file in it is
+   * obtainable free, one at a time.
+   */
+  'yearEnd:pack': { req: { startYear?: number }; res: YearEndPack }
+
   'quotes:list': { req: { status?: QuoteStatus } | void; res: QuoteWithContext[] }
   'quotes:get': { req: { id: number }; res: QuoteWithContext }
   'quotes:create': { req: QuoteInput; res: QuoteWithContext }
@@ -571,6 +591,8 @@ export const IPC_CHANNELS = [
   'chasing:record',
   'chasing:stop',
   'chasing:statement',
+  'export:csv',
+  'yearEnd:pack',
   'quotes:list',
   'quotes:get',
   'quotes:create',

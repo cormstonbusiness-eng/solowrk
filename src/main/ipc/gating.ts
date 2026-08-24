@@ -48,6 +48,20 @@ export const GATES: Gate[] = [
       'The automatic chaser schedule is part of SoloWrk Pro. Upgrade at solo-wrk.com/account to switch it on. You can still chase any overdue invoice by hand.'
   },
   {
+    /**
+     * Assembling the year, not access to it.
+     *
+     * Every file the pack contains is free on its own — each CSV from Settings
+     * and every invoice PDF from the invoice — so this gates the evening spent
+     * gathering them, not the records. `export:` is deliberately a different
+     * prefix and is never gated.
+     */
+    prefix: 'yearEnd:',
+    feature: 'yearend',
+    message:
+      'The year-end pack is part of SoloWrk Pro. Upgrade at solo-wrk.com/account. Every file in it is still free on its own — the CSVs from Settings, and each invoice from the Invoices page.'
+  },
+  {
     // Only sending. The rest of `ai:*` is the business plan and the status the
     // upsell panel reads, both of which Basic keeps.
     prefix: 'ai:send',

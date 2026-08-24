@@ -5,7 +5,9 @@ import type {
   DocumentForPdf,
   LineItemDocument,
   Settings,
-  StatementForPdf
+  StatementForPdf,
+  SummaryLine,
+  YearSummaryForPdf
 } from '@shared/types'
 import { resolveInWorkspace } from './workspace'
 
@@ -33,7 +35,8 @@ const HEADINGS: Record<DocumentForPdf['kind'], string> = {
   invoice: 'Invoice',
   quote: 'Quote',
   receipt: 'Receipt',
-  statement: 'Statement'
+  statement: 'Statement',
+  summary: 'Year end'
 }
 
 /** Which folder each kind is filed in, under the workspace root. */
@@ -44,7 +47,10 @@ const FOLDERS: Record<DocumentForPdf['kind'], string> = {
   // somebody looking for the paperwork on one job wants both together, and
   // "Receipts" in this app already means the photographs attached to expenses.
   receipt: 'Invoices',
-  statement: 'Statements'
+  statement: 'Statements',
+  // Only ever written into a pack folder the caller names, but the map must be
+  // total so a kind added later cannot land somewhere arbitrary.
+  summary: 'Exports'
 }
 
 function escapeHtml(value: string): string {
@@ -340,6 +346,105 @@ function statementBody(doc: StatementForPdf): string {
   }</div>`
 }
 
+/** A two-column table of named totals, used for both breakdowns. */
+function breakdown(title: string, lines: SummaryLine[], total: number): string {
+  if (lines.length === 0) return ''
+
+  return `<div class="ageing">
+    <div class="label">${escapeHtml(title)}</div>
+    <table>
+      <tbody>
+        ${lines
+          .map(
+            (line) => `<tr>
+          <td>${escapeHtml(line.label)}</td>
+          <td class="right num muted">${total > 0 ? Math.round((line.amount / total) * 100) : 0}%</td>
+          <td class="right num">${money(line.amount)}</td>
+        </tr>`
+          )
+          .join('')}
+      </tbody>
+    </table>
+  </div>`
+}
+
+/**
+ * The year in one page, for an accountant.
+ *
+ * States the basis in the header rather than leaving it to be inferred. A
+ * figure whose basis an accountant has to guess is worse than one they have to
+ * query, and "income" means at least two different numbers depending on who is
+ * asking.
+ */
+function summaryBody(doc: YearSummaryForPdf): string {
+  const rows: [string, string, boolean?][] = [
+    ['Income received', money(doc.income)],
+    ['Expenses', `−${money(doc.expenses)}`],
+    ['Profit', money(doc.profit), true]
+  ]
+
+  return `
+  <div class="meta">
+    <div>
+      <div class="label">Tax year</div>
+      <strong>${escapeHtml(doc.taxYearLabel)}</strong>
+    </div>
+    <div>
+      <div class="label">Period</div>
+      ${formatDate(doc.periodFrom)} to ${formatDate(doc.periodTo)}
+    </div>
+    <div>
+      <div class="label">Prepared</div>
+      ${formatDate(doc.issueDate)}
+    </div>
+  </div>
+
+  <div class="totals" style="margin-top:26px">
+    ${rows
+      .map(
+        ([label, value, grand]) =>
+          `<div class="totals-row${grand ? ' grand' : ''}"><span${grand ? '' : ' class="muted"'}>${label}</span><span class="num">${value}</span></div>`
+      )
+      .join('')}
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:70%">Also this year</th>
+        <th class="right" style="width:30%">&nbsp;</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Invoices raised</td><td class="right num">${doc.invoicesRaised}</td></tr>
+      <tr><td>Invoices paid</td><td class="right num">${doc.invoicesPaid}</td></tr>
+      <tr><td>Hours tracked</td><td class="right num">${doc.hoursTracked.toFixed(1)}</td></tr>
+      ${
+        doc.vatRegistered
+          ? `<tr><td>VAT collected on paid invoices</td><td class="right num">${money(doc.vatCollected)}</td></tr>`
+          : ''
+      }
+      ${
+        doc.setAside > 0
+          ? `<tr><td>Set aside for tax at ${doc.setAsidePercent}%</td><td class="right num">${money(doc.setAside)}</td></tr>`
+          : ''
+      }
+    </tbody>
+  </table>
+
+  ${breakdown('Where the money came from', doc.byClient, doc.income)}
+  ${breakdown('What it went on', doc.byCategory, doc.expenses)}
+
+  <div class="footer">
+    Income is what was <strong>received</strong> between ${formatDate(doc.periodFrom)} and
+    ${formatDate(doc.periodTo)} — the cash basis — not what was invoiced in that period.
+    Expenses are counted on the date they were incurred.
+    ${doc.vatRegistered ? '' : ' This business is not VAT registered.'}
+    Prepared by SoloWrk from the workspace. Figures are a starting point for a return, not a
+    substitute for one.
+  </div>`
+}
+
 export function renderHtml(
   doc: DocumentForPdf,
   settings: Settings,
@@ -360,14 +465,20 @@ export function renderHtml(
         // A statement's reference carries the client name and date so the file
         // is unique, but printing it here would name the client three times in
         // four lines — the Account and As at blocks below already say it.
-        doc.kind === 'statement'
+        doc.kind === 'statement' || doc.kind === 'summary'
           ? ''
           : `<p class="muted" style="margin:4px 0 0">${escapeHtml(doc.number)}</p>`
       }
     </div>
     ${businessBlock(settings)}
   </div>
-${doc.kind === 'statement' ? statementBody(doc) : lineItemBody(doc, settings)}
+${
+  doc.kind === 'statement'
+    ? statementBody(doc)
+    : doc.kind === 'summary'
+      ? summaryBody(doc)
+      : lineItemBody(doc, settings)
+}
 </body>
 </html>`
 }
@@ -444,10 +555,12 @@ export function safeFileName(reference: string): string {
 export async function writePdf(
   workspacePath: string,
   doc: DocumentForPdf,
-  settings: Settings
+  settings: Settings,
+  /** Overrides the usual filing, for a year-end pack that gathers its own. */
+  into?: string
 ): Promise<string> {
   const year = doc.issueDate.slice(0, 4)
-  const folderRelative = join(FOLDERS[doc.kind], year)
+  const folderRelative = into ?? join(FOLDERS[doc.kind], year)
   await mkdir(resolveInWorkspace(workspacePath, folderRelative), { recursive: true })
 
   const fileRelative = join(folderRelative, `${safeFileName(doc.number)}.pdf`)

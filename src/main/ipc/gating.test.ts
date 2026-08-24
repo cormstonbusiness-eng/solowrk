@@ -95,6 +95,7 @@ describe('everything else stays free', () => {
       (channel) =>
         !channel.startsWith('marketing:') &&
         !channel.startsWith('chasing:') &&
+        !channel.startsWith('yearEnd:') &&
         channel !== 'ai:send'
     )
 
@@ -137,7 +138,7 @@ describe('the messages', () => {
     for (const gate of GATES) {
       expect(gate.feature).toBe(gate.feature.trim().toLowerCase())
       expect(gate.feature).not.toContain(',')
-      expect(['assistant', 'marketing', 'chasing']).toContain(gate.feature)
+      expect(['assistant', 'marketing', 'chasing', 'yearend']).toContain(gate.feature)
     }
   })
 })

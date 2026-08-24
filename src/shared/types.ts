@@ -612,6 +612,28 @@ export interface RunningTimer {
 export type LineKind = 'fixed' | 'time' | 'expense'
 
 /**
+ * The things that can be exported as plain CSV.
+ *
+ * Never gated, in either tier. `/terms` promises exports keep working even on
+ * a lapsed licence, and the whole argument for a local-first app is that the
+ * work belongs to the person who did it.
+ */
+export const DATASETS = ['clients', 'invoices', 'quotes', 'expenses', 'time'] as const
+
+export type Dataset = (typeof DATASETS)[number]
+
+/** What the year-end pack put on disk, so the app can say so afterwards. */
+export interface YearEndPack {
+  /** Workspace-relative folder holding everything below. */
+  folder: string
+  taxYearLabel: string
+  /** Relative paths of every file written, in the order they were made. */
+  files: string[]
+  /** Invoice PDFs that were rendered into the pack. */
+  invoicePdfs: number
+}
+
+/**
  * What the PDF renderer is given.
  *
  * A union rather than one widening interface, because a statement's table is
@@ -627,13 +649,21 @@ export interface DocumentBase {
   /** Also the file name, so it must be unique and safe as a path segment. */
   number: string
   issueDate: string
-  clientName: string | null
-  clientAddress: string
   notes: string
 }
 
+/**
+ * Documents addressed to a client. The year-end summary is not one — it is
+ * about the business, and giving it a `clientName` it could only fill with
+ * null would put an empty "Billed to" block on every accountant's copy.
+ */
+export interface AddressedDocument extends DocumentBase {
+  clientName: string | null
+  clientAddress: string
+}
+
 /** An invoice, quote or receipt: a table of work, priced. */
-export interface LineItemDocument extends DocumentBase {
+export interface LineItemDocument extends AddressedDocument {
   kind: 'invoice' | 'quote' | 'receipt'
   /** Due date for an invoice, valid-until for a quote, paid date for a receipt. */
   secondaryDate: string | null
@@ -664,7 +694,7 @@ export interface AgeingBucket {
 }
 
 /** A statement of account: a table of invoices, and what is left owing. */
-export interface StatementForPdf extends DocumentBase {
+export interface StatementForPdf extends AddressedDocument {
   kind: 'statement'
   /** Earliest issue date of the settled history shown, if it was narrowed. */
   periodFrom: string | null
@@ -675,7 +705,40 @@ export interface StatementForPdf extends DocumentBase {
   ageing: AgeingBucket[]
 }
 
-export type DocumentForPdf = LineItemDocument | StatementForPdf
+/** A named total on the summary, for the two breakdown tables. */
+export interface SummaryLine {
+  label: string
+  amount: Pence
+}
+
+/**
+ * The year-end summary: the whole business over one tax year, on one page.
+ *
+ * Income is what was **received** in the year, not what was invoiced — the
+ * cash basis, which is the default for a UK sole trader. The document says so
+ * in as many words, because an accountant handed a figure with no basis stated
+ * has to ask, and a figure they assume wrongly is worse than one they query.
+ */
+export interface YearSummaryForPdf extends DocumentBase {
+  kind: 'summary'
+  taxYearLabel: string
+  periodFrom: string
+  periodTo: string
+  income: Pence
+  expenses: Pence
+  profit: Pence
+  vatCollected: Pence
+  vatRegistered: boolean
+  setAside: Pence
+  setAsidePercent: number
+  invoicesPaid: number
+  invoicesRaised: number
+  hoursTracked: number
+  byCategory: SummaryLine[]
+  byClient: SummaryLine[]
+}
+
+export type DocumentForPdf = LineItemDocument | StatementForPdf | YearSummaryForPdf
 
 export interface DocumentLine {
   id: number

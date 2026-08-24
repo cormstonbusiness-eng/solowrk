@@ -149,6 +149,8 @@ import {
 } from '../services/conversations'
 import { writePdf } from '../services/pdf'
 import { buildStatement } from '../services/statements'
+import { writeDatasetCsv } from '../services/exports'
+import { buildYearEndPack } from '../services/yearEnd'
 import { rangeFor } from '@shared/taxYear'
 import { updateSettings } from '../services/settings'
 import { getState, setState } from '../services/appState'
@@ -435,6 +437,12 @@ const handlers: Handlers = {
       getSettings(db)
     )
   },
+
+  'export:csv': (_g, { dataset, from, to }) =>
+    writeDatasetCsv(session.requireDb(), session.requirePath(), dataset, { from, to }),
+
+  'yearEnd:pack': (_g, { startYear }) =>
+    buildYearEndPack(session.requireDb(), session.requirePath(), startYear),
 
   'quotes:list': (_g, filter) => listQuotes(session.requireDb(), filter ?? {}),
   'quotes:get': (_g, { id }) => getQuote(session.requireDb(), id),

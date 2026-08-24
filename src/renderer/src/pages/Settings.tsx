@@ -6,7 +6,9 @@ import {
   ArrowUpCircle,
   Check,
   Compass,
+  Download,
   FileText,
+  FolderArchive,
   FolderOpen,
   Image as ImageIcon,
   Loader2,
@@ -15,7 +17,9 @@ import {
   Upload
 } from 'lucide-react'
 import type { BusinessSettings, Settings as SettingsType } from '@shared/types'
+import { DATASETS } from '@shared/types'
 import { DEFAULT_CHASE_DAYS, describeSchedule, parseChaseDays } from '@shared/chasing'
+import { type ChangeKind, type Release, changelog, releaseFor } from '@shared/changelog'
 import { Page } from '@/components/Page'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -24,7 +28,7 @@ import { DECOR_INTENSITIES, THEMES, isInSeason, themeById } from '@shared/themes
 import { useTheme } from '@/hooks/useTheme'
 import { useUpdates } from '@/hooks/useUpdates'
 import { cn } from '@/lib/utils'
-import { today as todayString } from '@shared/taxYear'
+import { currentTaxYear, today as todayString } from '@shared/taxYear'
 import { formatDate } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { useWorkspace } from '@/hooks/useWorkspace'
@@ -326,6 +330,8 @@ export function Settings(): React.JSX.Element {
           {tab === 'app' && (
             <>
         <UpdatesCard />
+        <ReleaseNotesCard />
+        <ExportCard />
         <Card>
           <CardHeader title="Help" />
           <div className="flex items-center justify-between gap-4">
@@ -462,6 +468,248 @@ function ChasingCard({
           </AnimatePresence>
         </div>
       )}
+    </Card>
+  )
+}
+
+const KIND_LABELS: Record<ChangeKind, string> = {
+  added: 'New',
+  improved: 'Better',
+  changed: 'Changed',
+  fixed: 'Fixed'
+}
+
+const KIND_COLOURS: Record<ChangeKind, string> = {
+  added: 'text-accent border-accent/40',
+  improved: 'text-success border-success/40',
+  changed: 'text-warning border-warning/40',
+  fixed: 'text-muted border-line'
+}
+
+/**
+ * What changed, and when.
+ *
+ * The version this build actually is comes first and open; everything before it
+ * is there but collapsed, because the question is almost always "what is new"
+ * and only occasionally "when did that change".
+ *
+ * If the running version is not in the list — a build from source, or a
+ * changelog nobody updated — it says so rather than silently showing the
+ * previous release's notes as though they were this one's.
+ */
+function ReleaseNotesCard(): React.JSX.Element {
+  const [expanded, setExpanded] = useState(false)
+
+  const { data: version } = useQuery({
+    queryKey: ['app', 'version'],
+    queryFn: () => window.solo.invoke('app:version')
+  })
+
+  const current = version ? releaseFor(version) : undefined
+  const older = changelog.filter((release) => release.version !== current?.version)
+
+  return (
+    <Card>
+      <CardHeader
+        title="What's new"
+        action={
+          older.length > 0 && (
+            <Button variant="ghost" size="sm" onClick={() => setExpanded((open) => !open)}>
+              {expanded ? 'Just this version' : `Earlier versions (${older.length})`}
+            </Button>
+          )
+        }
+      />
+
+      {current ? (
+        <ReleaseNotes release={current} />
+      ) : (
+        <p className="text-[12px] text-faint">
+          {version
+            ? `No notes were written for version ${version}.`
+            : 'Reading the version…'}
+        </p>
+      )}
+
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={transition.page}
+            className="overflow-hidden"
+          >
+            {older.map((release) => (
+              <div key={release.version} className="mt-4 border-t border-line pt-4">
+                <ReleaseNotes release={release} />
+              </div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </Card>
+  )
+}
+
+function ReleaseNotes({ release }: { release: Release }): React.JSX.Element {
+  return (
+    <div>
+      <div className="flex items-baseline gap-2">
+        <p className="numeric text-[13px] font-medium text-ink">{release.version}</p>
+        <p className="text-[11px] text-faint">{formatDate(release.date)}</p>
+      </div>
+      <p className="mt-1 text-[12.5px] leading-relaxed text-muted">{release.headline}</p>
+
+      <ul className="mt-3 flex flex-col gap-2.5">
+        {release.changes.map((change) => (
+          <li key={change.text} className="flex gap-2.5">
+            <span
+              className={cn(
+                'mt-[1px] shrink-0 rounded-full border px-1.5 py-0.5 text-[9.5px]',
+                'tracking-[0.06em] uppercase',
+                KIND_COLOURS[change.kind]
+              )}
+            >
+              {KIND_LABELS[change.kind]}
+            </span>
+            <div className="min-w-0">
+              <p className="text-[12.5px] text-ink">{change.text}</p>
+              {change.detail && (
+                <p className="mt-0.5 text-[11.5px] leading-relaxed text-faint">{change.detail}</p>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+/**
+ * Getting the work back out.
+ *
+ * Free in both tiers and it stays that way — "your work is yours" is the whole
+ * argument for a local-first app, and an export behind a paywall makes it a
+ * slogan. It also keeps working on a lapsed licence, which `/terms` promises
+ * in as many words.
+ *
+ * The year-end pack below it is Pro, and the line is convenience rather than
+ * access: every file the pack contains is obtainable from this same card, one
+ * at a time, for nothing.
+ */
+function ExportCard(): React.JSX.Element {
+  const entitled = useFeature('yearend')
+  const [busy, setBusy] = useState('')
+  const [done, setDone] = useState('')
+  const [error, setError] = useState('')
+
+  async function run(label: string, work: () => Promise<string>): Promise<void> {
+    setBusy(label)
+    setError('')
+    setDone('')
+    try {
+      const path = await work()
+      setDone(path)
+      // Straight to the folder. An export that reports a path the user then
+      // has to go and find is half an export.
+      void window.solo.invoke('files:reveal', { path })
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Export failed')
+    } finally {
+      setBusy('')
+    }
+  }
+
+  const year = currentTaxYear()
+
+  return (
+    <Card>
+      <CardHeader title="Your data" />
+
+      <p className="mb-3 text-[12px] leading-relaxed text-muted">
+        Plain CSV, into the Exports folder in your workspace. Opens in Excel, Numbers or
+        anything else. Free on every plan, and it keeps working even if your licence lapses —
+        the work is yours.
+      </p>
+
+      <div className="flex flex-wrap gap-1.5">
+        {DATASETS.map((dataset) => (
+          <Button
+            key={dataset}
+            variant="secondary"
+            size="sm"
+            disabled={busy !== ''}
+            onClick={() =>
+              void run(dataset, () => window.solo.invoke('export:csv', { dataset }))
+            }
+          >
+            {busy === dataset ? (
+              <Loader2 size={13} className="animate-spin" />
+            ) : (
+              <Download size={13} strokeWidth={1.75} />
+            )}
+            <span className="capitalize">{dataset}</span>
+          </Button>
+        ))}
+      </div>
+
+      <div className="mt-4 border-t border-line pt-3.5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="min-w-0">
+            <p className="flex items-center gap-1.5 text-[13px] text-ink">
+              Year-end pack
+              {!entitled && (
+                <span className="rounded-full border border-line px-1.5 py-0.5 text-[10px] tracking-[0.08em] text-faint uppercase">
+                  Pro
+                </span>
+              )}
+            </p>
+            <p className="mt-1 text-[11.5px] leading-relaxed text-faint">
+              {entitled
+                ? `One folder for tax year ${year.label}: a summary on a page, the records as CSV, and every invoice you raised as a PDF. What an accountant asks for in January.`
+                : 'One folder holding the whole tax year for your accountant. Every file in it is still free above, one at a time — Pro saves you an evening assembling them.'}
+            </p>
+          </div>
+
+          {entitled ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={busy !== ''}
+              onClick={() =>
+                void run('pack', async () => (await window.solo.invoke('yearEnd:pack', {})).folder)
+              }
+            >
+              {busy === 'pack' ? (
+                <Loader2 size={13} className="animate-spin" />
+              ) : (
+                <FolderArchive size={13} strokeWidth={1.75} />
+              )}
+              Build it
+            </Button>
+          ) : (
+            <a
+              href="https://solo-wrk.com/pricing"
+              target="_blank"
+              rel="noreferrer"
+              className="shrink-0 text-[12px] whitespace-nowrap text-accent hover:underline"
+            >
+              See Pro
+            </a>
+          )}
+        </div>
+      </div>
+
+      {busy === 'pack' && (
+        <p className="mt-3 text-[11.5px] text-muted">
+          Rendering every invoice for the year. On a busy year this takes a minute.
+        </p>
+      )}
+      {done !== '' && busy === '' && (
+        <p className="mt-3 text-[11.5px] text-success">Saved to {done}</p>
+      )}
+      {error !== '' && <p className="mt-3 text-[11.5px] text-danger">{error}</p>}
     </Card>
   )
 }
