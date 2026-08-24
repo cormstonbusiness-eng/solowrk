@@ -8,6 +8,7 @@ import {
   type OpenDialogOptions
 } from 'electron'
 import { allowedWhenReadOnly, type IpcChannel, type IpcContract } from '@shared/ipc'
+import { gateFor } from './gating'
 import { readWindowState } from './window'
 import { session } from '../services/session'
 import { suggestedWorkspacePath } from '../services/config'
@@ -652,10 +653,9 @@ function draftChaser(
  * per handler so that adding a channel cannot accidentally opt out of it.
  */
 async function guard(channel: IpcChannel): Promise<void> {
-  // Only sending. The rest of `ai:*` is the business plan and the status the
-  // upsell panel reads, both of which Basic keeps.
-  if (channel === 'ai:send' && !(await hasFeature('assistant'))) {
-    throw new Error('The assistant is part of SoloWrk Pro.')
+  const gate = gateFor(channel)
+  if (gate && !(await hasFeature(gate.feature))) {
+    throw new Error(gate.message)
   }
 
   if (!allowedWhenReadOnly(channel) && (await isReadOnly())) {

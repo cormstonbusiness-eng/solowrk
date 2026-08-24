@@ -2,6 +2,7 @@ import type { BrowserWindow } from 'electron'
 import { dayFromDate, nowStamp, timeOf } from '@shared/calendar'
 import { PLATFORMS } from '@shared/social'
 import type { PostWithContext } from '@shared/types'
+import { hasFeature } from './auth'
 import { duePosts, markNeedsAttention, runEvergreen } from './marketing'
 import { session } from './session'
 import { push } from './notifications'
@@ -62,6 +63,16 @@ async function tick(getWindow: () => BrowserWindow | null): Promise<void> {
   // The workspace opens lazily and can be closed and reopened, so this checks
   // rather than being wired into the session's lifecycle. One-way dependency.
   if (!session.isOpen) return
+
+  /**
+   * Marketing is Pro.
+   *
+   * Checked here as well as at the IPC gate because this runs on a timer and
+   * never crosses the bridge — without it, a Basic licence would still be told
+   * a post was due, for a page it cannot open. `hasFeature` returns true when
+   * no account server is configured, so an ungated install is unaffected.
+   */
+  if (!(await hasFeature('marketing'))) return
 
   const db = session.requireDb()
   const now = nowStamp()

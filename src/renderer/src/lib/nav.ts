@@ -22,6 +22,14 @@ export interface NavItem {
   label: string
   path: string
   icon: LucideIcon
+  /**
+   * The paid feature this section needs, if any.
+   *
+   * Only drives what the sidebar draws — a lock instead of nothing, so the
+   * section is discoverable rather than hidden. The actual refusal happens in
+   * the main process, and the page itself shows the upsell.
+   */
+  feature?: string
 }
 
 export interface NavGroup {
@@ -47,7 +55,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { label: 'Business plan', path: '/business-plan', icon: BookOpen },
       { label: 'Clients', path: '/clients', icon: Users },
-      { label: 'Marketing', path: '/marketing', icon: Megaphone },
+      { label: 'Marketing', path: '/marketing', icon: Megaphone, feature: 'marketing' },
       { label: 'Goals', path: '/goals', icon: Target },
       { label: 'Invoices', path: '/invoices', icon: ReceiptText },
       { label: 'Finance', path: '/finance', icon: ChartNoAxesCombined }

@@ -2,8 +2,9 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { motion } from 'motion/react'
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, LogOut, Sparkles } from 'lucide-react'
+import { Bell, Lock, LogOut, Sparkles } from 'lucide-react'
 import { transition } from '@/lib/motion'
+import { useFeature } from '@/lib/features'
 import { footerNav, navGroups, type NavItem } from '@/lib/nav'
 import { themeById } from '@shared/themes'
 import { useTheme } from '@/hooks/useTheme'
@@ -104,6 +105,16 @@ function NavRow({ item }: { item: NavItem }): React.JSX.Element {
   const isActive = pathname === item.path
   const Icon = item.icon
 
+  /**
+   * A locked section still navigates.
+   *
+   * Hiding it would be tidier and worse: somebody who has read the pricing page
+   * would wonder where Marketing went and conclude the app is broken rather
+   * than that they are on Basic. The page behind it explains itself.
+   */
+  const entitled = useFeature(item.feature ?? '')
+  const locked = item.feature !== undefined && !entitled
+
   return (
     <NavLink
       to={item.path}
@@ -120,7 +131,15 @@ function NavRow({ item }: { item: NavItem }): React.JSX.Element {
         strokeWidth={1.75}
         className={cn('relative z-10 shrink-0', isActive && 'text-accent')}
       />
-      <span className="relative z-10 truncate">{item.label}</span>
+      <span className={cn('relative z-10 truncate', locked && 'text-faint')}>{item.label}</span>
+      {locked && (
+        <Lock
+          size={11}
+          strokeWidth={2}
+          className="relative z-10 ml-auto shrink-0 text-faint"
+          aria-label="Part of SoloWrk Pro"
+        />
+      )}
     </NavLink>
   )
 }

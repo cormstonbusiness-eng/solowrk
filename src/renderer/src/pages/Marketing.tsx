@@ -10,6 +10,8 @@ import { Page } from '@/components/Page'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Empty } from '@/components/ui/Empty'
+import { ProPanel } from '@/components/ProPanel'
+import { useFeature } from '@/lib/features'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { transition } from '@/lib/motion'
@@ -21,6 +23,47 @@ import { WEEKDAY_LABELS, monthLabel } from './calendar/grid'
 const DRAG_THRESHOLD = 4
 
 export function Marketing(): React.JSX.Element {
+  /**
+   * Checked before any of the hooks below run a query.
+   *
+   * Returning early keeps the page from firing sixteen requests the main
+   * process is going to refuse, which would otherwise fill the console with
+   * rejections and briefly flash an empty calendar before the panel appeared.
+   */
+  const entitled = useFeature('marketing')
+  if (!entitled) {
+    return (
+      <Page title="Marketing" description="Plan what you post, and when.">
+        <ProPanel
+          title="Plan a month of posts in an afternoon"
+          blurb="Marketing is part of Pro. It plans and schedules — writing, dating and filing your posts, then telling you when one is due and putting the caption on your clipboard. It does not post for you: connecting social accounts is still being built."
+          does={[
+            {
+              title: 'A calendar of posts',
+              body: 'Drag them between days, keep a backlog of ideas, date them later.'
+            },
+            {
+              title: 'Campaigns and content pillars',
+              body: 'So a month of posting has a shape rather than being whatever occurred to you that morning.'
+            },
+            {
+              title: 'Evergreen repeats',
+              body: 'Good posts come back around on a cycle you set, without being retyped.'
+            },
+            {
+              title: 'Media filed with the post',
+              body: 'Images live in your workspace beside everything else, not in an app you rent.'
+            }
+          ]}
+        />
+      </Page>
+    )
+  }
+
+  return <MarketingBoard />
+}
+
+function MarketingBoard(): React.JSX.Element {
   const invalidate = useInvalidate()
   const today = dayFromDate(new Date())
 

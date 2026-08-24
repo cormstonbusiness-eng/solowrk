@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/Button'
 import { Dot } from '@/components/ui/Empty'
 import { AnimatedNumber, gbp } from '@/components/ui/AnimatedNumber'
 import { keys } from '@/lib/api'
+import { useFeature } from '@/lib/features'
 import { daysUntil, describeDue, formatDate, formatMoney } from '@/lib/format'
 import { listItemVariants, listVariants, transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
@@ -110,14 +111,26 @@ export function Dashboard(): React.JSX.Element {
     queryFn: () => window.solo.invoke('documents:expiring', { days: 45 })
   })
 
+  /**
+   * Marketing is Pro, so Basic does not ask.
+   *
+   * `enabled` rather than hiding the panel afterwards: the main process would
+   * refuse these two calls anyway, and a dashboard that fires rejected requests
+   * every time it mounts is a console full of noise for a section the user
+   * cannot see.
+   */
+  const marketing = useFeature('marketing')
+
   const { data: duePosts = [] } = useQuery({
     queryKey: ['marketing', 'posts', 'dashboard', today],
-    queryFn: () => window.solo.invoke('marketing:posts', { from: today, to: today })
+    queryFn: () => window.solo.invoke('marketing:posts', { from: today, to: today }),
+    enabled: marketing
   })
 
   const { data: stuckPosts = [] } = useQuery({
     queryKey: ['marketing', 'posts', 'needs_attention'],
-    queryFn: () => window.solo.invoke('marketing:posts', { status: 'needs_attention' })
+    queryFn: () => window.solo.invoke('marketing:posts', { status: 'needs_attention' }),
+    enabled: marketing
   })
 
   const { data: logo } = useQuery({

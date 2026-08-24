@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { dayFromDate } from '@shared/calendar'
 import { invalidate, keys } from '@/lib/api'
+import { useFeature } from '@/lib/features'
 import { allNavItems } from '@/lib/nav'
 import { formatMoney } from '@/lib/format'
 
@@ -83,10 +84,15 @@ export function useCommands({
     ...options
   })
 
+  // Marketing is Pro. Without this the palette would ask on every keystroke
+  // for a section Basic cannot open, and every one would be refused.
+  const marketing = useFeature('marketing')
+
   const { data: posts = [] } = useQuery({
     queryKey: keys.posts(),
     queryFn: () => window.solo.invoke('marketing:posts', {}),
-    ...options
+    ...options,
+    enabled: (options.enabled ?? true) && marketing
   })
 
   const { data: running } = useQuery({
