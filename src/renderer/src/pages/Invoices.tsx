@@ -140,6 +140,19 @@ function InvoiceList({
     }
   })
 
+  /**
+   * Deliberately does not touch the invoice's own `pdfPath`. The invoice PDF is
+   * the record of what was asked for; the receipt is a second document saying
+   * it arrived, and one must not quietly replace the other.
+   */
+  const makeReceipt = useMutation({
+    mutationFn: (id: number) => window.solo.invoke('invoices:receipt', { id }),
+    onSuccess: (path) => {
+      invalidate(['files'])
+      void window.solo.invoke('files:open', { path })
+    }
+  })
+
   const remove = useMutation({
     mutationFn: (id: number) => window.solo.invoke('invoices:delete', { id }),
     onSuccess: () => invalidate(['invoices', 'time', 'finance'])
@@ -271,6 +284,17 @@ function InvoiceList({
                           className="rounded-control p-1.5 text-faint hover:bg-hover hover:text-ink"
                         >
                           <Mail size={13} strokeWidth={1.75} />
+                        </button>
+                      )}
+                      {invoice.status === 'paid' && (
+                        <button
+                          type="button"
+                          aria-label={`Save a receipt for ${invoice.number}`}
+                          title="Save a receipt"
+                          onClick={() => makeReceipt.mutate(invoice.id)}
+                          className="rounded-control p-1.5 text-faint hover:bg-hover hover:text-ink"
+                        >
+                          <ReceiptText size={13} strokeWidth={1.75} />
                         </button>
                       )}
                       <button

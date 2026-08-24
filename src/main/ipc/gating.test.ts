@@ -66,6 +66,21 @@ describe('the chase schedule is Pro, chasing is not', () => {
     expect(gateFor('invoices:chaser')).toBeNull()
   })
 
+  it('gates the statement of account', () => {
+    // Pro, and the one gate that sits next to an export. The distinction is
+    // that an invoice PDF gets the customer's own record out of the app, which
+    // must always work, while a statement is a document derived from those
+    // records — the same reasoning that lets the year-end pack be Pro.
+    expect(gateFor('chasing:statement')?.feature).toBe('chasing')
+  })
+
+  it('does not gate the documents a client asks for', () => {
+    // An invoice and its receipt are the two halves of one transaction. A
+    // client asking for a receipt is not asking their supplier to upgrade.
+    expect(gateFor('invoices:pdf')).toBeNull()
+    expect(gateFor('invoices:receipt')).toBeNull()
+  })
+
   it('gates a scheduling channel that does not exist yet', () => {
     // Why these live under `chasing:` rather than `invoices:` — the gate is one
     // rule, and anything added to the feature is covered without an edit here.

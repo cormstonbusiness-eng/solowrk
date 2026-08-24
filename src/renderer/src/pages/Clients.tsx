@@ -6,7 +6,9 @@ import {
   ArrowDown,
   ArrowLeft,
   ArrowUp,
+  FileText,
   FolderKanban,
+  Lock,
   Mail,
   Phone,
   Plus,
@@ -25,7 +27,8 @@ import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Dot, Empty } from '@/components/ui/Empty'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
-import { formatRate } from '@/lib/format'
+import { formatMoney, formatRate } from '@/lib/format'
+import { useFeature } from '@/lib/features'
 import { listItemVariants, listVariants } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
@@ -521,11 +524,7 @@ export function ClientDetail(): React.JSX.Element {
           <p className="mt-3 text-[11px] text-faint">Folder: {client.folder}</p>
         </Card>
 
-        <Card>
-          <CardHeader title="Lifetime value" />
-          <p className="numeric text-[22px] font-medium text-faint">—</p>
-          <p className="mt-1 text-[11px] text-faint">Available once invoicing lands in phase 4.</p>
-        </Card>
+        <AccountCard clientId={clientId} clientName={client.name} />
       </div>
 
       <div className="mt-3">
@@ -573,6 +572,102 @@ export function ClientDetail(): React.JSX.Element {
         body="This removes the client and their projects from SoloWrk. Their folder and every file inside it stays on disk untouched."
       />
     </Page>
+  )
+}
+
+/**
+ * What this client has been billed, and what they still owe.
+ *
+ * Replaces a card that read "Available once invoicing lands in phase 4" and
+ * showed a dash — invoicing landed several phases ago, and the numbers were
+ * already sitting one query away.
+ *
+ * The statement itself is Pro. The position above it is not: knowing what
+ * somebody owes you is not a feature, and a Basic user seeing the number and
+ * then being asked to pay to have it typed onto headed paper is an honest
+ * place to draw the line.
+ */
+function AccountCard({
+  clientId,
+  clientName
+}: {
+  clientId: number
+  clientName: string
+}): React.JSX.Element {
+  const entitled = useFeature('chasing')
+  const [error, setError] = useState('')
+
+  const { data: invoices = [] } = useQuery({
+    // Under the invoices key, so raising or paying one refreshes this too.
+    queryKey: ['invoices', { clientId }],
+    queryFn: () => window.solo.invoke('invoices:list', { clientId }),
+    enabled: Number.isFinite(clientId)
+  })
+
+  // Drafts and cancelled invoices are left out for the same reason the
+  // statement leaves them out: the client has never seen them.
+  const billed = invoices.filter(
+    (invoice) => invoice.status === 'sent' || invoice.status === 'paid'
+  )
+  const invoiced = billed.reduce((sum, invoice) => sum + invoice.gross, 0)
+  const outstanding = billed
+    .filter((invoice) => invoice.paidAt === null)
+    .reduce((sum, invoice) => sum + invoice.gross, 0)
+
+  const statement = useMutation({
+    mutationFn: () => window.solo.invoke('chasing:statement', { clientId }),
+    onSuccess: (path) => {
+      setError('')
+      void window.solo.invoke('files:open', { path })
+    },
+    onError: (cause: Error) => setError(cause.message)
+  })
+
+  return (
+    <Card>
+      <CardHeader
+        title="Account"
+        action={
+          entitled ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => statement.mutate()}
+              disabled={statement.isPending || billed.length === 0}
+              title={
+                billed.length === 0
+                  ? `${clientName} has not been invoiced yet`
+                  : 'Save a statement of account'
+              }
+            >
+              <FileText size={13} strokeWidth={1.75} />
+              Statement
+            </Button>
+          ) : (
+            <span
+              title="Statements of account are part of SoloWrk Pro"
+              className="flex items-center gap-1 text-[11px] text-faint"
+            >
+              <Lock size={11} strokeWidth={1.75} />
+              Statement
+            </span>
+          )
+        }
+      />
+
+      <p className="numeric text-[22px] font-medium text-ink">{formatMoney(invoiced)}</p>
+      <p className="mt-1 text-[11px] text-faint">
+        Invoiced across {billed.length} invoice{billed.length === 1 ? '' : 's'}
+      </p>
+
+      {outstanding > 0 && (
+        <p className="mt-2 text-[12px] text-danger">
+          <span className="numeric">{formatMoney(outstanding)}</span> outstanding
+        </p>
+      )}
+
+      {error && <p className="mt-2 text-[11.5px] text-danger">{error}</p>}
+    </Card>
   )
 }
 

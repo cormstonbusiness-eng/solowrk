@@ -148,6 +148,7 @@ import {
   listMessages
 } from '../services/conversations'
 import { writePdf } from '../services/pdf'
+import { buildStatement } from '../services/statements'
 import { rangeFor } from '@shared/taxYear'
 import { updateSettings } from '../services/settings'
 import { getState, setState } from '../services/appState'
@@ -370,6 +371,44 @@ const handlers: Handlers = {
     return path
   },
 
+  /**
+   * A receipt is the invoice, restated as settled. It deliberately does not
+   * overwrite `pdf_path`: the invoice PDF is the record of what was asked for,
+   * and replacing it with the receipt would lose that.
+   */
+  'invoices:receipt': async (_g, { id }) => {
+    const db = session.requireDb()
+    const invoice = getInvoice(db, id)
+    if (invoice.paidAt === null) {
+      throw new Error(
+        `${invoice.number} is not marked as paid yet. Mark it paid and the receipt will have a date to put on it.`
+      )
+    }
+
+    const client = invoice.clientId ? getClient(db, invoice.clientId) : null
+
+    return writePdf(
+      session.requirePath(),
+      {
+        kind: 'receipt',
+        number: `${invoice.number} receipt`,
+        // The invoice's own date, so the receipt references the document it
+        // settles and files itself in the same year folder beside it.
+        issueDate: invoice.issueDate,
+        secondaryDate: invoice.paidAt,
+        clientName: invoice.clientName,
+        clientAddress: client?.address ?? '',
+        lines: invoice.lines,
+        net: invoice.net,
+        vat: invoice.vat,
+        vatRate: invoice.vatRate,
+        gross: invoice.gross,
+        notes: invoice.notes
+      },
+      getSettings(db)
+    )
+  },
+
   'invoices:chaser': (_g, { id, attempt }) => {
     const db = session.requireDb()
     // Without an explicit attempt, this is the button being pressed by hand:
@@ -386,6 +425,15 @@ const handlers: Handlers = {
 
   'chasing:stop': (_g, { id }) => {
     stopChasing(session.requireDb(), id)
+  },
+
+  'chasing:statement': async (_g, { clientId, from }) => {
+    const db = session.requireDb()
+    return writePdf(
+      session.requirePath(),
+      buildStatement(db, clientId, { from }),
+      getSettings(db)
+    )
   },
 
   'quotes:list': (_g, filter) => listQuotes(session.requireDb(), filter ?? {}),

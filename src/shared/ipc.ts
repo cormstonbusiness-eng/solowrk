@@ -282,6 +282,12 @@ export interface IpcContract {
   'invoices:delete': { req: { id: number }; res: void }
   /** Renders the PDF into the workspace and returns its relative path. */
   'invoices:pdf': { req: { id: number }; res: string }
+  /**
+   * A receipt for an invoice that has been paid. Basic — it is the other half
+   * of an invoice, not a feature, and a client who asks for one is not asking
+   * their supplier to upgrade.
+   */
+  'invoices:receipt': { req: { id: number }; res: string }
   'invoices:overdue': { req: void; res: InvoiceWithContext[] }
   /**
    * Pre-drafted chase email for an overdue invoice.
@@ -313,6 +319,20 @@ export interface IpcContract {
   'chasing:record': { req: { id: number; attempt: number }; res: void }
   /** Stop chasing this invoice without marking it paid. */
   'chasing:stop': { req: { id: number }; res: void }
+  /**
+   * A statement of account for one client: everything they owe, aged, on one
+   * page. Under this prefix because it is the same entitlement and the same
+   * job — it is what you send when four separate reminders have not worked.
+   *
+   * Gated where a plain invoice PDF never is, and the distinction is
+   * deliberate: an invoice PDF gets the customer's own record out of the app,
+   * which must always work, while this is a document derived from those
+   * records for convenience. Returns the workspace-relative path.
+   */
+  'chasing:statement': {
+    req: { clientId: number; from?: string }
+    res: string
+  }
 
   'quotes:list': { req: { status?: QuoteStatus } | void; res: QuoteWithContext[] }
   'quotes:get': { req: { id: number }; res: QuoteWithContext }
@@ -545,10 +565,12 @@ export const IPC_CHANNELS = [
   'invoices:delete',
   'invoices:pdf',
   'invoices:overdue',
+  'invoices:receipt',
   'invoices:chaser',
   'chasing:due',
   'chasing:record',
   'chasing:stop',
+  'chasing:statement',
   'quotes:list',
   'quotes:get',
   'quotes:create',

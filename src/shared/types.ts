@@ -611,6 +611,72 @@ export interface RunningTimer {
 
 export type LineKind = 'fixed' | 'time' | 'expense'
 
+/**
+ * What the PDF renderer is given.
+ *
+ * A union rather than one widening interface, because a statement's table is
+ * rows of invoices and an invoice's table is rows of work — sharing a `lines`
+ * field between them would mean every renderer branch checking which kind of
+ * thing it had been handed anyway, with nothing stopping it getting that
+ * wrong.
+ *
+ * These live here rather than beside the renderer so the services that build
+ * them do not have to import a module that imports Electron.
+ */
+export interface DocumentBase {
+  /** Also the file name, so it must be unique and safe as a path segment. */
+  number: string
+  issueDate: string
+  clientName: string | null
+  clientAddress: string
+  notes: string
+}
+
+/** An invoice, quote or receipt: a table of work, priced. */
+export interface LineItemDocument extends DocumentBase {
+  kind: 'invoice' | 'quote' | 'receipt'
+  /** Due date for an invoice, valid-until for a quote, paid date for a receipt. */
+  secondaryDate: string | null
+  lines: DocumentLine[]
+  net: Pence
+  vat: Pence
+  vatRate: BasisPoints
+  gross: Pence
+}
+
+/** One invoice as it appears on a statement of account. */
+export interface StatementEntry {
+  number: string
+  issueDate: string
+  dueDate: string
+  gross: Pence
+  paidAt: string | null
+  /** Days past due as at the statement date; zero once paid. */
+  daysLate: number
+}
+
+/** Outstanding money split by how long it has been outstanding. */
+export interface AgeingBucket {
+  label: string
+  /** Inclusive lower bound in days past due; negative means not yet due. */
+  from: number
+  amount: Pence
+}
+
+/** A statement of account: a table of invoices, and what is left owing. */
+export interface StatementForPdf extends DocumentBase {
+  kind: 'statement'
+  /** Earliest issue date of the settled history shown, if it was narrowed. */
+  periodFrom: string | null
+  entries: StatementEntry[]
+  invoiced: Pence
+  paid: Pence
+  outstanding: Pence
+  ageing: AgeingBucket[]
+}
+
+export type DocumentForPdf = LineItemDocument | StatementForPdf
+
 export interface DocumentLine {
   id: number
   description: string

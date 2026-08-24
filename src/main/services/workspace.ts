@@ -23,6 +23,7 @@ export const WORKSPACE_TREE = [
   join('Documents', 'Tax'),
   'Invoices',
   'Quotes',
+  'Statements',
   'Expenses',
   'Notes',
   'Marketing',
