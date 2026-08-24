@@ -1,6 +1,7 @@
 import type { BrowserWindow } from 'electron'
 import { addDays, dayOf, nowStamp, timeOf } from '@shared/calendar'
-import { dueChasers } from './chasers'
+import { hasFeature } from './auth'
+import { chaseDedupeKey, dueChasers } from './chasers'
 import { dueReminders, markReminded } from './events'
 import { listDueTasks } from './tasks'
 import { session } from './session'
@@ -108,7 +109,12 @@ function runDigest(getWindow: () => BrowserWindow | null, now: Date): void {
     })
   }
 
-  runChaseSweep(getWindow, db, day)
+  // Asynchronous because it has a licence to check, and nothing above it needs
+  // to wait. Its own catch: the try/catch around `tick` cannot see a rejected
+  // promise, and a failed sweep must not take the reminder loop down with it.
+  void runChaseSweep(getWindow, db, day).catch((error) => {
+    console.error('Chase sweep failed:', error)
+  })
 }
 
 /**
@@ -125,11 +131,22 @@ function runDigest(getWindow: () => BrowserWindow | null, now: Date): void {
  * Nothing is sent here. The drafts wait on the Invoices page until the user
  * reads them.
  */
-function runChaseSweep(
+async function runChaseSweep(
   getWindow: () => BrowserWindow | null,
   db: ReturnType<typeof session.requireDb>,
   day: string
-): void {
+): Promise<void> {
+  /**
+   * The automatic schedule is Pro.
+   *
+   * Checked here as well as at the IPC gate because this runs on a timer and
+   * never crosses the bridge — a lapsed or downgraded licence would otherwise
+   * keep drafting notes nothing could open. `hasFeature` returns true when no
+   * account server is configured, so an ungated install is unaffected, and the
+   * setting is off by default in any case.
+   */
+  if (!(await hasFeature('chasing'))) return
+
   const due = dueChasers(db, day)
   if (due.length === 0) return
 
@@ -144,16 +161,7 @@ function runChaseSweep(
         ? `${due[0]!.invoice.number} · ${amount} · ${due[0]!.daysLate} days late. A note is drafted and waiting.`
         : `${amount} outstanding. The notes are drafted and waiting.`,
     link: '/invoices',
-    /**
-     * Keyed on the day and which invoices, so the same set does not nag every
-     * morning — but a newly-late invoice changes the key and does get raised.
-     * Sorted, because the same set arriving in a different order is the same
-     * set.
-     */
-    dedupeKey: `chase-${day}-${due
-      .map((chase) => chase.invoice.id)
-      .sort((a, b) => a - b)
-      .join('-')}`
+    dedupeKey: chaseDedupeKey(due)
   })
 }
 

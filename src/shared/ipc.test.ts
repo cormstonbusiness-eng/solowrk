@@ -24,6 +24,11 @@ describe('what read-only allows', () => {
       'events:create',
       'ai:send',
       'ai:writeBusinessPlan',
+      // Both advance the chase schedule, which is a write on the invoice. The
+      // names were chosen so this classifier catches them without an entry in
+      // the exceptions set — `record` and `stop` are both writing verbs.
+      'chasing:record',
+      'chasing:stop',
       // Neither name begins with a writing verb, and both create a record.
       'quotes:convert',
       'templates:fromProject'
@@ -43,6 +48,7 @@ describe('what read-only allows', () => {
       'invoices:pdf',
       'quotes:pdf',
       'invoices:chaser',
+      'chasing:due',
       'finance:summary',
       'files:list',
       'files:open',

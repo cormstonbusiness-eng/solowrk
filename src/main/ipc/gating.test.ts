@@ -48,11 +48,39 @@ describe('the assistant', () => {
   })
 })
 
+describe('the chase schedule is Pro, chasing is not', () => {
+  it('gates the automatic schedule', () => {
+    const chasing = IPC_CHANNELS.filter((channel) => channel.startsWith('chasing:'))
+
+    expect(chasing.length).toBeGreaterThan(0)
+    for (const channel of chasing) {
+      expect(gateFor(channel)?.feature).toBe('chasing')
+    }
+  })
+
+  it('leaves the button that chases one invoice by hand alone', () => {
+    // The line the tier is drawn on. Pro sells not having to remember which
+    // invoices have gone quiet; it does not sell the ability to ask for your
+    // own money, and a Basic customer who notices an overdue invoice must be
+    // able to write to their client about it.
+    expect(gateFor('invoices:chaser')).toBeNull()
+  })
+
+  it('gates a scheduling channel that does not exist yet', () => {
+    // Why these live under `chasing:` rather than `invoices:` — the gate is one
+    // rule, and anything added to the feature is covered without an edit here.
+    expect(gateFor('chasing:somethingAddedLater')?.feature).toBe('chasing')
+  })
+})
+
 describe('everything else stays free', () => {
   it('does not gate any other channel', () => {
     const gated = IPC_CHANNELS.filter((channel) => gateFor(channel) !== null)
     const unexpected = gated.filter(
-      (channel) => !channel.startsWith('marketing:') && channel !== 'ai:send'
+      (channel) =>
+        !channel.startsWith('marketing:') &&
+        !channel.startsWith('chasing:') &&
+        channel !== 'ai:send'
     )
 
     expect(unexpected).toEqual([])
@@ -94,7 +122,7 @@ describe('the messages', () => {
     for (const gate of GATES) {
       expect(gate.feature).toBe(gate.feature.trim().toLowerCase())
       expect(gate.feature).not.toContain(',')
-      expect(['assistant', 'marketing']).toContain(gate.feature)
+      expect(['assistant', 'marketing', 'chasing']).toContain(gate.feature)
     }
   })
 })

@@ -10,10 +10,12 @@ import {
   FolderOpen,
   Image as ImageIcon,
   Loader2,
+  Lock,
   TriangleAlert,
   Upload
 } from 'lucide-react'
 import type { BusinessSettings, Settings as SettingsType } from '@shared/types'
+import { DEFAULT_CHASE_DAYS, describeSchedule, parseChaseDays } from '@shared/chasing'
 import { Page } from '@/components/Page'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -26,6 +28,7 @@ import { today as todayString } from '@shared/taxYear'
 import { formatDate } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { useWorkspace } from '@/hooks/useWorkspace'
+import { useFeature } from '@/lib/features'
 import { useTour } from '@/tour/TourProvider'
 
 type Tab = 'business' | 'money' | 'account' | 'assistant' | 'appearance' | 'app'
@@ -306,6 +309,7 @@ export function Settings(): React.JSX.Element {
             </div>
           </div>
         </Card>
+        <ChasingCard draft={draft} set={set} />
             </>}
 
           {tab === 'account' && <AccountCard />}
@@ -365,6 +369,103 @@ export function Settings(): React.JSX.Element {
     </Page>
   )
 }
+
+/**
+ * The chase schedule.
+ *
+ * Off until switched on, and switching it on is a considered act rather than a
+ * default — an app that started drafting notes to a customer's clients because
+ * it was installed would be indefensible, however good the drafts are.
+ *
+ * The hint under the input shows the schedule read back rather than echoing
+ * what was typed, so "30, 7, banana" visibly becomes "Chases 7 days after and
+ * 30 days after" before anyone finds out the hard way. Both sides read it with
+ * the same function.
+ */
+function ChasingCard({
+  draft,
+  set
+}: {
+  draft: SettingsType
+  set: <K extends keyof BusinessSettings>(key: K, value: BusinessSettings[K]) => void
+}): React.JSX.Element {
+  const entitled = useFeature('chasing')
+
+  return (
+    <Card>
+      <CardHeader
+        title="Chasing late invoices"
+        action={
+          !entitled && (
+            <span className="rounded-full border border-line px-2 py-0.5 text-[10.5px] tracking-[0.08em] text-faint uppercase">
+              Pro
+            </span>
+          )
+        }
+      />
+
+      {!entitled ? (
+        <div className="flex gap-3">
+          <Lock size={14} strokeWidth={1.75} className="mt-0.5 shrink-0 text-faint" />
+          <div className="min-w-0">
+            <p className="text-[12.5px] leading-relaxed text-muted">
+              Pro watches your due dates and tells you which invoices have gone quiet, with the
+              note already written. You can still chase any overdue invoice by hand from the
+              Invoices page — that has never been part of the upgrade.
+            </p>
+            <a
+              href="https://solo-wrk.com/pricing"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-block text-[12px] text-accent hover:underline"
+            >
+              See what Pro includes
+            </a>
+          </div>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3.5">
+          <Toggle
+            checked={draft.chaseEnabled}
+            onChange={(checked) => set('chaseEnabled', checked)}
+            label="Tell me when an invoice needs chasing"
+            hint="SoloWrk writes the note and says it is waiting. It never sends anything itself."
+          />
+
+          <AnimatePresence initial={false}>
+            {draft.chaseEnabled && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={transition.page}
+                className="overflow-hidden"
+              >
+                <div className="border-t border-line pt-3.5">
+                  <Field
+                    label="Days past due"
+                    hint={describeSchedule(parseChaseDays(draft.chaseDays))}
+                  >
+                    <TextInput
+                      value={draft.chaseDays}
+                      placeholder={DEFAULT_CHASE_DAYS.join(', ')}
+                      onChange={(e) => set('chaseDays', e.target.value)}
+                    />
+                  </Field>
+                  <p className="mt-2 text-[11px] leading-relaxed text-faint">
+                    Each one is firmer than the last. Nothing is sent, and nothing goes out in
+                    your name that you have not read.
+                  </p>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      )}
+    </Card>
+  )
+}
+
 /**
  * The business logo, shown above the greeting on the dashboard.
  *

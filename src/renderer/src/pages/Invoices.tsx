@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
-import { Copy, FileDown, Mail, Plus, ReceiptText, Repeat, Trash2 } from 'lucide-react'
+import { BellOff, Copy, FileDown, Mail, Plus, ReceiptText, Repeat, Trash2 } from 'lucide-react'
 import type { InvoiceDisplayStatus, InvoiceWithContext, QuoteWithContext } from '@shared/types'
 import { Page } from '@/components/Page'
 import { Card } from '@/components/ui/Card'
@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Empty, Pill } from '@/components/ui/Empty'
 import { useInvalidate } from '@/lib/api'
+import { useFeature } from '@/lib/features'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { describeDue, formatDate, formatMoney } from '@/lib/format'
 import { listItemVariants, listVariants, transition } from '@/lib/motion'
@@ -117,7 +118,7 @@ function InvoiceList({
 }): React.JSX.Element {
   const invalidate = useInvalidate()
   const [statusFilter, setStatusFilter] = useState<string | null>(null)
-  const [chaser, setChaser] = useState<{ subject: string; body: string; to: string } | null>(null)
+  const [chaser, setChaser] = useState<ChaserDraft | null>(null)
   const [deleting, setDeleting] = useState<InvoiceWithContext | null>(null)
 
   const { data: invoices = [] } = useQuery({
@@ -158,6 +159,8 @@ function InvoiceList({
 
   return (
     <>
+      <ChaseQueue onRead={setChaser} />
+
       <div className="mb-3 flex items-center gap-3">
         <Select
           value={statusFilter}
@@ -308,6 +311,121 @@ function InvoiceList({
   )
 }
 
+interface ChaserDraft {
+  subject: string
+  body: string
+  to: string
+  /**
+   * Present only when the draft came from the queue. Acting on it then advances
+   * the schedule; a chaser written by hand from the button on an overdue
+   * invoice does not, because that button is Basic and `chasing:record` is not.
+   */
+  chase?: { id: number; attempt: number }
+}
+
+/**
+ * Invoices that have gone quiet, with the note already written.
+ *
+ * Above the list rather than folded into it, because a filter someone has to
+ * remember to apply is a filter nobody applies — and this is the one thing on
+ * the page that is asking for a decision rather than reporting a fact. It
+ * disappears entirely when there is nothing to chase, which is most days.
+ */
+function ChaseQueue({ onRead }: { onRead: (draft: ChaserDraft) => void }): React.JSX.Element | null {
+  const invalidate = useInvalidate()
+  const entitled = useFeature('chasing')
+
+  const { data: chases = [] } = useQuery({
+    // Under the invoices key so marking one chased, or paid, refreshes both
+    // without anybody having to name this list at the call site.
+    queryKey: ['invoices', 'chases'],
+    queryFn: () => window.solo.invoke('chasing:due'),
+    enabled: entitled
+  })
+
+  const stop = useMutation({
+    mutationFn: (id: number) => window.solo.invoke('chasing:stop', { id }),
+    onSuccess: () => invalidate(['invoices'])
+  })
+
+  if (chases.length === 0) return null
+
+  const total = chases.reduce((sum, chase) => sum + chase.invoice.gross, 0)
+
+  return (
+    <Card className="mb-3 border-danger/30 bg-danger/[0.04]">
+      <div className="mb-2.5 flex items-baseline justify-between gap-3">
+        <h2 className="text-[13px] font-medium text-ink">
+          {chases.length === 1 ? 'One invoice needs chasing' : `${chases.length} invoices need chasing`}
+        </h2>
+        <span className="numeric text-[12px] text-danger">{formatMoney(total)} outstanding</span>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        {chases.map((chase) => (
+          <div
+            key={chase.invoice.id}
+            className="flex items-center justify-between gap-4 rounded-control bg-surface px-3 py-2"
+          >
+            <div className="min-w-0">
+              <p className="truncate text-[13px] text-ink">
+                <span className="numeric">{chase.invoice.number}</span>
+                <span className="text-faint"> · {chase.invoice.clientName ?? 'No client'}</span>
+              </p>
+              <p className="text-[11.5px] text-faint">
+                <span className="text-danger">
+                  {chase.daysLate} day{chase.daysLate === 1 ? '' : 's'} late
+                </span>
+                {' · '}
+                {formatMoney(chase.invoice.gross, { pennies: true })}
+                {' · '}
+                {chase.attempts > 1 ? `note ${chase.attempt} of ${chase.attempts}` : 'note ready'}
+              </p>
+            </div>
+
+            <div className="flex shrink-0 items-center gap-1">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() =>
+                  void window.solo
+                    .invoke('invoices:chaser', {
+                      id: chase.invoice.id,
+                      attempt: chase.attempt
+                    })
+                    .then((draft) =>
+                      onRead({
+                        ...draft,
+                        chase: { id: chase.invoice.id, attempt: chase.attempt }
+                      })
+                    )
+                }
+              >
+                <Mail size={13} strokeWidth={1.75} />
+                Read the note
+              </Button>
+              <button
+                type="button"
+                aria-label={`Stop chasing ${chase.invoice.number}`}
+                title="Stop chasing this one"
+                onClick={() => stop.mutate(chase.invoice.id)}
+                className="rounded-control p-1.5 text-faint hover:bg-hover hover:text-ink"
+              >
+                <BellOff size={13} strokeWidth={1.75} />
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <p className="mt-2.5 text-[11px] text-faint">
+        Nothing is sent for you. Reading a note and sending it marks the invoice chased; the bell
+        stops this one without marking it paid.
+      </p>
+    </Card>
+  )
+}
+
 /**
  * A chase email drafted for the user to read, edit and send. SoloWrk never sends
  * it — an email to a client in someone's name is not a decision to automate.
@@ -316,10 +434,27 @@ function ChaserModal({
   chaser,
   onClose
 }: {
-  chaser: { subject: string; body: string; to: string } | null
+  chaser: ChaserDraft | null
   onClose: () => void
 }): React.JSX.Element {
+  const invalidate = useInvalidate()
   const [copied, setCopied] = useState(false)
+
+  /**
+   * Recorded when the note is taken away to be sent, not when it was drafted —
+   * a draft nobody read has not chased anybody, and marking it done at that
+   * point would let the next milestone silently replace one never sent.
+   */
+  const record = (draft: ChaserDraft): void => {
+    if (!draft.chase) return
+    void window.solo
+      .invoke('chasing:record', draft.chase)
+      .then(() => invalidate(['invoices']))
+      // Refusing here means a licence lapsed between opening the draft and
+      // sending it. The note is still perfectly good; say nothing and let the
+      // read-only bar do the explaining.
+      .catch(() => undefined)
+  }
 
   return (
     <Modal
@@ -336,7 +471,9 @@ function ChaserModal({
           <Button
             variant="secondary"
             onClick={() => {
-              void navigator.clipboard.writeText(chaser?.body ?? '')
+              if (!chaser) return
+              void navigator.clipboard.writeText(chaser.body)
+              record(chaser)
               setCopied(true)
               setTimeout(() => setCopied(false), 2000)
             }}
@@ -346,14 +483,15 @@ function ChaserModal({
           </Button>
           <Button
             variant="primary"
-            onClick={() =>
-              chaser &&
+            onClick={() => {
+              if (!chaser) return
               void window.solo.invoke('shell:mailto', {
                 to: chaser.to,
                 subject: chaser.subject,
                 body: chaser.body
               })
-            }
+              record(chaser)
+            }}
             disabled={!chaser?.to}
           >
             <Mail size={13} strokeWidth={1.75} />

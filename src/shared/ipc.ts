@@ -294,16 +294,25 @@ export interface IpcContract {
     req: { id: number; attempt?: number }
     res: { subject: string; body: string; to: string }
   }
+  /**
+   * The automatic schedule, which is Pro. Under its own prefix rather than
+   * `invoices:` so the feature gate is one rule that catches whatever is added
+   * to it later — `invoices:chaser`, the button pressed by hand, stays Basic
+   * and stays where it is.
+   *
+   * The names carry their read-only classification: `due` reads, `record` and
+   * `stop` match write verbs and are refused on a lapsed licence.
+   */
   /** Overdue invoices that have crossed a milestone and have a note waiting. */
-  'invoices:chasesDue': { req: void; res: DueChase[] }
+  'chasing:due': { req: void; res: DueChase[] }
   /**
    * Records that a chaser was acted on, so the next milestone is the next one
    * raised. Deliberately not called when the draft is written — a note nobody
    * read has not chased anybody.
    */
-  'invoices:markChased': { req: { id: number; attempt: number }; res: void }
+  'chasing:record': { req: { id: number; attempt: number }; res: void }
   /** Stop chasing this invoice without marking it paid. */
-  'invoices:stopChasing': { req: { id: number }; res: void }
+  'chasing:stop': { req: { id: number }; res: void }
 
   'quotes:list': { req: { status?: QuoteStatus } | void; res: QuoteWithContext[] }
   'quotes:get': { req: { id: number }; res: QuoteWithContext }
@@ -537,9 +546,9 @@ export const IPC_CHANNELS = [
   'invoices:pdf',
   'invoices:overdue',
   'invoices:chaser',
-  'invoices:chasesDue',
-  'invoices:markChased',
-  'invoices:stopChasing',
+  'chasing:due',
+  'chasing:record',
+  'chasing:stop',
   'quotes:list',
   'quotes:get',
   'quotes:create',

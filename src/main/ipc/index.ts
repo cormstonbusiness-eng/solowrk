@@ -378,13 +378,13 @@ const handlers: Handlers = {
     return draftChaser(db, id, next)
   },
 
-  'invoices:chasesDue': () => dueChasers(session.requireDb()),
+  'chasing:due': () => dueChasers(session.requireDb()),
 
-  'invoices:markChased': (_g, { id, attempt }) => {
+  'chasing:record': (_g, { id, attempt }) => {
     markChased(session.requireDb(), id, attempt)
   },
 
-  'invoices:stopChasing': (_g, { id }) => {
+  'chasing:stop': (_g, { id }) => {
     stopChasing(session.requireDb(), id)
   },
 

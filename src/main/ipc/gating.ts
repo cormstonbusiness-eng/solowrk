@@ -34,6 +34,20 @@ export const GATES: Gate[] = [
       'Marketing is part of SoloWrk Pro. Upgrade at solo-wrk.com/account and it appears here.'
   },
   {
+    /**
+     * The schedule that runs itself, not the act of chasing.
+     *
+     * `invoices:chaser` — the button on an overdue invoice that writes one note
+     * on demand — is deliberately outside this prefix and stays in Basic.
+     * Selling somebody the ability to ask for their own money would be
+     * indefensible; what Pro buys is not having to remember.
+     */
+    prefix: 'chasing:',
+    feature: 'chasing',
+    message:
+      'The automatic chaser schedule is part of SoloWrk Pro. Upgrade at solo-wrk.com/account to switch it on. You can still chase any overdue invoice by hand.'
+  },
+  {
     // Only sending. The rest of `ai:*` is the business plan and the status the
     // upsell panel reads, both of which Basic keeps.
     prefix: 'ai:send',

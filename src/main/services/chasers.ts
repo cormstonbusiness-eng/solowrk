@@ -1,5 +1,6 @@
 import type { Database } from '../db'
 import type { DueChase, Settings } from '@shared/types'
+import { parseChaseDays } from '@shared/chasing'
 import { today } from '@shared/taxYear'
 import { getClient } from './clients'
 import { getInvoice, overdueInvoices } from './invoices'
@@ -18,20 +19,13 @@ import { getSettings } from './settings'
  * is uncomfortable and easy to defer, not because the words are hard.
  */
 
-/** Days past due at which to raise each chaser, if the user has not set their own. */
-export const DEFAULT_CHASE_DAYS = [7, 14, 30]
-
+/**
+ * The milestones this workspace chases on. The parsing lives in
+ * `@shared/chasing` so the Settings preview reads the schedule the same way
+ * the sweep does.
+ */
 export function chaseSchedule(settings: Settings): number[] {
-  const parsed = (settings.chaseDays ?? '')
-    .split(',')
-    .map((part) => Number.parseInt(part.trim(), 10))
-    .filter((day) => Number.isFinite(day) && day >= 0)
-
-  // Sorted and de-duplicated, so a schedule typed as "14,7,7" still means what
-  // the person meant. Falling back rather than failing: a schedule someone has
-  // mangled by hand should chase sensibly, not stop chasing.
-  const unique = [...new Set(parsed)].sort((a, b) => a - b)
-  return unique.length > 0 ? unique : DEFAULT_CHASE_DAYS
+  return parseChaseDays(settings.chaseDays)
 }
 
 function daysBetween(from: string, to: string): number {
@@ -72,6 +66,27 @@ export function dueChasers(db: Database, asOf = today()): DueChase[] {
       return { invoice, daysLate, attempt: reached, attempts: schedule.length }
     })
     .filter((chase): chase is DueChase => chase !== null)
+}
+
+/**
+ * The key that stops the morning sweep becoming a morning nag.
+ *
+ * Keyed on which invoices and how far along each one is — deliberately *not*
+ * on the date. `notify` dedupes against every notification ever raised, so a
+ * key containing today's date is unique every morning and would announce the
+ * same unchanged set of overdue invoices daily until the user turned the
+ * feature off. Nothing about the situation has changed, so there is nothing to
+ * say.
+ *
+ * What does change the key, and so does get raised: an invoice reaching the
+ * next milestone, and an invoice going late for the first time. Sorted by id,
+ * because the same set arriving in a different order is the same set.
+ */
+export function chaseDedupeKey(due: DueChase[]): string {
+  return `chase-${[...due]
+    .sort((a, b) => a.invoice.id - b.invoice.id)
+    .map((chase) => `${chase.invoice.id}:${chase.attempt}`)
+    .join('-')}`
 }
 
 /**
