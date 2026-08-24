@@ -1,5 +1,6 @@
 import type { BrowserWindow } from 'electron'
 import { addDays, dayOf, nowStamp, timeOf } from '@shared/calendar'
+import { dueChasers } from './chasers'
 import { dueReminders, markReminded } from './events'
 import { listDueTasks } from './tasks'
 import { session } from './session'
@@ -96,15 +97,63 @@ function runDigest(getWindow: () => BrowserWindow | null, now: Date): void {
   }
 
   // Nothing to say is a perfectly good outcome; say nothing.
-  if (lines.length === 0) return
+  if (lines.length > 0) {
+    push(db, getWindow, {
+      kind: overdueTasks.length > 0 ? 'late' : 'due',
+      title: overdueTasks.length > 0 ? 'Some things are late' : 'Today’s deadlines',
+      body: lines.join(' · '),
+      link: '/tasks',
+      // One digest per day, whatever else happens.
+      dedupeKey: `digest-${day}`
+    })
+  }
+
+  runChaseSweep(getWindow, db, day)
+}
+
+/**
+ * The morning look at what is owed.
+ *
+ * Separate from the deadline digest above because it is a different kind of
+ * news and goes to a different page — a task being late and three thousand
+ * pounds being late should not share a sentence.
+ *
+ * Raises one notification for the batch, not one per invoice. Nine separate
+ * alerts about money is a bad morning, and the point is to prompt one sitting
+ * of chasing rather than to be a running commentary on being owed.
+ *
+ * Nothing is sent here. The drafts wait on the Invoices page until the user
+ * reads them.
+ */
+function runChaseSweep(
+  getWindow: () => BrowserWindow | null,
+  db: ReturnType<typeof session.requireDb>,
+  day: string
+): void {
+  const due = dueChasers(db, day)
+  if (due.length === 0) return
+
+  const total = due.reduce((sum, chase) => sum + chase.invoice.gross, 0)
+  const amount = `£${(total / 100).toLocaleString('en-GB', { maximumFractionDigits: 0 })}`
 
   push(db, getWindow, {
-    kind: overdueTasks.length > 0 ? 'late' : 'due',
-    title: overdueTasks.length > 0 ? 'Some things are late' : 'Today’s deadlines',
-    body: lines.join(' · '),
-    link: '/tasks',
-    // One digest per day, whatever else happens.
-    dedupeKey: `digest-${day}`
+    kind: 'late',
+    title: due.length === 1 ? 'An invoice needs chasing' : `${due.length} invoices need chasing`,
+    body:
+      due.length === 1
+        ? `${due[0]!.invoice.number} · ${amount} · ${due[0]!.daysLate} days late. A note is drafted and waiting.`
+        : `${amount} outstanding. The notes are drafted and waiting.`,
+    link: '/invoices',
+    /**
+     * Keyed on the day and which invoices, so the same set does not nag every
+     * morning — but a newly-late invoice changes the key and does get raised.
+     * Sorted, because the same set arriving in a different order is the same
+     * set.
+     */
+    dedupeKey: `chase-${day}-${due
+      .map((chase) => chase.invoice.id)
+      .sort((a, b) => a - b)
+      .join('-')}`
   })
 }
 

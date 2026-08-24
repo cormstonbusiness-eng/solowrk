@@ -755,5 +755,33 @@ export const migrations: Migration[] = [
 
       CREATE INDEX idx_goals_status ON goals(status);
     `
+  },
+  {
+    id: 15,
+    name: 'invoice_chasing',
+    sql: `
+      -- Chasing is off until it is asked for. An app that starts emailing a
+      -- customer's clients because it was installed would be indefensible,
+      -- however good the drafts are.
+      ALTER TABLE settings ADD COLUMN chase_enabled INTEGER NOT NULL DEFAULT 0;
+
+      -- Days past due at which to raise a chaser, comma-separated. Three
+      -- attempts is the shape most freelancers describe: a nudge, a firmer
+      -- note, and a last word before it becomes a phone call.
+      ALTER TABLE settings ADD COLUMN chase_days TEXT NOT NULL DEFAULT '7,14,30';
+
+      -- How far along the schedule this invoice has been chased, and when.
+      -- Kept on the invoice rather than in a chase_log table: there is one
+      -- number worth knowing per invoice, and a table would be a history
+      -- nobody reads guarding a value nobody disputes.
+      --
+      -- Step is an index into chase_days, so raising the schedule from three
+      -- steps to four does not re-chase everything already at step 3.
+      ALTER TABLE invoices ADD COLUMN chase_step     INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE invoices ADD COLUMN last_chased_at TEXT;
+
+      -- The sweep asks for unpaid invoices past their due date every morning.
+      CREATE INDEX idx_invoices_chasing ON invoices(status, paid_at, due_date);
+    `
   }
 ]

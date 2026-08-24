@@ -9,6 +9,13 @@ import {
 } from 'electron'
 import { allowedWhenReadOnly, type IpcChannel, type IpcContract } from '@shared/ipc'
 import { gateFor } from './gating'
+import {
+  chaseSchedule,
+  draftChaser,
+  dueChasers,
+  markChased,
+  stopChasing
+} from '../services/chasers'
 import { readWindowState } from './window'
 import { session } from '../services/session'
 import { suggestedWorkspacePath } from '../services/config'
@@ -363,9 +370,22 @@ const handlers: Handlers = {
     return path
   },
 
-  'invoices:chaser': (_g, { id }) => {
+  'invoices:chaser': (_g, { id, attempt }) => {
     const db = session.requireDb()
-    return draftChaser(db, id)
+    // Without an explicit attempt, this is the button being pressed by hand:
+    // draft the next note actually due rather than always the gentlest one.
+    const next = attempt ?? nextAttemptFor(db, id)
+    return draftChaser(db, id, next)
+  },
+
+  'invoices:chasesDue': () => dueChasers(session.requireDb()),
+
+  'invoices:markChased': (_g, { id, attempt }) => {
+    markChased(session.requireDb(), id, attempt)
+  },
+
+  'invoices:stopChasing': (_g, { id }) => {
+    stopChasing(session.requireDb(), id)
   },
 
   'quotes:list': (_g, filter) => listQuotes(session.requireDb(), filter ?? {}),
@@ -601,48 +621,16 @@ const handlers: Handlers = {
 }
 
 /**
- * A chase email the user can read, edit and send themselves. SoloWrk drafts it
- * rather than sending it: an automated email to a client, in the user's name,
- * is not a decision to take on their behalf.
+ * Which note the manual button should write.
+ *
+ * One past whatever has already been sent, capped at the end of the schedule,
+ * so pressing it twice in a morning does not produce the same words twice — and
+ * the firmest register keeps applying however long it drags on.
  */
-function draftChaser(
-  db: ReturnType<typeof session.requireDb>,
-  id: number
-): { subject: string; body: string; to: string } {
+function nextAttemptFor(db: ReturnType<typeof session.requireDb>, id: number): number {
   const invoice = getInvoice(db, id)
-  const settings = getSettings(db)
-  const client = invoice.clientId ? getClient(db, invoice.clientId) : null
-
-  const daysLate = Math.max(
-    0,
-    Math.round((Date.now() - new Date(invoice.dueDate).getTime()) / 86_400_000)
-  )
-  const amount = `£${(invoice.gross / 100).toLocaleString('en-GB', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })}`
-
-  return {
-    to: client?.email ?? '',
-    subject: `Invoice ${invoice.number} — payment overdue`,
-    body: [
-      `Hi ${client?.contactName || client?.name || 'there'},`,
-      '',
-      `I hope you are well. Invoice ${invoice.number} for ${amount} was due on ` +
-        `${new Date(invoice.dueDate).toLocaleDateString('en-GB', {
-          day: 'numeric',
-          month: 'long',
-          year: 'numeric'
-        })}` +
-        `${daysLate > 0 ? `, which is ${daysLate} day${daysLate === 1 ? '' : 's'} ago` : ''}.`,
-      '',
-      'Could you let me know when I can expect payment? If it has already been sent,',
-      'please ignore this note and accept my apologies.',
-      '',
-      'Many thanks,',
-      settings.contactName || settings.businessName
-    ].join('\n')
-  }
+  const steps = chaseSchedule(getSettings(db)).length
+  return Math.min(invoice.chaseStep + 1, Math.max(steps, 1))
 }
 
 /**

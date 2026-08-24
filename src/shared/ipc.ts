@@ -39,6 +39,7 @@ import type {
   EventInput,
   DocumentInput,
   DocumentRecord,
+  DueChase,
   ExpenseInput,
   ExpenseWithContext,
   FileEntry,
@@ -282,8 +283,27 @@ export interface IpcContract {
   /** Renders the PDF into the workspace and returns its relative path. */
   'invoices:pdf': { req: { id: number }; res: string }
   'invoices:overdue': { req: void; res: InvoiceWithContext[] }
-  /** Pre-drafted chase email for an overdue invoice. */
-  'invoices:chaser': { req: { id: number }; res: { subject: string; body: string; to: string } }
+  /**
+   * Pre-drafted chase email for an overdue invoice.
+   *
+   * `attempt` picks the register: a nudge, a firmer note, or a last word. The
+   * sweep passes the milestone the invoice has actually reached; a user
+   * pressing the button by hand gets the next one due.
+   */
+  'invoices:chaser': {
+    req: { id: number; attempt?: number }
+    res: { subject: string; body: string; to: string }
+  }
+  /** Overdue invoices that have crossed a milestone and have a note waiting. */
+  'invoices:chasesDue': { req: void; res: DueChase[] }
+  /**
+   * Records that a chaser was acted on, so the next milestone is the next one
+   * raised. Deliberately not called when the draft is written — a note nobody
+   * read has not chased anybody.
+   */
+  'invoices:markChased': { req: { id: number; attempt: number }; res: void }
+  /** Stop chasing this invoice without marking it paid. */
+  'invoices:stopChasing': { req: { id: number }; res: void }
 
   'quotes:list': { req: { status?: QuoteStatus } | void; res: QuoteWithContext[] }
   'quotes:get': { req: { id: number }; res: QuoteWithContext }
@@ -517,6 +537,9 @@ export const IPC_CHANNELS = [
   'invoices:pdf',
   'invoices:overdue',
   'invoices:chaser',
+  'invoices:chasesDue',
+  'invoices:markChased',
+  'invoices:stopChasing',
   'quotes:list',
   'quotes:get',
   'quotes:create',

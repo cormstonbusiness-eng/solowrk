@@ -33,6 +33,8 @@ interface SettingsRow extends Row {
   business_plan_file: string
   business_plan_text: string
   business_plan_read_at: string | null
+  chase_enabled: number
+  chase_days: string
   created_at: string
   updated_at: string
 }
@@ -61,6 +63,8 @@ function toSettings(row: SettingsRow): Settings {
     nextInvoiceNumber: row.next_invoice_number,
     quotePrefix: row.quote_prefix,
     nextQuoteNumber: row.next_quote_number,
+    chaseEnabled: row.chase_enabled === 1,
+    chaseDays: row.chase_days,
     logoFile: row.logo_file,
     businessPlanFile: row.business_plan_file,
     createdAt: row.created_at,
@@ -94,6 +98,8 @@ const COLUMNS: {
   nextInvoiceNumber: { column: 'next_invoice_number', toDb: Number },
   quotePrefix: { column: 'quote_prefix', toDb: String },
   nextQuoteNumber: { column: 'next_quote_number', toDb: Number },
+  chaseEnabled: { column: 'chase_enabled', toDb: (value: unknown) => (value ? 1 : 0) },
+  chaseDays: { column: 'chase_days', toDb: String },
   logoFile: { column: 'logo_file', toDb: String },
   businessPlanFile: { column: 'business_plan_file', toDb: String }
 }

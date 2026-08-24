@@ -52,6 +52,15 @@ export interface BusinessSettings {
 
   /** Workspace-relative path to the attached business plan document. */
   businessPlanFile: string
+
+  /**
+   * Whether to raise chasers for overdue invoices. Off until asked for — an
+   * app that started drafting notes to a customer's clients because it was
+   * installed would be indefensible, however good the drafts are.
+   */
+  chaseEnabled: boolean
+  /** Days past due at which to raise each chaser, comma-separated. */
+  chaseDays: string
 }
 
 /** The attached business plan, as the Settings page sees it. */
@@ -99,6 +108,21 @@ export interface WorkspaceSetup {
     | 'defaultHourlyRate'
     | 'paymentTermsDays'
   >
+}
+
+/**
+ * An overdue invoice that has crossed a milestone in the chase schedule and
+ * has a note waiting. Lives here rather than beside the service so the
+ * renderer can name it without importing anything from the main process.
+ */
+export interface DueChase {
+  invoice: InvoiceWithContext
+  /** How many days past its due date, today. */
+  daysLate: number
+  /** Which attempt this would be, counting from 1. */
+  attempt: number
+  /** The total in the schedule, so the UI can say "2 of 3". */
+  attempts: number
 }
 
 export type WorkspaceStatus =
@@ -629,6 +653,12 @@ export interface Invoice {
   recurrence: Recurrence
   nextIssueOn: string | null
   parentInvoiceId: number | null
+  /**
+   * How far along the chase schedule this invoice has been taken, as an index
+   * into the user's `chaseDays`. Zero means never chased.
+   */
+  chaseStep: number
+  lastChasedAt: string | null
   createdAt: string
   updatedAt: string
 }

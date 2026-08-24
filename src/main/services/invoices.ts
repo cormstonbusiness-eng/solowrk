@@ -31,6 +31,8 @@ interface InvoiceRow extends Row {
   recurrence: string
   next_issue_on: string | null
   parent_invoice_id: number | null
+  chase_step: number
+  last_chased_at: string | null
   created_at: string
   updated_at: string
 }
@@ -77,6 +79,8 @@ function toInvoice(row: InvoiceRow): Invoice {
     pdfPath: row.pdf_path,
     recurrence: row.recurrence as Recurrence,
     nextIssueOn: row.next_issue_on,
+    chaseStep: row.chase_step,
+    lastChasedAt: row.last_chased_at,
     parentInvoiceId: row.parent_invoice_id,
     createdAt: row.created_at,
     updatedAt: row.updated_at
