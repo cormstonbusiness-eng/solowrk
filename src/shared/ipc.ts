@@ -35,6 +35,7 @@ import type {
   SocialAccount,
   Client,
   ClientInput,
+  ClientProfitability,
   ClientTotal,
   EventInput,
   DocumentInput,
@@ -66,6 +67,7 @@ import type {
   TaskInput,
   TaskStatus,
   TaskWithContext,
+  TaxPosition,
   Template,
   WorkspaceSetup,
   WorkspaceStatus,
@@ -401,6 +403,13 @@ export interface IpcContract {
    * rather than four, because it is one screen and they arrive together.
    */
   'dashboard:trends': { req: void; res: DashboardTrends }
+  /**
+   * Estimated income tax and Class 4 NI for the current tax year, and whether
+   * the set-aside rate will cover it.
+   */
+  'finance:tax': { req: void; res: TaxPosition }
+  /** Effective hourly rate per client — invoiced against hours tracked. */
+  'finance:clientRates': { req: void; res: ClientProfitability[] }
   'finance:profitability': {
     req: void
     res: {
@@ -625,6 +634,8 @@ export const IPC_CHANNELS = [
   'finance:summary',
   'finance:series',
   'finance:topClients',
+  'finance:tax',
+  'finance:clientRates',
   'dashboard:trends',
   'finance:profitability',
   'events:list',

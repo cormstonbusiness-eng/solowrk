@@ -95,7 +95,14 @@ import {
   listExpenses,
   updateExpense
 } from '../services/expenses'
-import { projectProfitability, series, summary, topClients } from '../services/finance'
+import {
+  clientProfitability,
+  projectProfitability,
+  series,
+  summary,
+  taxPosition,
+  topClients
+} from '../services/finance'
 import {
   createEvent,
   deleteEvent,
@@ -465,6 +472,10 @@ const handlers: Handlers = {
       getSettings(db)
     )
   },
+
+  'finance:tax': () => taxPosition(session.requireDb()),
+
+  'finance:clientRates': () => clientProfitability(session.requireDb()),
 
   'dashboard:trends': () => trends(session.requireDb()),
 

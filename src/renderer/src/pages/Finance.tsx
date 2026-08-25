@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis
 } from 'recharts'
-import { Plus, Receipt, Trash2 } from 'lucide-react'
+import { Plus, Receipt, TriangleAlert, Trash2 } from 'lucide-react'
 import type { ExpenseInput, ExpenseWithContext } from '@shared/types'
 import { EXPENSE_CATEGORIES } from '@shared/types'
 import type { Period } from '@shared/taxYear'
@@ -225,6 +225,10 @@ function Overview({ period }: { period: Period }): React.JSX.Element {
           </div>
         )}
       </Card>
+
+      <TaxCard />
+
+      <ClientRates />
 
       <div className="mt-3 grid grid-cols-2 gap-3">
         <Card>
@@ -555,3 +559,177 @@ function ExpenseModal({
 }
 
 export type { ExpenseWithContext }
+/**
+ * What the tax bill is going to be, and whether the set-aside will cover it.
+ *
+ * The app used to say "set aside 30%", which is what people are told in the
+ * pub. It is wrong in both directions and expensively so: far too high on a
+ * thirty-thousand-pound year, and badly too low the moment profit crosses into
+ * the higher band. This works the actual bands and says which way it is out.
+ *
+ * The shortfall is the whole feature. Everything else is context for it.
+ */
+function TaxCard(): React.JSX.Element | null {
+  const { data: tax } = useQuery({
+    queryKey: ['finance', 'tax'],
+    queryFn: () => window.solo.invoke('finance:tax')
+  })
+
+  // Nothing useful to say before there is a profit — and a card announcing a
+  // £0 tax bill on a workspace opened this morning is noise.
+  if (!tax || tax.profit <= 0) return null
+
+  return (
+    <div className="mt-3">
+      <Card>
+        <CardHeader
+          title={`Tax set-aside · ${tax.taxYearLabel}`}
+          action={
+            <span className="type-meta text-faint">{tax.rulesLabel} rates</span>
+          }
+        />
+
+        <div className="grid grid-cols-4 gap-4">
+          <Figure label="Profit so far" value={formatMoney(tax.profit)} />
+          <Figure label="Income tax" value={formatMoney(tax.incomeTax)} />
+          <Figure label="Class 4 NI" value={formatMoney(tax.nationalInsurance)} />
+          <Figure label="Estimated bill" value={formatMoney(tax.total)} strong />
+        </div>
+
+        <div className="mt-4 border-t border-line pt-3.5">
+          {tax.enough ? (
+            <p className="text-[12.5px] text-success">
+              Setting aside {tax.currentPercent}% covers it, with{' '}
+              <span className="numeric">{formatMoney(tax.held - tax.total)}</span> to spare.
+            </p>
+          ) : (
+            <p className="flex items-start gap-2 text-[12.5px] text-warning">
+              <TriangleAlert size={14} strokeWidth={1.5} className="mt-0.5 shrink-0" />
+              <span>
+                Setting aside {tax.currentPercent}% leaves you{' '}
+                <span className="numeric font-semibold">{formatMoney(tax.shortfall)}</span> short.
+                Raise it to <strong>{tax.recommendedPercent}%</strong> in Settings.
+              </span>
+            </p>
+          )}
+
+          <p className="type-meta mt-2 leading-relaxed text-faint">
+            The next pound of profit is taxed at {Math.round(tax.marginalPercent)}%. An estimate
+            of income tax and Class 4 National Insurance on trading profit only — no employment
+            income, dividends, student loan or payments on account. For deciding what to move
+            into savings, not for filing.
+          </p>
+        </div>
+      </Card>
+    </div>
+  )
+}
+
+function Figure({
+  label,
+  value,
+  strong
+}: {
+  label: string
+  value: string
+  strong?: boolean
+}): React.JSX.Element {
+  return (
+    <div>
+      <p className="type-label mb-1 text-faint">{label}</p>
+      <p className={strong ? 'numeric text-[19px] font-semibold text-ink' : 'numeric text-[19px] text-muted'}>
+        {value}
+      </p>
+    </div>
+  )
+}
+
+/**
+ * What each client actually pays per hour, against what the user thinks they
+ * charge.
+ *
+ * The comparison is the point. "£38 an hour" on its own is a number; "£38 an
+ * hour against your £60 rate" is a decision about whether to keep working for
+ * them. Freelancers consistently underprice and have no visibility of it,
+ * because nothing else in the app — or in most apps — joins the invoice to the
+ * hours.
+ *
+ * Deliberately uncomfortable, and deliberately quiet about it: the low ones
+ * are marked, not scolded.
+ */
+function ClientRates(): React.JSX.Element | null {
+  const { data: rates = [] } = useQuery({
+    queryKey: ['finance', 'clientRates'],
+    queryFn: () => window.solo.invoke('finance:clientRates')
+  })
+
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => window.solo.invoke('settings:get')
+  })
+
+  // Only clients with hours against them can have a rate, and a table of
+  // dashes teaches nobody anything.
+  const measured = rates.filter((client) => client.effectiveRate !== null)
+  if (measured.length === 0) return null
+
+  const target = settings?.defaultHourlyRate ?? 0
+
+  return (
+    <div className="mt-3">
+      <Card>
+        <CardHeader
+          title="What clients actually pay, per hour"
+          action={
+            target > 0 && (
+              <span className="type-meta text-faint">
+                your rate {formatMoney(target)}/h
+              </span>
+            )
+          }
+        />
+
+        <div className="flex flex-col gap-1.5">
+          {measured.map((client) => {
+            const rate = client.effectiveRate!
+            const under = target > 0 && rate < target
+            // A tenth under is noise on a fixed-price job; a third under is a
+            // pattern, and the difference is worth drawing.
+            const badly = target > 0 && rate < target * 0.7
+
+            return (
+              <div
+                key={client.clientId}
+                className="flex items-center gap-3 rounded-control bg-raised px-3 py-2"
+              >
+                <Dot colour={client.colour} />
+                <span className="min-w-0 flex-1 truncate text-[13px] text-ink">
+                  {client.clientName}
+                </span>
+                <span className="numeric shrink-0 text-[11.5px] text-faint">
+                  {client.hours.toFixed(1)}h
+                </span>
+                <span className="numeric w-[90px] shrink-0 text-right text-[11.5px] text-faint">
+                  {formatMoney(client.invoiced)}
+                </span>
+                <span
+                  className={cn(
+                    'numeric w-[86px] shrink-0 text-right text-[13.5px] font-medium',
+                    badly ? 'text-danger' : under ? 'text-warning' : 'text-success'
+                  )}
+                >
+                  {formatMoney(rate)}/h
+                </span>
+              </div>
+            )
+          })}
+        </div>
+
+        <p className="type-meta mt-3 leading-relaxed text-faint">
+          Everything invoiced to a client, divided by every hour tracked against their projects —
+          billable or not, because an hour spent on a client is an hour spent on that client.
+        </p>
+      </Card>
+    </div>
+  )
+}

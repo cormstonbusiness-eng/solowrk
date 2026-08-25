@@ -1,6 +1,9 @@
 import type { Database, Row } from '../db'
 import type { ClientTotal, FinancePoint, FinanceSummary, Pence } from '@shared/types'
 import { secondsToHours, taxSetAside, timeValue } from '@shared/money'
+import { UK_BANDS_2025_26, estimateTax, setAsideShortfall } from '@shared/tax'
+import { currentTaxYear } from '@shared/taxYear'
+import type { ClientProfitability, TaxPosition } from '@shared/types'
 import { today } from '@shared/taxYear'
 import { getSettings } from './settings'
 
@@ -198,4 +201,95 @@ export function projectProfitability(db: Database): {
         hours: secondsToHours(entries.reduce((sum, entry) => sum + entry.duration, 0))
       }
     })
+}
+
+/**
+ * Where the user stands with HMRC, this tax year.
+ *
+ * Deliberately its own call rather than part of `summary`: the estimate only
+ * means anything over a whole tax year, and the summary answers for whatever
+ * period is on screen. Folding one into the other would produce a "tax due"
+ * figure for a Tuesday.
+ *
+ * Profit is measured on the cash basis, matching how the app counts income
+ * everywhere else — what was received, not what was invoiced.
+ */
+export function taxPosition(db: Database, rules = UK_BANDS_2025_26): TaxPosition {
+  const settings = getSettings(db)
+  const year = currentTaxYear()
+
+  const totals = summary(db, { from: year.start, to: year.end, label: year.label })
+  const estimate = estimateTax(totals.profit, rules)
+  const { held, shortfall, enough } = setAsideShortfall(estimate, settings.taxSetAsidePercent)
+
+  return {
+    taxYearLabel: year.label,
+    rulesLabel: rules.label,
+    profit: totals.profit,
+    allowance: estimate.allowance,
+    incomeTax: estimate.incomeTax,
+    nationalInsurance: estimate.nationalInsurance,
+    total: estimate.total,
+    recommendedPercent: estimate.recommendedPercent,
+    marginalPercent: estimate.marginalPercent,
+    currentPercent: settings.taxSetAsidePercent,
+    held,
+    shortfall,
+    enough
+  }
+}
+
+/**
+ * What each client actually pays, per hour.
+ *
+ * The uncomfortable number. A freelancer quotes £60 an hour, agrees a fixed
+ * price, spends longer than they meant to, and never works out that the job
+ * came in at £38 — because nothing anywhere joins the invoice to the hours.
+ * This does, per client, which is the level at which the decision gets made:
+ * you do not drop a project, you drop a client.
+ *
+ * Hours are every tracked hour against the client's projects whether billable
+ * or not, deliberately. Unbillable hours spent on a client are still hours
+ * spent on that client, and excluding them would flatter exactly the accounts
+ * that most need looking at.
+ */
+export function clientProfitability(db: Database): ClientProfitability[] {
+  return db
+    .all<Row & { id: number; name: string; colour: string; invoiced: number | null }>(
+      `SELECT c.id, c.name, c.colour,
+              (SELECT SUM(gross) FROM invoices i
+                WHERE i.client_id = c.id AND i.status != 'cancelled') AS invoiced
+         FROM clients c
+        WHERE c.archived = 0
+        ORDER BY invoiced DESC NULLS LAST`
+    )
+    .map((row) => {
+      const seconds =
+        db.get<Row & { total: number | null }>(
+          `SELECT SUM(t.duration) AS total
+             FROM time_entries t
+             JOIN projects p ON p.id = t.project_id
+            WHERE p.client_id = ? AND t.ended_at IS NOT NULL`,
+          [row.id]
+        )?.total ?? 0
+
+      const hours = secondsToHours(seconds)
+      const invoiced = row.invoiced ?? 0
+
+      return {
+        clientId: row.id,
+        clientName: row.name,
+        colour: row.colour,
+        invoiced,
+        hours,
+        /**
+         * Null rather than zero when there are no hours. An effective rate of
+         * £0 an hour is a different claim from "we have not tracked this", and
+         * the first one would sit at the bottom of the table looking like the
+         * worst client on the books.
+         */
+        effectiveRate: hours > 0 ? Math.round(invoiced / hours) : null
+      }
+    })
+    .filter((entry) => entry.invoiced > 0 || entry.hours > 0)
 }

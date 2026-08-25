@@ -959,6 +959,50 @@ export interface ClientUpdatePack {
   hoursRecent: number
 }
 
+/**
+ * Where the user stands with HMRC this tax year.
+ *
+ * An estimate for deciding what to move into a savings account, not a return.
+ * Income tax and Class 4 NI on trading profit only — the document says so, and
+ * so does the card that shows it.
+ */
+export interface TaxPosition {
+  /** The tax year being estimated, as HMRC writes it. */
+  taxYearLabel: string
+  /** Which year's rates were used, so a stale table is visible. */
+  rulesLabel: string
+  profit: Pence
+  allowance: Pence
+  incomeTax: Pence
+  nationalInsurance: Pence
+  total: Pence
+  /** What the app thinks should be held back, rounded up. */
+  recommendedPercent: number
+  /** What the next pound of profit would cost, both taxes together. */
+  marginalPercent: number
+  /** What the user has actually set the rate to. */
+  currentPercent: number
+  held: Pence
+  shortfall: Pence
+  enough: boolean
+}
+
+/**
+ * What a client actually pays per hour, once the hours are counted.
+ *
+ * The number freelancers almost never have, and the one that changes who they
+ * work for.
+ */
+export interface ClientProfitability {
+  clientId: number
+  clientName: string
+  colour: string
+  invoiced: Pence
+  hours: number
+  /** Null when nothing has been tracked — not zero, which would be a claim. */
+  effectiveRate: Pence | null
+}
+
 /** One bucket on a dashboard sparkline. */
 export interface TrendPoint {
   /** Short axis label — a month name, or a date of the month for weeks. */
