@@ -30,6 +30,7 @@ import { gbp } from '@/components/ui/AnimatedNumber'
 import { GoalRing } from '@/components/ui/GoalRing'
 import { StatCard, type Stat } from '@/components/ui/StatCard'
 import { FileChip } from '@/components/ui/FileChip'
+import { SkeletonStat } from '@/components/ui/Skeleton'
 import { keys } from '@/lib/api'
 import { useFeature } from '@/lib/features'
 import { daysUntil, describeDue, formatDate, formatMoney } from '@/lib/format'
@@ -332,11 +333,15 @@ export function Dashboard(): React.JSX.Element {
         animate="animate"
         className="grid grid-cols-4 gap-4"
       >
-        {stats.map((stat) => (
-          <motion.div key={stat.label} variants={listItemVariants}>
-            <StatCard stat={stat} onOpen={() => navigate(stat.to)} />
-          </motion.div>
-        ))}
+        {/* Skeletons rather than four zeroes that then jump to real figures —
+            a number is worse than a placeholder when it is about to be wrong. */}
+        {summary === undefined
+          ? stats.map((stat) => <SkeletonStat key={stat.label} />)
+          : stats.map((stat) => (
+              <motion.div key={stat.label} variants={listItemVariants}>
+                <StatCard stat={stat} onOpen={() => navigate(stat.to)} />
+              </motion.div>
+            ))}
       </motion.div>
 
       <div className="mt-4 grid grid-cols-3 gap-4">

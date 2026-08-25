@@ -7,8 +7,15 @@ import type { AppNotification, NotificationKind } from '@shared/types'
 import { EASE, transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
-/** How long a toast sits there before retreating on its own. */
-const DWELL_MS = 8000
+/**
+ * How long a toast sits there before retreating on its own.
+ *
+ * Four seconds, with a bar draining along the bottom so the dwell is visible
+ * rather than a surprise — a toast that vanishes mid-read is worse than one
+ * that never appeared, and the bar is what turns "it went" into "it is going".
+ * Hovering holds it indefinitely.
+ */
+const DWELL_MS = 4000
 
 /** More than this on screen at once stops being information and starts being noise. */
 const MAX_VISIBLE = 3
@@ -97,13 +104,13 @@ function Toast({
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 24, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 8, scale: 0.98, transition: { duration: 0.18, ease: EASE } }}
-      transition={transition.modal}
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: 8, transition: { duration: 0.15, ease: EASE } }}
+      transition={transition.page}
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      className="pointer-events-auto overflow-hidden rounded-card border border-line-strong bg-overlay shadow-2xl"
+      className="pointer-events-auto relative overflow-hidden rounded-card border border-line-strong bg-overlay shadow-modal"
     >
       <button type="button" onClick={onOpen} className="flex w-full items-start gap-2.5 p-3 text-left">
         <Icon
@@ -123,10 +130,22 @@ function Toast({
         type="button"
         aria-label="Dismiss"
         onClick={onDismiss}
-        className="absolute top-2 right-2 text-faint transition-colors hover:text-ink"
+        className="absolute top-2 right-2 text-faint transition-colors duration-press ease-solo hover:text-ink"
       >
         <X size={12} strokeWidth={2} />
       </button>
+
+      {/* Keyed on `paused` so hovering restarts the drain from full rather
+          than resuming a bar that has already run most of its length — the
+          timer above restarts too, and the two must agree. */}
+      <motion.span
+        key={String(paused)}
+        aria-hidden
+        className="absolute bottom-0 left-0 h-[2px] bg-accent"
+        initial={{ width: paused ? '100%' : '100%' }}
+        animate={{ width: paused ? '100%' : '0%' }}
+        transition={{ duration: paused ? 0 : DWELL_MS / 1000, ease: 'linear' }}
+      />
 
       {/* A quiet countdown, so the toast leaving is expected rather than sudden. */}
       {!paused && (

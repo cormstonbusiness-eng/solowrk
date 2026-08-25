@@ -179,6 +179,26 @@
     border-top-color: var(--color-line-top);
   }
 
+  /**
+   * The skeleton shimmer.
+   *
+   * A gradient swept across the block by animating background-position, which
+   * the compositor handles without touching layout. The app's global
+   * reduced-motion rule collapses the duration to nothing, leaving a plain
+   * block that still holds the space — which is most of what a skeleton is
+   * for.
+   */
+  .animate-shimmer {
+    background-image: linear-gradient(
+      90deg,
+      var(--color-raised) 0%,
+      var(--color-hover) 50%,
+      var(--color-raised) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1400ms linear infinite;
+  }
+
   /* Electron drag regions for the custom titlebar. */
   .drag-region {
     -webkit-app-region: drag;
@@ -258,5 +278,13 @@
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+}
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
   }
 }

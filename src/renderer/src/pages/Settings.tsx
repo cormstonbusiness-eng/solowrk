@@ -18,6 +18,7 @@ import {
 } from 'lucide-react'
 import type { BusinessSettings, Settings as SettingsType } from '@shared/types'
 import { DATASETS } from '@shared/types'
+import { Skeleton } from '@/components/ui/Skeleton'
 import { DEFAULT_CHASE_DAYS, describeSchedule, parseChaseDays } from '@shared/chasing'
 import { type ChangeKind, type Release, changelog, releaseFor } from '@shared/changelog'
 import { Page } from '@/components/Page'
@@ -77,8 +78,11 @@ export function Settings(): React.JSX.Element {
   if (!draft) {
     return (
       <Page title="Settings">
-        <div className="grid h-40 place-items-center">
-          <Loader2 size={18} className="animate-spin text-faint" />
+        {/* Shaped like the card that is coming, so nothing moves when it does. */}
+        <div className="flex max-w-[760px] flex-col gap-3">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-[168px] w-full rounded-card" />
+          <Skeleton className="h-[120px] w-full rounded-card" />
         </div>
       </Page>
     )
