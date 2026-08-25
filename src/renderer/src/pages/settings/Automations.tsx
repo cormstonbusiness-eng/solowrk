@@ -22,7 +22,7 @@ import { Button } from '@/components/ui/Button'
 import { Empty } from '@/components/ui/Empty'
 import { Expand } from '@/components/ui/Expand'
 import { Field, NumberInput, TextInput, Toggle } from '@/components/ui/Field'
-import { Modal } from '@/components/ui/Modal'
+import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Select } from '@/components/ui/Select'
 import { Swap } from '@/components/ui/Swap'
 import { formatDate } from '@/lib/format'
@@ -51,6 +51,7 @@ export function Automations(): React.JSX.Element {
   const [editing, setEditing] = useState<AutomationRuleInput | null>(null)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [showing, setShowing] = useState<number | null>(null)
+  const [deleting, setDeleting] = useState<AutomationRule | null>(null)
 
   const { data: rules = [] } = useQuery({
     queryKey: ['automations'],
@@ -166,7 +167,7 @@ export function Automations(): React.JSX.Element {
                   <button
                     type="button"
                     aria-label={`Delete ${rule.name}`}
-                    onClick={() => remove.mutate(rule.id)}
+                    onClick={() => setDeleting(rule)}
                     className="mt-0.5 text-faint transition-colors hover:text-danger"
                   >
                     <Trash2 size={14} strokeWidth={1.75} />
@@ -192,6 +193,19 @@ export function Automations(): React.JSX.Element {
           </div>
         </Swap>
       </Card>
+
+      {/*
+        Deleting a rule takes its history with it, which is the part worth
+        warning about — the rule itself is two dropdowns to rewrite, but the
+        record of what it did to which invoice is not recoverable.
+      */}
+      <ConfirmModal
+        open={deleting !== null}
+        onClose={() => setDeleting(null)}
+        onConfirm={() => deleting && remove.mutate(deleting.id)}
+        title={`Delete “${deleting?.name || 'this rule'}”?`}
+        body="The rule stops running and its history goes with it. Anything it has already done — tasks it made, invoices it drafted — stays exactly where it is."
+      />
 
       <RuleForm
         draft={editing}
