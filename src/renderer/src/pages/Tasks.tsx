@@ -25,7 +25,7 @@ import { Dot, Empty } from '@/components/ui/Empty'
 import { Field } from '@/components/ui/Field'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
-import { transition } from '@/lib/motion'
+import { TICK_SETTLE_MS, transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { TaskRow } from './tasks/TaskRow'
 import { TaskModal } from './tasks/TaskModal'
@@ -166,7 +166,9 @@ export function Tasks(): React.JSX.Element {
         id: task.id,
         patch: { status: task.status === 'done' ? 'todo' : 'done' }
       }),
-    onSuccess: () => invalidate(['tasks'])
+    // Delayed on purpose — see TICK_SETTLE_MS. The row has an animation to
+    // finish before the board is allowed to move it to another column.
+    onSuccess: () => setTimeout(() => invalidate(['tasks']), TICK_SETTLE_MS)
   })
 
   const archive = useMutation({

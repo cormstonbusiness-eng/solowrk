@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Empty, Pill } from '@/components/ui/Empty'
+import { Swap } from '@/components/ui/Swap'
 import { useInvalidate } from '@/lib/api'
 import { useFeature } from '@/lib/features'
 import { useOpenParam } from '@/hooks/useOpenParam'
@@ -196,17 +197,20 @@ function InvoiceList({
         )}
       </div>
 
-      {visible.length === 0 ? (
-        <Empty
-          icon={ReceiptText}
-          title={invoices.length === 0 ? 'No invoices yet' : 'Nothing matches that filter'}
-          body={
-            invoices.length === 0
-              ? 'Raise your first invoice. If you have tracked time against a project, you can pull it straight in as lines.'
-              : 'Try a different status.'
-          }
-        />
-      ) : (
+      <Swap
+        empty={visible.length === 0}
+        fallback={
+          <Empty
+            icon={ReceiptText}
+            title={invoices.length === 0 ? 'No invoices yet' : 'Nothing matches that filter'}
+            body={
+              invoices.length === 0
+                ? 'Raise your first invoice. If you have tracked time against a project, you can pull it straight in as lines.'
+                : 'Try a different status.'
+            }
+          />
+        }
+      >
         <motion.div
           variants={listVariants}
           initial="initial"
@@ -320,7 +324,7 @@ function InvoiceList({
             )
           })}
         </motion.div>
-      )}
+      </Swap>
 
       <ChaserModal chaser={chaser} onClose={() => setChaser(null)} />
 

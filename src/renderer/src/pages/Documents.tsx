@@ -11,9 +11,11 @@ import { Field, TextInput } from '@/components/ui/Field'
 import { Select } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Empty, Pill } from '@/components/ui/Empty'
+import { Swap } from '@/components/ui/Swap'
+import { Expand } from '@/components/ui/Expand'
 import { keys, useInvalidate } from '@/lib/api'
 import { daysUntil, formatDate, toDateInput } from '@/lib/format'
-import { listItemVariants, listVariants, transition } from '@/lib/motion'
+import { listItemVariants, listVariants } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
 /**
@@ -119,13 +121,7 @@ export function Documents(): React.JSX.Element {
 
       <AnimatePresence>
         {expiring.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={transition.page}
-            className="mb-3 overflow-hidden"
-          >
+          <Expand contentClassName="pb-3">
             <Card className="border-warning/30 bg-warning/[0.06]">
               <div className="flex items-start gap-2.5">
                 <TriangleAlert size={15} strokeWidth={1.75} className="mt-0.5 text-warning" />
@@ -139,29 +135,32 @@ export function Documents(): React.JSX.Element {
                 </div>
               </div>
             </Card>
-          </motion.div>
+          </Expand>
         )}
       </AnimatePresence>
 
-      {documents.length === 0 ? (
-        <Empty
-          icon={FileText}
-          title={search || category ? 'Nothing matches' : 'No documents yet'}
-          body={
-            search || category
-              ? 'Try a different search or category.'
-              : 'Add your insurance, contracts and certificates. Give them an expiry date and SoloWrk will warn you before they lapse.'
-          }
-          action={
-            !search && !category ? (
-              <Button variant="primary" onClick={() => void startAdd()}>
-                <Plus size={14} strokeWidth={1.75} />
-                Add a document
-              </Button>
-            ) : undefined
-          }
-        />
-      ) : (
+      <Swap
+        empty={documents.length === 0}
+        fallback={
+          <Empty
+            icon={FileText}
+            title={search || category ? 'Nothing matches' : 'No documents yet'}
+            body={
+              search || category
+                ? 'Try a different search or category.'
+                : 'Add your insurance, contracts and certificates. Give them an expiry date and SoloWrk will warn you before they lapse.'
+            }
+            action={
+              !search && !category ? (
+                <Button variant="primary" onClick={() => void startAdd()}>
+                  <Plus size={14} strokeWidth={1.75} />
+                  Add a document
+                </Button>
+              ) : undefined
+            }
+          />
+        }
+      >
         <motion.div
           variants={listVariants}
           initial="initial"
@@ -228,7 +227,7 @@ export function Documents(): React.JSX.Element {
             )
           })}
         </motion.div>
-      )}
+      </Swap>
 
       <DocumentModal
         draft={editing}

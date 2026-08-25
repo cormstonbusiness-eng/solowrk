@@ -20,6 +20,7 @@ import type { AppNotification, NotificationKind } from '@shared/types'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
 import { Empty } from '@/components/ui/Empty'
+import { Swap } from '@/components/ui/Swap'
 import { useInvalidate } from '@/lib/api'
 import { formatDate } from '@/lib/format'
 import { listItemVariants, listVariants, transition } from '@/lib/motion'
@@ -140,17 +141,20 @@ export function Notifications(): React.JSX.Element {
         ))}
       </div>
 
-      {items.length === 0 ? (
-        <Empty
-          icon={tab === 'inbox' ? BellOff : Archive}
-          title={tab === 'inbox' ? 'Nothing waiting' : 'Nothing archived'}
-          body={
-            tab === 'inbox'
-              ? 'Reminders for meetings, deadlines and posts appear here, and slide into the corner as they happen. Anything you miss waits until you are ready for it.'
-              : 'Notifications you have archived are kept here, so an alert about a late invoice is still findable months later.'
-          }
-        />
-      ) : (
+      <Swap
+        empty={items.length === 0}
+        fallback={
+          <Empty
+            icon={tab === 'inbox' ? BellOff : Archive}
+            title={tab === 'inbox' ? 'Nothing waiting' : 'Nothing archived'}
+            body={
+              tab === 'inbox'
+                ? 'Reminders for meetings, deadlines and posts appear here, and slide into the corner as they happen. Anything you miss waits until you are ready for it.'
+                : 'Notifications you have archived are kept here, so an alert about a late invoice is still findable months later.'
+            }
+          />
+        }
+      >
         <motion.div
           variants={listVariants}
           initial="initial"
@@ -167,7 +171,7 @@ export function Notifications(): React.JSX.Element {
                   key={item.id}
                   layout
                   variants={listItemVariants}
-                  exit={{ opacity: 0, height: 0 }}
+                  exit={{ opacity: 0, scale: 0.98 }}
                   transition={transition.layout}
                   className={cn(
                     'group flex items-start gap-3 rounded-control border px-3 py-2.5 transition-colors',
@@ -271,7 +275,7 @@ export function Notifications(): React.JSX.Element {
             })}
           </AnimatePresence>
         </motion.div>
-      )}
+      </Swap>
     </Page>
   )
 }

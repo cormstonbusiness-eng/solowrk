@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { TextInput } from '@/components/ui/Field'
 import { Select } from '@/components/ui/Select'
 import { Dot, Empty } from '@/components/ui/Empty'
+import { Swap } from '@/components/ui/Swap'
 import { keys, useInvalidate } from '@/lib/api'
 import { formatDate } from '@/lib/format'
 import { listItemVariants, listVariants, transition } from '@/lib/motion'
@@ -66,13 +67,16 @@ export function ArchivedTasks(): React.JSX.Element {
         </Button>
       }
     >
-      {tasks.length === 0 ? (
-        <Empty
-          icon={Archive}
-          title="Nothing archived"
-          body="Archive a task from its hover menu, or clear a finished board in one go with “Archive done”. Nothing is deleted — subtasks, notes and tracked time all stay with it."
-        />
-      ) : (
+      <Swap
+        empty={tasks.length === 0}
+        fallback={
+          <Empty
+            icon={Archive}
+            title="Nothing archived"
+            body="Archive a task from its hover menu, or clear a finished board in one go with “Archive done”. Nothing is deleted — subtasks, notes and tracked time all stay with it."
+          />
+        }
+      >
         <>
           <div className="mb-3 flex gap-2">
             <div className="relative max-w-[280px] flex-1">
@@ -182,7 +186,7 @@ export function ArchivedTasks(): React.JSX.Element {
             </motion.div>
           )}
         </>
-      )}
+      </Swap>
     </Page>
   )
 }

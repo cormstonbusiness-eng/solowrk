@@ -1,8 +1,10 @@
+import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
-import { Archive, Check, ChevronRight, GripVertical, Trash2 } from 'lucide-react'
+import { Archive, ChevronRight, GripVertical, Trash2 } from 'lucide-react'
 import type { TaskWithContext } from '@shared/types'
 import { PRIORITIES } from '@shared/types'
 import { Dot } from '@/components/ui/Empty'
+import { StruckText, Tickbox } from '@/components/ui/Tickbox'
 import { describeDue } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
@@ -38,7 +40,26 @@ export function TaskRow({
   dragHandle?: React.ReactNode
   dragging?: boolean
 }): React.JSX.Element {
-  const done = task.status === 'done'
+  const settled = task.status === 'done'
+
+  /**
+   * What the tick shows, which is not always what the database says yet.
+   *
+   * A checkbox that waits for a round trip before it moves is a checkbox people
+   * click twice. This one commits to the answer immediately and lets the write
+   * catch up — and because ticking a task is what makes it leave the list, the
+   * row it is drawn on may well be on its way out by the time the write lands.
+   * The tick has to have finished by then.
+   */
+  const [pending, setPending] = useState<boolean | null>(null)
+  const done = pending ?? settled
+
+  // Once the database agrees, stop overriding it — otherwise a task changed
+  // somewhere else in the app would be stuck showing this row's last guess.
+  useEffect(() => {
+    if (pending !== null && pending === settled) setPending(null)
+  }, [pending, settled])
+
   const due = describeDue(task.dueAt)
   const priority = PRIORITIES.find((p) => p.value === task.priority)
   // The task's own colour wins over its category's — someone who colours one
@@ -48,6 +69,10 @@ export function TaskRow({
   return (
     <motion.div
       layout
+      // Leaving is a fade in place, not a collapse. The rows above and below
+      // close the gap themselves through their own layout animation, which
+      // keeps the list moving as one thing rather than as a hole opening.
+      exit={{ opacity: 0, scale: 0.98 }}
       transition={transition.layout}
       style={stripe ? { borderLeftColor: stripe, borderLeftWidth: 2 } : undefined}
       className={cn(
@@ -62,27 +87,19 @@ export function TaskRow({
         </span>
       )}
 
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-label={done ? 'Mark as not done' : 'Mark as done'}
-        className={cn(
-          'grid h-[17px] w-[17px] shrink-0 place-items-center rounded-[5px] border transition-colors duration-150',
-          done ? 'border-success bg-success text-white' : 'border-line-strong hover:border-muted'
-        )}
-      >
-        {done && <Check size={11} strokeWidth={3} />}
-      </button>
+      <Tickbox
+        done={done}
+        label={task.title}
+        onToggle={() => {
+          setPending(!done)
+          onToggle()
+        }}
+      />
 
       <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-2">
-        <span
-          className={cn(
-            'truncate text-left text-[13px]',
-            done ? 'text-faint line-through' : 'text-ink'
-          )}
-        >
+        <StruckText done={done} className="text-[13px]">
           {task.title}
-        </span>
+        </StruckText>
 
         {task.subtaskCount > 0 && (
           <span className="numeric shrink-0 text-[10.5px] text-faint">

@@ -27,6 +27,7 @@ import { Field, MoneyInput, NumberInput, TextInput } from '@/components/ui/Field
 import { ColourPicker } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Dot, Empty } from '@/components/ui/Empty'
+import { Swap } from '@/components/ui/Swap'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { formatMoney, formatRate } from '@/lib/format'
@@ -164,19 +165,22 @@ export function Clients(): React.JSX.Element {
         </Button>
       }
     >
-      {clients.length === 0 ? (
-        <Empty
-          icon={Users}
-          title="No clients yet"
-          body="Adding a client creates a folder for them in your workspace, and gives their projects somewhere to live."
-          action={
-            <Button variant="primary" onClick={() => setEditing({ ...BLANK })}>
-              <Plus size={14} strokeWidth={1.75} />
-              Add your first client
-            </Button>
-          }
-        />
-      ) : (
+      <Swap
+        empty={clients.length === 0}
+        fallback={
+          <Empty
+            icon={Users}
+            title="No clients yet"
+            body="Adding a client creates a folder for them in your workspace, and gives their projects somewhere to live."
+            action={
+              <Button variant="primary" onClick={() => setEditing({ ...BLANK })}>
+                <Plus size={14} strokeWidth={1.75} />
+                Add your first client
+              </Button>
+            }
+          />
+        }
+      >
         <div className="flex min-h-0 flex-col gap-3">
           <div className="relative w-[280px] shrink-0">
             <Search
@@ -291,7 +295,7 @@ export function Clients(): React.JSX.Element {
             )}
           </div>
         </div>
-      )}
+      </Swap>
 
       <ClientModal
         draft={editing}

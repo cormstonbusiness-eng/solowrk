@@ -6,8 +6,9 @@ import type { TaskWithContext } from '@shared/types'
 import { Button } from '@/components/ui/Button'
 import { TextInput } from '@/components/ui/Field'
 import { Empty } from '@/components/ui/Empty'
+import { Swap } from '@/components/ui/Swap'
 import { keys, useInvalidate } from '@/lib/api'
-import { transition } from '@/lib/motion'
+import { TICK_SETTLE_MS, transition } from '@/lib/motion'
 import { TaskRow } from './TaskRow'
 import { TaskModal } from './TaskModal'
 
@@ -51,7 +52,9 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
         id: task.id,
         patch: { status: task.status === 'done' ? 'todo' : 'done' }
       }),
-    onSuccess: () => invalidate(['tasks'])
+    // Delayed on purpose — see TICK_SETTLE_MS. The row has an animation to
+    // finish before it is allowed to move to the Done list.
+    onSuccess: () => setTimeout(() => invalidate(['tasks']), TICK_SETTLE_MS)
   })
 
   const open_ = tasks.filter((t) => t.status !== 'done')
@@ -78,13 +81,16 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
         </Button>
       </div>
 
-      {tasks.length === 0 ? (
-        <Empty
-          icon={CircleCheckBig}
-          title="No tasks yet"
-          body="Add the first thing that needs doing. Give tasks a category to colour-code them, and a due date to see them on the dashboard."
-        />
-      ) : (
+      <Swap
+        empty={tasks.length === 0}
+        fallback={
+          <Empty
+            icon={CircleCheckBig}
+            title="No tasks yet"
+            body="Add the first thing that needs doing. Give tasks a category to colour-code them, and a due date to see them on the dashboard."
+          />
+        }
+      >
         <div className="flex flex-col gap-1">
           <AnimatePresence initial={false}>
             {open_.map((task) => (
@@ -121,7 +127,7 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
             </>
           )}
         </div>
-      )}
+      </Swap>
 
       <TaskModal task={open} onClose={() => setOpen(null)} />
     </div>

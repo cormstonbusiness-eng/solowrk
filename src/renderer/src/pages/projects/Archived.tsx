@@ -6,6 +6,7 @@ import { Page } from '@/components/Page'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Dot, Empty } from '@/components/ui/Empty'
+import { Swap } from '@/components/ui/Swap'
 import { keys, useInvalidate } from '@/lib/api'
 import { formatDate } from '@/lib/format'
 import { listItemVariants, listVariants } from '@/lib/motion'
@@ -46,13 +47,16 @@ export function ArchivedProjects(): React.JSX.Element {
         </Button>
       }
     >
-      {archived.length === 0 ? (
-        <Empty
-          icon={Archive}
-          title="Nothing archived"
-          body="When a job is finished and you want it off the board, archive it from its card. Everything it holds stays exactly where it is."
-        />
-      ) : (
+      <Swap
+        empty={archived.length === 0}
+        fallback={
+          <Empty
+            icon={Archive}
+            title="Nothing archived"
+            body="When a job is finished and you want it off the board, archive it from its card. Everything it holds stays exactly where it is."
+          />
+        }
+      >
         <motion.div
           variants={listVariants}
           initial="initial"
@@ -84,7 +88,7 @@ export function ArchivedProjects(): React.JSX.Element {
             </motion.div>
           ))}
         </motion.div>
-      )}
+      </Swap>
     </Page>
   )
 }

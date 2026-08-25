@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { TextInput } from '@/components/ui/Field'
 import { ConfirmModal } from '@/components/ui/Modal'
 import { Empty } from '@/components/ui/Empty'
+import { Swap } from '@/components/ui/Swap'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { formatDate } from '@/lib/format'
@@ -128,19 +129,27 @@ export function Notes(): React.JSX.Element {
         </Button>
       }
     >
-      {notes.length === 0 && search === '' ? (
-        <Empty
-          icon={NotebookPen}
-          title="Nothing written down yet"
-          body="Anything that is not a task and not tied to a project: ideas, meeting scribbles, the thing you always forget. Saved as .md files you can open in any editor."
-          action={
-            <Button variant="primary" onClick={newNote}>
-              <Plus size={14} strokeWidth={1.75} />
-              Start a note
-            </Button>
-          }
-        />
-      ) : (
+      <Swap
+        empty={notes.length === 0 && search === ''}
+        // The page body is a flex column and the note list below claims
+        // the rest of it with flex-1. The swap wrapper sits between the
+        // two, so it has to pass the height through or the list collapses
+        // to nothing.
+        className="flex min-h-0 flex-1 flex-col"
+        fallback={
+          <Empty
+            icon={NotebookPen}
+            title="Nothing written down yet"
+            body="Anything that is not a task and not tied to a project: ideas, meeting scribbles, the thing you always forget. Saved as .md files you can open in any editor."
+            action={
+              <Button variant="primary" onClick={newNote}>
+                <Plus size={14} strokeWidth={1.75} />
+                Start a note
+              </Button>
+            }
+          />
+        }
+      >
         <div className="flex min-h-0 flex-1 gap-3">
           <aside className="flex w-[240px] shrink-0 flex-col gap-2">
             <div className="relative">
@@ -242,7 +251,7 @@ export function Notes(): React.JSX.Element {
             )}
           </div>
         </div>
-      )}
+      </Swap>
 
       <ConfirmModal
         open={deleting !== null}

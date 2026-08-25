@@ -74,6 +74,9 @@
   --duration-standard: 180ms;
   --duration-page: 200ms;
   --duration-modal: 180ms;
+  /* A row opening, a tick drawing, a strike crossing out. */
+  --duration-expand: 200ms;
+  --duration-flip: 150ms;
 }
 
 @layer base {

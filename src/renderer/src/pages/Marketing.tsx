@@ -10,6 +10,7 @@ import { Page } from '@/components/Page'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Empty } from '@/components/ui/Empty'
+import { Expand } from '@/components/ui/Expand'
 import { ProPanel } from '@/components/ProPanel'
 import { useFeature } from '@/lib/features'
 import { keys, useInvalidate } from '@/lib/api'
@@ -216,13 +217,7 @@ function MarketingBoard(): React.JSX.Element {
 
       <AnimatePresence>
         {attention.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={transition.press}
-            className="mb-3 shrink-0 overflow-hidden"
-          >
+          <Expand className="shrink-0" contentClassName="pb-3">
             <div className="flex items-center gap-2 rounded-control border border-warning/30 bg-warning/8 px-3 py-2">
               <TriangleAlert size={13} strokeWidth={1.75} className="shrink-0 text-warning" />
               <p className="flex-1 text-[12px] text-ink">
@@ -235,7 +230,7 @@ function MarketingBoard(): React.JSX.Element {
                 Open
               </Button>
             </div>
-          </motion.div>
+          </Expand>
         )}
       </AnimatePresence>
 

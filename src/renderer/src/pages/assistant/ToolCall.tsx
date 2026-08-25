@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import { ChevronRight, Wrench } from 'lucide-react'
 import type { ChatMessage } from '@shared/types'
+import { Expand } from '@/components/ui/Expand'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
@@ -72,13 +73,7 @@ export function ToolCall({ message }: { message: ChatMessage }): React.JSX.Eleme
 
       <AnimatePresence initial={false}>
         {open && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={transition.press}
-            className="overflow-hidden"
-          >
+          <Expand>
             <div className="border-t border-line px-3 py-2">
               {message.toolInput && (
                 <>
@@ -96,7 +91,7 @@ export function ToolCall({ message }: { message: ChatMessage }): React.JSX.Eleme
                 {message.toolResult || '—'}
               </pre>
             </div>
-          </motion.div>
+          </Expand>
         )}
       </AnimatePresence>
     </motion.div>

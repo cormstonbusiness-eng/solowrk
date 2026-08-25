@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { Check, Plus, Trash2 } from 'lucide-react'
+import { Plus, Trash2 } from 'lucide-react'
 import type { TaskInput, TaskStatus, TaskWithContext } from '@shared/types'
 import { PRIORITIES, TASK_STATUSES } from '@shared/types'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
 import { ColourPicker, Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
+import { StruckText, Tickbox } from '@/components/ui/Tickbox'
 import { keys, useInvalidate } from '@/lib/api'
 import { toDateInput } from '@/lib/format'
 import { transition } from '@/lib/motion'
-import { cn } from '@/lib/utils'
 
 /**
  * Edits a task and its subtasks. Subtasks are ordinary tasks with a parent, so
@@ -207,30 +207,19 @@ export function TaskModal({
                     layout
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
                     transition={transition.press}
                     className="group flex items-center gap-2 rounded-control bg-raised px-2.5 py-1.5"
                   >
-                    <button
-                      type="button"
-                      onClick={() => toggleSubtask.mutate(subtask)}
-                      className={cn(
-                        'grid h-[15px] w-[15px] shrink-0 place-items-center rounded-[4px] border',
-                        subtask.status === 'done'
-                          ? 'border-success bg-success text-white'
-                          : 'border-line-strong hover:border-muted'
-                      )}
-                    >
-                      {subtask.status === 'done' && <Check size={10} strokeWidth={3} />}
-                    </button>
-                    <span
-                      className={cn(
-                        'flex-1 truncate text-[12.5px]',
-                        subtask.status === 'done' ? 'text-faint line-through' : 'text-ink'
-                      )}
-                    >
+                    <Tickbox
+                      done={subtask.status === 'done'}
+                      label={subtask.title}
+                      size={15}
+                      onToggle={() => toggleSubtask.mutate(subtask)}
+                    />
+                    <StruckText done={subtask.status === 'done'} className="flex-1 text-[12.5px]">
                       {subtask.title}
-                    </span>
+                    </StruckText>
                     <button
                       type="button"
                       onClick={() => removeSubtask.mutate(subtask.id)}

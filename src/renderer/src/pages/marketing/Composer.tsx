@@ -12,6 +12,7 @@ import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { keys, useInvalidate } from '@/lib/api'
 import { transition } from '@/lib/motion'
+import { Expand } from '@/components/ui/Expand'
 import { cn } from '@/lib/utils'
 
 interface Draft {
@@ -431,26 +432,22 @@ export function Composer({
 
               <AnimatePresence initial={false}>
                 {activeProblems.length > 0 && (
-                  <motion.ul
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    transition={transition.press}
-                    className="mt-2.5 flex flex-col gap-1 overflow-hidden"
-                  >
-                    {activeProblems.map((problem) => (
-                      <li
-                        key={problem.message}
-                        className={cn(
-                          'flex items-start gap-1.5 text-[11.5px]',
-                          problem.level === 'error' ? 'text-danger' : 'text-warning'
-                        )}
-                      >
-                        <AlertTriangle size={11} strokeWidth={2} className="mt-0.5 shrink-0" />
-                        {problem.message}
-                      </li>
-                    ))}
-                  </motion.ul>
+                  <Expand contentClassName="pt-2.5">
+                    <ul className="flex flex-col gap-1">
+                      {activeProblems.map((problem) => (
+                        <li
+                          key={problem.message}
+                          className={cn(
+                            'flex items-start gap-1.5 text-[11.5px]',
+                            problem.level === 'error' ? 'text-danger' : 'text-warning'
+                          )}
+                        >
+                          <AlertTriangle size={11} strokeWidth={2} className="mt-0.5 shrink-0" />
+                          {problem.message}
+                        </li>
+                      ))}
+                    </ul>
+                  </Expand>
                 )}
               </AnimatePresence>
             </div>

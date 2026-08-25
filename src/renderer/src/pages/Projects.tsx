@@ -12,6 +12,7 @@ import { Field, MoneyInput, TextInput } from '@/components/ui/Field'
 import { ColourPicker, Select } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Empty, Pill } from '@/components/ui/Empty'
+import { Swap } from '@/components/ui/Swap'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { formatDate, formatMoney, toDateInput } from '@/lib/format'
@@ -97,25 +98,28 @@ export function Projects(): React.JSX.Element {
         </>
       }
     >
-      {projects.length === 0 ? (
-        <Empty
-          icon={FolderKanban}
-          title="No projects yet"
-          body="A project gets its own folder tree on disk — brief, assets, working files and deliverables — plus its own tasks and notes."
-          action={
-            <Button variant="primary" onClick={() => setEditing({ ...BLANK })}>
-              <Plus size={14} strokeWidth={1.75} />
-              Create a project
-            </Button>
-          }
-        />
-      ) : (
+      <Swap
+        empty={projects.length === 0}
+        fallback={
+          <Empty
+            icon={FolderKanban}
+            title="No projects yet"
+            body="A project gets its own folder tree on disk — brief, assets, working files and deliverables — plus its own tasks and notes."
+            action={
+              <Button variant="primary" onClick={() => setEditing({ ...BLANK })}>
+                <Plus size={14} strokeWidth={1.75} />
+                Create a project
+              </Button>
+            }
+          />
+        }
+      >
         <ProjectBoard
           projects={projects}
           onMove={(project, status) => save.mutate({ ...project, id: project.id, status })}
           onArchive={(project) => archive.mutate(project.id)}
         />
-      )}
+      </Swap>
 
       <ProjectModal
         draft={editing}

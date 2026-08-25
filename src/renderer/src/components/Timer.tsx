@@ -5,6 +5,7 @@ import { Square } from 'lucide-react'
 import { useInvalidate } from '@/lib/api'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { formatElapsed } from '@/lib/format'
+import { Ticker } from '@/components/ui/Ticker'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
@@ -90,8 +91,10 @@ export function Timer(): React.JSX.Element {
                 {running.entry.projectName ?? 'No project'}
               </span>
               {/* Fixed-width digits, so the seconds changing never reflows the
-                  pill or nudges the project name beside it. */}
-              <span className="numeric text-[11.5px] text-ink">{formatElapsed(elapsed)}</span>
+                  pill or nudges the project name beside it — and each digit
+                  rolls over rather than being swapped, which is the difference
+                  between a clock and a label that keeps being rewritten. */}
+              <Ticker value={formatElapsed(elapsed)} className="text-[11.5px] text-ink" />
             </button>
 
             <button
@@ -203,8 +206,8 @@ function TimerPopover({
           'rounded-card border border-line bg-overlay p-3 shadow-modal'
         )}
       >
-        <p className="numeric mb-3 text-center text-[20px] font-semibold text-ink">
-          {formatElapsed(elapsed)}
+        <p className="mb-3 flex justify-center">
+          <Ticker value={formatElapsed(elapsed)} className="text-[20px] font-semibold text-ink" />
         </p>
 
         <label className="type-label mb-1 block text-faint">Project</label>

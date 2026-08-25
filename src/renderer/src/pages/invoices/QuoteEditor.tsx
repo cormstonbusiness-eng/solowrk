@@ -147,9 +147,19 @@ export function QuoteEditor({
                   layout
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={transition.press}
-                  className="flex items-center gap-2"
+                  /*
+                    No exit animation, and that is deliberate. These rows are
+                    keyed by position because a draft line has no identity of
+                    its own, so deleting the second of four unmounts the
+                    *fourth* — React shifts the contents up and drops the row
+                    off the end. An exit animation on that fades the wrong row
+                    out while the one you clicked silently becomes its
+                    neighbour, which reads as the app deleting something else.
+                    Removing instantly is the honest version, until lines carry
+                    a stable id.
+                  */
+                  transition={transition.expand}
+                  className="flex items-center gap-2 overflow-hidden"
                 >
                   <TextInput
                     value={line.description}

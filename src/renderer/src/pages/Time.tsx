@@ -11,6 +11,7 @@ import { Field, TextInput } from '@/components/ui/Field'
 import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { Dot, Empty } from '@/components/ui/Empty'
+import { Swap } from '@/components/ui/Swap'
 import { keys, useInvalidate } from '@/lib/api'
 import { formatDuration, formatMoney } from '@/lib/format'
 import { listItemVariants, listVariants } from '@/lib/motion'
@@ -134,13 +135,16 @@ export function Time(): React.JSX.Element {
         </Card>
       </div>
 
-      {entries.length === 0 ? (
-        <Empty
-          icon={Clock}
-          title="Nothing tracked this week"
-          body="Start a timer above, or log time you have already done. Tracked time can be pulled straight onto an invoice."
-        />
-      ) : (
+      <Swap
+        empty={entries.length === 0}
+        fallback={
+          <Empty
+            icon={Clock}
+            title="Nothing tracked this week"
+            body="Start a timer above, or log time you have already done. Tracked time can be pulled straight onto an invoice."
+          />
+        }
+      >
         <motion.div variants={listVariants} initial="initial" animate="animate">
           {Object.entries(byDay)
             .sort(([a], [b]) => b.localeCompare(a))
@@ -204,7 +208,7 @@ export function Time(): React.JSX.Element {
               </div>
             ))}
         </motion.div>
-      )}
+      </Swap>
 
       <ManualEntryModal open={manual} onClose={() => setManual(false)} />
     </Page>

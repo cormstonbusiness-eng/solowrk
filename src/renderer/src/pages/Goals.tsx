@@ -11,6 +11,7 @@ import { Field, MoneyInput, NumberInput, TextInput } from '@/components/ui/Field
 import { ColourPicker, Select } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Empty } from '@/components/ui/Empty'
+import { Swap } from '@/components/ui/Swap'
 import { keys, useInvalidate } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
 import { listItemVariants, listVariants, transition } from '@/lib/motion'
@@ -85,19 +86,22 @@ export function Goals(): React.JSX.Element {
         </Button>
       }
     >
-      {goals.length === 0 ? (
-        <Empty
-          icon={Target}
-          title="No goals set"
-          body="Set a revenue target for the tax year, a number of new clients this quarter, or hours you want to bill each month. SoloWrk counts them from your own records — nothing to keep updated."
-          action={
-            <Button variant="primary" onClick={() => setEditing({ ...BLANK })}>
-              <Plus size={14} strokeWidth={1.75} />
-              Set your first goal
-            </Button>
-          }
-        />
-      ) : (
+      <Swap
+        empty={goals.length === 0}
+        fallback={
+          <Empty
+            icon={Target}
+            title="No goals set"
+            body="Set a revenue target for the tax year, a number of new clients this quarter, or hours you want to bill each month. SoloWrk counts them from your own records — nothing to keep updated."
+            action={
+              <Button variant="primary" onClick={() => setEditing({ ...BLANK })}>
+                <Plus size={14} strokeWidth={1.75} />
+                Set your first goal
+              </Button>
+            }
+          />
+        }
+      >
         <motion.div
           variants={listVariants}
           initial="initial"
@@ -116,7 +120,7 @@ export function Goals(): React.JSX.Element {
             ))}
           </AnimatePresence>
         </motion.div>
-      )}
+      </Swap>
 
       <GoalModal
         draft={editing}

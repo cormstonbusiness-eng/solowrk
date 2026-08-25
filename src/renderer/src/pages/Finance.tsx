@@ -23,6 +23,7 @@ import { Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
 import { Dot, Empty } from '@/components/ui/Empty'
+import { Swap } from '@/components/ui/Swap'
 import { keys, useInvalidate } from '@/lib/api'
 import { formatDate, formatMoney } from '@/lib/format'
 import { listItemVariants, listVariants, transition } from '@/lib/motion'
@@ -351,19 +352,22 @@ function Expenses({ period }: { period: Period }): React.JSX.Element {
         </Button>
       </div>
 
-      {expenses.length === 0 ? (
-        <Empty
-          icon={Receipt}
-          title="No expenses in this period"
-          body="Log what the business spends, with a receipt if you have one. Receipts are filed by year and month in your workspace."
-          action={
-            <Button variant="primary" onClick={() => setAdding(true)}>
-              <Plus size={14} strokeWidth={1.75} />
-              Add an expense
-            </Button>
-          }
-        />
-      ) : (
+      <Swap
+        empty={expenses.length === 0}
+        fallback={
+          <Empty
+            icon={Receipt}
+            title="No expenses in this period"
+            body="Log what the business spends, with a receipt if you have one. Receipts are filed by year and month in your workspace."
+            action={
+              <Button variant="primary" onClick={() => setAdding(true)}>
+                <Plus size={14} strokeWidth={1.75} />
+                Add an expense
+              </Button>
+            }
+          />
+        }
+      >
         <motion.div
           variants={listVariants}
           initial="initial"
@@ -414,7 +418,7 @@ function Expenses({ period }: { period: Period }): React.JSX.Element {
             </motion.div>
           ))}
         </motion.div>
-      )}
+      </Swap>
 
       <ExpenseModal open={adding} onClose={() => setAdding(false)} />
     </>
