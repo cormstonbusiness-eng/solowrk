@@ -5,6 +5,7 @@ import { backupDatabase, backupIsDue } from './backup'
 import { databasePath, isWorkspace, scaffoldWorkspace } from './workspace'
 import { getSettings, updateSettings } from './settings'
 import { runRecurringInvoices } from './invoices'
+import { drainOutbox } from './chaseRun'
 
 /**
  * Owns the currently open workspace: its path and its database connection.
@@ -95,6 +96,7 @@ class Session {
     await updateConfig({ workspacePath: path })
     await this.runDailyBackup()
     this.issueDueRetainers()
+    this.sendWhatIsWaiting()
   }
 
   /**
@@ -113,6 +115,27 @@ class Session {
     } catch (error) {
       console.error('Recurring invoices failed:', error)
     }
+  }
+
+  /**
+   * Try the outbox again.
+   *
+   * The queue exists because the moment the app decides to send is very often
+   * not a moment it can — the sweep runs at nine and the laptop is shut at
+   * nine, or open with no wifi. This is the other half of that: whatever is
+   * still waiting gets another go the next time the app is opened.
+   *
+   * Nothing new is drafted here, and nothing is sent that was not already
+   * approved or set to send automatically. Opening the app is not consent.
+   *
+   * Fire-and-forget, with its own catch: a mail server that is slow to answer
+   * must not hold up a workspace opening, and one that refuses must not stop
+   * it opening at all.
+   */
+  private sendWhatIsWaiting(): void {
+    void drainOutbox(this.requireDb()).catch((error) => {
+      console.error('Outbox drain failed:', error)
+    })
   }
 
   /**

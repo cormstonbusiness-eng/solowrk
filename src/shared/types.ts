@@ -16,6 +16,43 @@ export type Pence = number
 /** Hundredths of a percent. 2000 = 20%. */
 export type BasisPoints = number
 
+/**
+ * What happens when a chaser comes due.
+ *
+ * Two words rather than a boolean, because `chaseAuto: false` reads as the
+ * feature being off when what it actually means is that the note is written and
+ * waiting for you.
+ */
+export type ChaseSend = 'hold' | 'auto'
+
+/**
+ * Where a message is up to.
+ *
+ * 'held' and 'queued' look similar and are not: one is waiting for a person,
+ * the other is waiting for the network. A user looking at their outbox needs
+ * to know which, because only one of them is going to resolve itself.
+ */
+export type MailStatus = 'held' | 'queued' | 'sent' | 'failed' | 'cancelled'
+
+export interface QueuedMail {
+  id: number
+  kind: string
+  invoiceId: number | null
+  /** Which milestone of the chase schedule wrote this. */
+  attempt: number
+  to: string
+  subject: string
+  body: string
+  status: MailStatus
+  /** Sending attempts so far, not chase milestones. */
+  attempts: number
+  lastError: string | null
+  /** Not before this, after a transient failure. */
+  sendAfter: string | null
+  createdAt: string
+  sentAt: string | null
+}
+
 export interface BusinessSettings {
   businessName: string
   contactName: string
@@ -59,6 +96,27 @@ export interface BusinessSettings {
    * installed would be indefensible, however good the drafts are.
    */
   chaseEnabled: boolean
+
+  /**
+   * The user's own mail server. Empty means chasers still only draft.
+   *
+   * The password is deliberately absent from this type: it lives in the OS
+   * keychain, never in the workspace database, and never crosses the bridge.
+   * See `main/services/mail.ts`.
+   */
+  smtpHost: string
+  smtpPort: number
+  smtpSecure: boolean
+  smtpUser: string
+  /** Who the client sees it from, when that differs from the sign-in address. */
+  smtpFrom: string
+
+  /**
+   * 'hold' drafts the chaser and waits for a press; 'auto' sends it on the
+   * schedule. Default 'hold' \u2014 automatically emailing somebody's client in
+   * their name should never be the consequence of leaving a default alone.
+   */
+  chaseSend: ChaseSend
   /** Days past due at which to raise each chaser, comma-separated. */
   chaseDays: string
 }

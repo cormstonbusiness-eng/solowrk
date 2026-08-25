@@ -32,6 +32,7 @@ import type {
   PostFilter,
   PostInput,
   PostWithContext,
+  QueuedMail,
   SocialAccount,
   Client,
   ClientInput,
@@ -335,6 +336,50 @@ export interface IpcContract {
   'chasing:record': { req: { id: number; attempt: number }; res: void }
   /** Stop chasing this invoice without marking it paid. */
   'chasing:stop': { req: { id: number }; res: void }
+
+  /**
+   * The outbox.
+   *
+   * Under the `chasing:` prefix because it is the same entitlement and, today,
+   * the same job \u2014 every message in it is a chaser. Named for that rather
+   * than for mail generally, so widening it later is a decision somebody takes
+   * on purpose rather than a channel that quietly grew.
+   */
+  'chasing:outbox': { req: void; res: QueuedMail[] }
+  /**
+   * Send a held message now.
+   *
+   * A write in the strongest sense the app has: it is the press that turns a
+   * draft into something in somebody else's inbox.
+   */
+  'chasing:send': { req: { id: number }; res: QueuedMail }
+  /** Bin a held message. It will not be written again for that milestone. */
+  'chasing:discard': { req: { id: number }; res: QueuedMail }
+  /**
+   * Try the queue again now rather than waiting for the next sweep.
+   *
+   * Named `sendQueued` rather than `drain` on purpose. The classifier above
+   * reads the verb, treats anything it does not recognise as a read, and
+   * allows it while the licence is lapsed — so a channel called `drain` would
+   * have gone on sending mail for an account that had stopped paying.
+   *
+   * Exists because the honest answer to \u201cwhy has this not gone?\u201d is usually
+   * \u201cthe wifi was down at nine\u201d, and a button beats an explanation.
+   */
+  'chasing:sendQueued': { req: void; res: { sent: number; failed: number; retrying: number } }
+
+  /**
+   * Mail account setup.
+   *
+   * Separate from `settings:update` because the password never goes into the
+   * workspace database and so cannot travel with the rest of the settings
+   * patch. It goes to the OS keychain and comes back only as a yes or no \u2014
+   * there is no channel that reads it back out.
+   */
+  'mail:status': { req: void; res: { configured: boolean; hasPassword: boolean } }
+  'mail:password': { req: { password: string }; res: void }
+  /** Send a test message to the user's own address, with the server's own words on failure. */
+  'mail:test': { req: void; res: void }
   /**
    * A statement of account for one client: everything they owe, aged, on one
    * page. Under this prefix because it is the same entitlement and the same
@@ -618,6 +663,13 @@ export const IPC_CHANNELS = [
   'chasing:record',
   'chasing:stop',
   'chasing:statement',
+  'chasing:outbox',
+  'chasing:send',
+  'chasing:discard',
+  'chasing:sendQueued',
+  'mail:status',
+  'mail:password',
+  'mail:test',
   'export:csv',
   'yearEnd:pack',
   'quotes:list',

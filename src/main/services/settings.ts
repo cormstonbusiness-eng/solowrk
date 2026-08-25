@@ -35,6 +35,12 @@ interface SettingsRow extends Row {
   business_plan_read_at: string | null
   chase_enabled: number
   chase_days: string
+  chase_send: string
+  smtp_host: string
+  smtp_port: number
+  smtp_secure: number
+  smtp_user: string
+  smtp_from: string
   created_at: string
   updated_at: string
 }
@@ -65,6 +71,12 @@ function toSettings(row: SettingsRow): Settings {
     nextQuoteNumber: row.next_quote_number,
     chaseEnabled: row.chase_enabled === 1,
     chaseDays: row.chase_days,
+    chaseSend: row.chase_send === 'auto' ? 'auto' : 'hold',
+    smtpHost: row.smtp_host,
+    smtpPort: row.smtp_port,
+    smtpSecure: row.smtp_secure === 1,
+    smtpUser: row.smtp_user,
+    smtpFrom: row.smtp_from,
     logoFile: row.logo_file,
     businessPlanFile: row.business_plan_file,
     createdAt: row.created_at,
@@ -100,6 +112,14 @@ const COLUMNS: {
   nextQuoteNumber: { column: 'next_quote_number', toDb: Number },
   chaseEnabled: { column: 'chase_enabled', toDb: (value: unknown) => (value ? 1 : 0) },
   chaseDays: { column: 'chase_days', toDb: String },
+  // Anything that is not exactly 'auto' means hold. A typo, a stale client, or
+  // a hand-edited database must not be the thing that starts sending mail.
+  chaseSend: { column: 'chase_send', toDb: (value: unknown) => (value === 'auto' ? 'auto' : 'hold') },
+  smtpHost: { column: 'smtp_host', toDb: String },
+  smtpPort: { column: 'smtp_port', toDb: Number },
+  smtpSecure: { column: 'smtp_secure', toDb: (value: unknown) => (value ? 1 : 0) },
+  smtpUser: { column: 'smtp_user', toDb: String },
+  smtpFrom: { column: 'smtp_from', toDb: String },
   logoFile: { column: 'logo_file', toDb: String },
   businessPlanFile: { column: 'business_plan_file', toDb: String }
 }

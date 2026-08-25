@@ -34,6 +34,19 @@ export interface AppConfig {
   verifiedAt: string | null
   /** Identifies this installation to the seat count. Generated once. */
   deviceId: string | null
+
+  /**
+   * The user's mail password, encrypted by the OS keychain.
+   *
+   * Here rather than in the workspace database on purpose. The workspace is a
+   * folder of the user's own files, and that folder is very often inside
+   * Dropbox or OneDrive — a mail password kept there is a mail password in
+   * somebody else's datacentre. `safeStorage` also ties the ciphertext to this
+   * Windows account, so it could not be decrypted elsewhere even if it were
+   * synced, which means a second machine has to be told the password again.
+   * That is the correct answer rather than an inconvenience.
+   */
+  smtpPassword: string | null
 }
 
 const DEFAULT_CONFIG: AppConfig = {
@@ -48,7 +61,8 @@ const DEFAULT_CONFIG: AppConfig = {
   accountExpiresOn: null,
   lapsedReason: null,
   verifiedAt: null,
-  deviceId: null
+  deviceId: null,
+  smtpPassword: null
 }
 
 const CONFIG_FILENAME = 'solo.config.json'
@@ -93,7 +107,8 @@ function parseConfig(raw: string): AppConfig {
     accountExpiresOn: text(parsed.accountExpiresOn),
     lapsedReason: text(parsed.lapsedReason),
     verifiedAt: text(parsed.verifiedAt),
-    deviceId: text(parsed.deviceId)
+    deviceId: text(parsed.deviceId),
+    smtpPassword: text(parsed.smtpPassword)
   }
 }
 

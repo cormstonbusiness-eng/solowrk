@@ -783,5 +783,84 @@ export const migrations: Migration[] = [
       -- The sweep asks for unpaid invoices past their due date every morning.
       CREATE INDEX idx_invoices_chasing ON invoices(status, paid_at, due_date);
     `
+  },
+  {
+    id: 16,
+    name: 'outbound_mail',
+    sql: `
+      -- The user's own mail server. SoloWrk sends as them, through their
+      -- provider, from their machine — there is no SoloWrk mail infrastructure
+      -- and there is not going to be: a service relaying a freelancer's client
+      -- correspondence is a service that can read it, lose it, and be blamed
+      -- for it.
+      --
+      -- The password is deliberately not here. It lives in the OS keychain via
+      -- Electron's safeStorage, because this database sits in the user's
+      -- workspace folder, and that folder is very often inside Dropbox or
+      -- OneDrive. A mail password in a synced folder is a mail password in
+      -- somebody else's datacentre.
+      ALTER TABLE settings ADD COLUMN smtp_host   TEXT    NOT NULL DEFAULT '';
+      ALTER TABLE settings ADD COLUMN smtp_port   INTEGER NOT NULL DEFAULT 587;
+      ALTER TABLE settings ADD COLUMN smtp_secure INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE settings ADD COLUMN smtp_user   TEXT    NOT NULL DEFAULT '';
+
+      -- Who the client sees it from. Usually the same as smtp_user, but not
+      -- always: a shared mailbox, or a domain alias, needs to differ.
+      ALTER TABLE settings ADD COLUMN smtp_from   TEXT    NOT NULL DEFAULT '';
+
+      -- 'hold' drafts the chaser and waits for a press. 'auto' sends it on the
+      -- schedule. Default 'hold', and it takes a deliberate act to change:
+      -- automatically emailing somebody's client in their name is the single
+      -- most consequential thing this app can do, and it should never be the
+      -- consequence of leaving a default alone.
+      ALTER TABLE settings ADD COLUMN chase_send  TEXT    NOT NULL DEFAULT 'hold';
+
+      -- Outbound mail, as a queue rather than a function call.
+      --
+      -- A queue because the machine that decided to send is often not awake
+      -- when sending becomes possible: the sweep runs at nine, the laptop is
+      -- shut at nine, and a send attempted and lost is a chaser nobody knows
+      -- did not go. Rows survive restarts and are retried on the next launch.
+      CREATE TABLE mail_queue (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        kind        TEXT    NOT NULL DEFAULT 'chaser',
+        invoice_id  INTEGER REFERENCES invoices(id) ON DELETE CASCADE,
+
+        -- Which milestone of the chase schedule produced this. Part of the
+        -- identity of the message, not a detail of it.
+        attempt     INTEGER NOT NULL DEFAULT 1,
+
+        to_address  TEXT    NOT NULL,
+        subject     TEXT    NOT NULL,
+        body        TEXT    NOT NULL,
+
+        -- held | queued | sent | failed | cancelled
+        --
+        -- 'held' is waiting for the user; 'queued' is waiting for the network.
+        -- The difference matters: one of them is a decision nobody has taken,
+        -- and the other is a decision already taken that has not landed yet.
+        status      TEXT    NOT NULL DEFAULT 'held',
+
+        attempts    INTEGER NOT NULL DEFAULT 0,
+        last_error  TEXT,
+
+        -- Not before this. Set by the backoff after a transient failure.
+        send_after  TEXT,
+
+        created_at  TEXT    NOT NULL,
+        sent_at     TEXT
+      );
+
+      -- One message per invoice per milestone, ever. This is what stops a
+      -- sweep that runs twice, or a queue drained twice, chasing a client
+      -- twice for the same thing — which is the failure everybody would
+      -- remember. Cancelled rows are included on purpose: cancelling is a
+      -- decision, and tomorrow's sweep must not quietly undo it.
+      CREATE UNIQUE INDEX idx_mail_queue_chase
+        ON mail_queue(invoice_id, attempt) WHERE kind = 'chaser';
+
+      -- The drain asks for what is sendable, oldest first.
+      CREATE INDEX idx_mail_queue_status ON mail_queue(status, send_after);
+    `
   }
 ]

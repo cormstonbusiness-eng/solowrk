@@ -29,6 +29,12 @@ describe('what read-only allows', () => {
       // the exceptions set — `record` and `stop` are both writing verbs.
       'chasing:record',
       'chasing:stop',
+      // Both put mail on the wire in the user's name. A lapsed licence that
+      // went on chasing somebody's clients would be indefensible, and the
+      // second is named `sendQueued` rather than `drain` precisely so this
+      // classifier catches it.
+      'chasing:send',
+      'chasing:sendQueued',
       // Neither name begins with a writing verb, and both create a record.
       'quotes:convert',
       'templates:fromProject'
@@ -51,6 +57,10 @@ describe('what read-only allows', () => {
       'invoices:receipt',
       'chasing:due',
       'chasing:statement',
+      'chasing:outbox',
+      // Stopping something from being sent must never be the thing a lapsed
+      // licence takes away.
+      'chasing:discard',
       'finance:summary',
       'files:list',
       'files:open',

@@ -20,6 +20,9 @@ import {
 } from '../services/chasers'
 import { readWindowState } from './window'
 import { session } from '../services/session'
+import { approveMail, cancelMail, getMail, listMail } from '../services/mailQueue'
+import { drainOutbox } from '../services/chaseRun'
+import { hasSmtpPassword, sendTestEmail, smtpConfigured, storeSmtpPassword } from '../services/mail'
 import { suggestedWorkspacePath } from '../services/config'
 import { inspectFolder, resolveInWorkspace } from '../services/workspace'
 import {
@@ -463,6 +466,38 @@ const handlers: Handlers = {
   'chasing:stop': (_g, { id }) => {
     stopChasing(session.requireDb(), id)
   },
+
+  'chasing:outbox': () => listMail(session.requireDb()),
+
+  /**
+   * The press that sends.
+   *
+   * Approve then drain, in that order and in one call, so the message is
+   * durably marked as decided before anything is attempted. If the send fails
+   * the row stays queued and retries on its own; if the app dies between the
+   * two, the next launch picks it up. The reverse order could send a message
+   * the database never recorded as approved.
+   */
+  'chasing:send': async (_g, { id }) => {
+    const db = session.requireDb()
+    const mail = approveMail(db, id)
+    await drainOutbox(db)
+    return getMail(db, mail.id)
+  },
+
+  'chasing:discard': (_g, { id }) => cancelMail(session.requireDb(), id),
+
+  'chasing:sendQueued': () => drainOutbox(session.requireDb()),
+
+  'mail:status': async () => {
+    const db = session.requireDb()
+    const hasPassword = await hasSmtpPassword()
+    return { configured: smtpConfigured(getSettings(db), hasPassword), hasPassword }
+  },
+
+  'mail:password': (_g, { password }) => storeSmtpPassword(password),
+
+  'mail:test': () => sendTestEmail(getSettings(session.requireDb())),
 
   'chasing:statement': async (_g, { clientId, from }) => {
     const db = session.requireDb()

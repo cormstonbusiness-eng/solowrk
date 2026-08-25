@@ -2,6 +2,7 @@ import type { BrowserWindow } from 'electron'
 import { addDays, dayOf, nowStamp, timeOf } from '@shared/calendar'
 import { hasFeature } from './auth'
 import { chaseDedupeKey, dueChasers } from './chasers'
+import { runChasers } from './chaseRun'
 import { dueReminders, markReminded } from './events'
 import { listDueTasks } from './tasks'
 import { session } from './session'
@@ -128,8 +129,11 @@ function runDigest(getWindow: () => BrowserWindow | null, now: Date): void {
  * alerts about money is a bad morning, and the point is to prompt one sitting
  * of chasing rather than to be a running commentary on being owed.
  *
- * Nothing is sent here. The drafts wait on the Invoices page until the user
- * reads them.
+ * Whether anything is actually sent is decided in `runChasers`, and the answer
+ * is no unless the user has set up their own mail account and then explicitly
+ * switched chasing from 'hold' to 'auto'. The notification is worded from what
+ * came back rather than assumed, so it never claims to have sent something it
+ * only wrote.
  */
 async function runChaseSweep(
   getWindow: () => BrowserWindow | null,
@@ -153,16 +157,38 @@ async function runChaseSweep(
   const total = due.reduce((sum, chase) => sum + chase.invoice.gross, 0)
   const amount = `£${(total / 100).toLocaleString('en-GB', { maximumFractionDigits: 0 })}`
 
+  // Write the notes — and, if the user has asked for it, send them. The
+  // dedupe key is taken before this runs, because sending changes chase_step
+  // and would otherwise change the key for the very notification describing it.
+  const key = chaseDedupeKey(due)
+  const result = await runChasers(db, day)
+
+  const waiting = result.drafted - result.queued
+  const verb = result.queued > 0 && waiting === 0 ? 'sent' : 'drafted'
+
   push(db, getWindow, {
     kind: 'late',
     title: due.length === 1 ? 'An invoice needs chasing' : `${due.length} invoices need chasing`,
     body:
       due.length === 1
-        ? `${due[0]!.invoice.number} · ${amount} · ${due[0]!.daysLate} days late. A note is drafted and waiting.`
-        : `${amount} outstanding. The notes are drafted and waiting.`,
+        ? `${due[0]!.invoice.number} · ${amount} · ${due[0]!.daysLate} days late. A note has been ${verb}.`
+        : `${amount} outstanding. The notes have been ${verb}.`,
     link: '/invoices',
-    dedupeKey: chaseDedupeKey(due)
+    dedupeKey: key
   })
+
+  // Anything that failed to send is worth its own notification. A chaser that
+  // did not go is invisible otherwise, and invisible is exactly how an unpaid
+  // invoice stays unpaid.
+  if (result.drained.failed > 0) {
+    push(db, getWindow, {
+      kind: 'late',
+      title: 'A chaser could not be sent',
+      body: `${result.drained.failed} message${result.drained.failed === 1 ? '' : 's'} failed. Check your mail settings.`,
+      link: '/settings',
+      dedupeKey: `chase-failed-${day}`
+    })
+  }
 }
 
 export function startReminders(getWindow: () => BrowserWindow | null): void {
