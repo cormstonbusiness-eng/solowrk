@@ -22,6 +22,8 @@ import { Skeleton } from '@/components/ui/Skeleton'
 import { DEFAULT_CHASE_DAYS, describeSchedule, parseChaseDays } from '@shared/chasing'
 import { type ChangeKind, type Release, changelog, releaseFor } from '@shared/changelog'
 import { Page } from '@/components/Page'
+import { Expand } from '@/components/ui/Expand'
+import { MailCard } from './settings/MailCard'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, MoneyInput, NumberInput, TextInput, Toggle } from '@/components/ui/Field'
@@ -318,6 +320,7 @@ export function Settings(): React.JSX.Element {
           </div>
         </Card>
         <ChasingCard draft={draft} set={set} />
+        <MailCard draft={draft} set={set} />
             </>}
 
           {tab === 'account' && <AccountCard />}
@@ -391,6 +394,13 @@ export function Settings(): React.JSX.Element {
  * what was typed, so "30, 7, banana" visibly becomes "Chases 7 days after and
  * 30 days after" before anyone finds out the hard way. Both sides read it with
  * the same function.
+ *
+ * Sending is the second switch, and it only appears once there is a mail
+ * account for it to use. Two switches rather than one because they are two
+ * different decisions: *tell me when an invoice needs chasing* is a reminder,
+ * and *send it without asking me* is a note going to somebody else's client in
+ * the user's name. Rolling them together would mean somebody who wanted the
+ * first got the second.
  */
 function ChasingCard({
   draft,
@@ -400,6 +410,15 @@ function ChasingCard({
   set: <K extends keyof BusinessSettings>(key: K, value: BusinessSettings[K]) => void
 }): React.JSX.Element {
   const entitled = useFeature('chasing')
+
+  // Whether there is an account to send through at all. Drives the second
+  // switch rather than being another thing to configure here — the mail
+  // account is set up once, in its own card, and used from several places.
+  const { data: mailStatus } = useQuery({
+    queryKey: ['mail', 'status'],
+    queryFn: () => window.solo.invoke('mail:status')
+  })
+  const mailReady = mailStatus?.configured ?? false
 
   return (
     <Card>
@@ -439,35 +458,55 @@ function ChasingCard({
             checked={draft.chaseEnabled}
             onChange={(checked) => set('chaseEnabled', checked)}
             label="Tell me when an invoice needs chasing"
-            hint="SoloWrk writes the note and says it is waiting. It never sends anything itself."
+            hint="SoloWrk watches your due dates and writes the note."
           />
 
           <AnimatePresence initial={false}>
             {draft.chaseEnabled && (
-              <motion.div
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={transition.page}
-                className="overflow-hidden"
-              >
-                <div className="border-t border-line pt-3.5">
-                  <Field
-                    label="Days past due"
-                    hint={describeSchedule(parseChaseDays(draft.chaseDays))}
-                  >
-                    <TextInput
-                      value={draft.chaseDays}
-                      placeholder={DEFAULT_CHASE_DAYS.join(', ')}
-                      onChange={(e) => set('chaseDays', e.target.value)}
+              <Expand contentClassName="border-t border-line pt-3.5">
+                <Field
+                  label="Days past due"
+                  hint={describeSchedule(parseChaseDays(draft.chaseDays))}
+                >
+                  <TextInput
+                    value={draft.chaseDays}
+                    placeholder={DEFAULT_CHASE_DAYS.join(', ')}
+                    onChange={(e) => set('chaseDays', e.target.value)}
+                  />
+                </Field>
+                <p className="mt-2 text-[11px] leading-relaxed text-faint">
+                  Each one is firmer than the last.
+                </p>
+
+                {/*
+                  Only offered once there is an account to send through.
+                  Showing a switch that cannot do anything would be a promise
+                  the app has not earned yet, and turning it on would silently
+                  achieve nothing.
+                */}
+                {mailReady ? (
+                  <div className="mt-3.5 border-t border-line pt-3.5">
+                    <Toggle
+                      checked={draft.chaseSend === 'auto'}
+                      onChange={(checked) => set('chaseSend', checked ? 'auto' : 'hold')}
+                      label="Send them without asking me"
+                      hint="Off: the note waits in your outbox until you press send. On: it goes out on the schedule above, from your address."
                     />
-                  </Field>
-                  <p className="mt-2 text-[11px] leading-relaxed text-faint">
-                    Each one is firmer than the last. Nothing is sent, and nothing goes out in
-                    your name that you have not read.
+                    {draft.chaseSend === 'auto' && (
+                      <p className="mt-2.5 text-[11px] leading-relaxed text-warning">
+                        Chasers will go to your clients on their own. You can read every one
+                        before it goes by turning this back off, and stop chasing any single
+                        invoice from the Invoices page.
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="mt-3.5 border-t border-line pt-3.5 text-[11px] leading-relaxed text-faint">
+                    Notes wait in your outbox until you press send. Add your email account under
+                    Sending mail to have SoloWrk send them for you.
                   </p>
-                </div>
-              </motion.div>
+                )}
+              </Expand>
             )}
           </AnimatePresence>
         </div>

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Empty, Pill } from '@/components/ui/Empty'
+import { Outbox } from './invoices/Outbox'
 import { Swap } from '@/components/ui/Swap'
 import { useInvalidate } from '@/lib/api'
 import { useFeature } from '@/lib/features'
@@ -196,6 +197,11 @@ function InvoiceList({
           </span>
         )}
       </div>
+
+      {/* Above the list, because a note waiting to go to a client is more
+          urgent than the list of invoices it came from — and because it
+          disappears entirely when there is nothing waiting. */}
+      <Outbox />
 
       <Swap
         empty={visible.length === 0}
