@@ -174,6 +174,17 @@ export interface IpcContract {
   'clients:create': { req: ClientInput; res: Client }
   'clients:update': { req: { id: number; patch: Partial<ClientInput> }; res: Client }
   'clients:delete': { req: { id: number }; res: void }
+  /**
+   * The client update pack: where the work is, as a file the user emails.
+   *
+   * HTML by default because that is what opens in an email; PDF for anybody
+   * who would rather attach one. Both come from the same markup. Returns the
+   * workspace-relative path.
+   */
+  'clients:updatePack': {
+    req: { clientId: number; format?: 'html' | 'pdf'; since?: string }
+    res: string
+  }
 
   'projects:list': {
     req: { clientId?: number; includeArchived?: boolean } | void
@@ -538,6 +549,7 @@ export const IPC_CHANNELS = [
   'clients:create',
   'clients:update',
   'clients:delete',
+  'clients:updatePack',
   'projects:list',
   'projects:get',
   'projects:create',

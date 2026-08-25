@@ -917,6 +917,48 @@ export interface FinanceSummary {
   unbilledValue: Pence
 }
 
+/**
+ * The client update pack: where the work is, for one client.
+ *
+ * A self-contained document the user emails themselves. No hosting, no
+ * accounts for their clients, nothing for anybody to log into — which is the
+ * point rather than a compromise, because a portal would mean holding a
+ * freelancer's clients' data on a server.
+ */
+export interface UpdatePackProject {
+  name: string
+  status: ProjectStatus
+  colour: string
+  dueOn: string | null
+  /** Task titles finished inside the window. */
+  completed: string[]
+  /** What is next — not the whole backlog. */
+  next: string[]
+  hoursTotal: number
+  hoursRecent: number
+}
+
+export interface UpdatePackInvoice {
+  number: string
+  issueDate: string
+  dueDate: string
+  gross: Pence
+  overdue: boolean
+}
+
+export interface ClientUpdatePack {
+  clientName: string
+  contactName: string
+  /** `yyyy-mm-dd`. */
+  asOf: string
+  /** Start of the window "recently" means, so the document can say it. */
+  since: string
+  projects: UpdatePackProject[]
+  outstanding: UpdatePackInvoice[]
+  outstandingTotal: Pence
+  hoursRecent: number
+}
+
 /** One bucket on a dashboard sparkline. */
 export interface TrendPoint {
   /** Short axis label — a month name, or a date of the month for weeks. */

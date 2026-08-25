@@ -50,7 +50,7 @@ export function Palette(): React.JSX.Element {
 
   // Stable, so the command list is not rebuilt on every keystroke.
   const close = useCallback(() => setOpen(false), [])
-  const commands = useCommands({ enabled: open, navigate, queryClient, close })
+  const commands = useCommands({ enabled: open, query, navigate, queryClient, close })
 
   const results = useMemo(() => {
     const ranked = fuzzyRank(commands, query, (command) => command.searchText, RESULT_LIMIT)

@@ -501,7 +501,7 @@ const MIME: Record<string, string> = {
   '.svg': 'image/svg+xml'
 }
 
-async function logoFor(workspacePath: string, logoFile: string): Promise<string | null> {
+export async function logoFor(workspacePath: string, logoFile: string): Promise<string | null> {
   if (logoFile.trim() === '') return null
 
   try {
@@ -549,6 +549,49 @@ export function safeFileName(reference: string): string {
 }
 
 /**
+ * Print arbitrary HTML to a PDF in the workspace.
+ *
+ * Split out from `writePdf` so anything that already has a page — the client
+ * update pack, which is an HTML file in its own right — gets a PDF from the
+ * exact same markup rather than a second renderer that drifts from the first.
+ */
+export async function writeHtmlPdf(
+  workspacePath: string,
+  html: string,
+  folderRelative: string,
+  name: string
+): Promise<string> {
+  await mkdir(resolveInWorkspace(workspacePath, folderRelative), { recursive: true })
+
+  const fileRelative = join(folderRelative, `${safeFileName(name)}.pdf`)
+
+  // Offscreen and never shown. sandbox stays on; the page is our own HTML with
+  // no scripts, and JavaScript is disabled outright as belt and braces.
+  const window = new BrowserWindow({
+    show: false,
+    webPreferences: { offscreen: true, javascript: false, sandbox: true }
+  })
+
+  try {
+    await window.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+
+    // Margins are zero here because the stylesheet's @page rule owns them —
+    // otherwise Chromium's default margin is added on top of ours.
+    const buffer = await window.webContents.printToPDF({
+      pageSize: 'A4',
+      printBackground: true,
+      margins: { top: 0, bottom: 0, left: 0, right: 0 }
+    })
+
+    await writeFile(resolveInWorkspace(workspacePath, fileRelative), buffer)
+  } finally {
+    window.destroy()
+  }
+
+  return fileRelative
+}
+
+/**
  * Render to PDF and save it into the workspace, under the folder for its kind
  * and the year it was issued. Returns the workspace-relative path.
  */
@@ -561,37 +604,12 @@ export async function writePdf(
 ): Promise<string> {
   const year = doc.issueDate.slice(0, 4)
   const folderRelative = into ?? join(FOLDERS[doc.kind], year)
-  await mkdir(resolveInWorkspace(workspacePath, folderRelative), { recursive: true })
-
-  const fileRelative = join(folderRelative, `${safeFileName(doc.number)}.pdf`)
-  const absolute = resolveInWorkspace(workspacePath, fileRelative)
-
   const logo = await logoFor(workspacePath, settings.logoFile)
 
-  // Offscreen and never shown. sandbox stays on; the page is our own HTML with
-  // no scripts, and JavaScript is disabled outright as belt and braces.
-  const window = new BrowserWindow({
-    show: false,
-    webPreferences: { offscreen: true, javascript: false, sandbox: true }
-  })
-
-  try {
-    await window.loadURL(
-      `data:text/html;charset=utf-8,${encodeURIComponent(renderHtml(doc, settings, logo))}`
-    )
-
-    // Margins are zero here because the stylesheet's @page rule owns them —
-    // otherwise Chromium's default margin is added on top of ours.
-    const buffer = await window.webContents.printToPDF({
-      pageSize: 'A4',
-      printBackground: true,
-      margins: { top: 0, bottom: 0, left: 0, right: 0 }
-    })
-
-    await writeFile(absolute, buffer)
-  } finally {
-    window.destroy()
-  }
-
-  return fileRelative
+  return writeHtmlPdf(
+    workspacePath,
+    renderHtml(doc, settings, logo),
+    folderRelative,
+    doc.number
+  )
 }

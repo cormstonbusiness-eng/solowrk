@@ -8,11 +8,13 @@ import {
   ArrowUp,
   FileText,
   FolderKanban,
+  Loader2,
   Lock,
   Mail,
   Phone,
   Plus,
   Search,
+  Send,
   Trash2,
   Users
 } from 'lucide-react'
@@ -496,8 +498,9 @@ export function ClientDetail(): React.JSX.Element {
             <ArrowLeft size={14} strokeWidth={1.75} />
             All clients
           </Button>
+          <UpdatePackButton clientId={clientId} />
           <Button variant="danger" onClick={() => setConfirmDelete(true)}>
-            <Trash2 size={14} strokeWidth={1.75} />
+            <Trash2 size={14} strokeWidth={1.5} />
             Delete
           </Button>
         </>
@@ -573,6 +576,55 @@ export function ClientDetail(): React.JSX.Element {
         body="This removes the client and their projects from SoloWrk. Their folder and every file inside it stays on disk untouched."
       />
     </Page>
+  )
+}
+
+/**
+ * The client update pack.
+ *
+ * Sits in the page header rather than in a card, because it is the one thing
+ * on this screen you come here *to do* — everything else is a record you came
+ * to read.
+ *
+ * Writes the file and opens the folder. The user attaches it themselves: there
+ * is no hosting, no link, and no account for their client to create, which is
+ * the whole reason this exists instead of a portal.
+ */
+function UpdatePackButton({ clientId }: { clientId: number }): React.JSX.Element {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const build = (format: 'html' | 'pdf'): void => {
+    setBusy(true)
+    setError('')
+    void window.solo
+      .invoke('clients:updatePack', { clientId, format })
+      .then((path) => void window.solo.invoke('files:reveal', { path }))
+      .catch((cause: Error) => setError(cause.message))
+      .finally(() => setBusy(false))
+  }
+
+  return (
+    <span className="relative flex items-center gap-1">
+      <Button variant="secondary" disabled={busy} onClick={() => build('html')}>
+        {busy ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} strokeWidth={1.5} />}
+        Update pack
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled={busy}
+        title="As a PDF instead"
+        onClick={() => build('pdf')}
+      >
+        PDF
+      </Button>
+      {error && (
+        <span className="absolute top-full right-0 mt-1 text-[11.5px] whitespace-nowrap text-danger">
+          {error}
+        </span>
+      )}
+    </span>
   )
 }
 

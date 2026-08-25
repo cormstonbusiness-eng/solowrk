@@ -44,16 +44,19 @@ export function Modal({
             exit={{ opacity: 0 }}
             transition={transition.press}
             onClick={onClose}
-            className="absolute inset-0 bg-[rgba(6,6,8,0.6)]"
+            // Blurred as well as darkened: the dark alone leaves the app
+            // readable behind the panel, which invites reading it rather than
+            // the thing being asked.
+            className="absolute inset-0 bg-[rgba(6,6,8,0.6)] backdrop-blur-[2px]"
           />
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.98, y: 6 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98, y: 4 }}
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
             transition={transition.modal}
             style={{ width }}
-            className="relative max-h-[82vh] overflow-hidden rounded-panel border border-line-strong bg-surface shadow-2xl"
+            className="relative max-h-[82vh] overflow-hidden rounded-panel border border-line-strong bg-surface shadow-modal"
           >
             <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
               <div>

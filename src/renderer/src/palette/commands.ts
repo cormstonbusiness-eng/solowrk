@@ -5,6 +5,7 @@ import {
   Building2,
   CalendarDays,
   CircleCheckBig,
+  Clock,
   FileText,
   FolderKanban,
   Megaphone,
@@ -15,6 +16,7 @@ import {
   type LucideIcon
 } from 'lucide-react'
 import { dayFromDate } from '@shared/calendar'
+import { describeSeconds, parseLoggedTime } from '@shared/logEntry'
 import { invalidate, keys } from '@/lib/api'
 import { useFeature } from '@/lib/features'
 import { allNavItems } from '@/lib/nav'
@@ -43,11 +45,20 @@ export interface Command {
  */
 export function useCommands({
   enabled,
+  query,
   navigate,
   queryClient,
   close
 }: {
   enabled: boolean
+  /**
+   * What is typed, so a verb can be built out of it.
+   *
+   * Most commands are a fixed list the matcher filters. "Log 2h yesterday" is
+   * not in any list — it only exists once somebody has typed it — so the raw
+   * text has to reach here.
+   */
+  query: string
   navigate: NavigateFunction
   queryClient: QueryClient
   close: () => void
@@ -108,6 +119,40 @@ export function useCommands({
     }
 
     const commands: Command[] = []
+
+    /**
+     * "Log 2h yesterday" — a command that does not exist until it is typed.
+     *
+     * First in the list when it parses, because somebody who has typed a
+     * duration and a day has said exactly what they want and should not have
+     * to scroll past six records to get it. The label reads the parse back so
+     * it can be checked before Enter commits anything.
+     */
+    const logged = parseLoggedTime(query, dayFromDate(new Date()))
+    if (logged) {
+      commands.push({
+        id: 'log-time',
+        label: `Log ${describeSeconds(logged.seconds)}${
+          logged.note ? ` — ${logged.note}` : ''
+        }`,
+        subtitle: logged.date === dayFromDate(new Date()) ? 'today' : logged.date,
+        group: 'Action',
+        icon: Clock,
+        searchText: query,
+        run: async () => {
+          const started = `${logged.date}T09:00:00`
+          await window.solo.invoke('time:create', {
+            projectId: null,
+            startedAt: started,
+            duration: logged.seconds,
+            notes: logged.note,
+            billable: true
+          })
+          invalidate(queryClient, ['time', 'finance'])
+          close()
+        }
+      })
+    }
 
     /* Verbs first: they are what a palette is for, and they are the shortest
        list, so they cannot bury the records below them. */

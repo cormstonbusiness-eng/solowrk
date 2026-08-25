@@ -1,3 +1,5 @@
+import { mkdir, writeFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import {
   app,
   clipboard,
@@ -147,11 +149,13 @@ import {
   listConversations,
   listMessages
 } from '../services/conversations'
-import { writePdf } from '../services/pdf'
+import { logoFor, writeHtmlPdf, writePdf } from '../services/pdf'
 import { buildStatement } from '../services/statements'
 import { writeDatasetCsv } from '../services/exports'
 import { buildYearEndPack } from '../services/yearEnd'
 import { trends } from '../services/trends'
+import { buildUpdatePack } from '../services/updatePack'
+import { renderUpdatePack } from '../services/updatePackHtml'
 import { rangeFor } from '@shared/taxYear'
 import { updateSettings } from '../services/settings'
 import { getState, setState } from '../services/appState'
@@ -250,6 +254,29 @@ const handlers: Handlers = {
   'clients:update': (_g, { id, patch }) =>
     updateClient(session.requireDb(), session.requirePath(), id, patch),
   'clients:delete': (_g, { id }) => deleteClient(session.requireDb(), id),
+
+  'clients:updatePack': async (_g, { clientId, format, since }) => {
+    const db = session.requireDb()
+    const workspacePath = session.requirePath()
+    const settings = getSettings(db)
+
+    const pack = buildUpdatePack(db, clientId, { since })
+    const html = renderUpdatePack(pack, settings, await logoFor(workspacePath, settings.logoFile))
+
+    // Filed under the client's own folder rather than a central Exports pile:
+    // this is a document about them, and it belongs with the rest of their
+    // paperwork where somebody would go looking for it.
+    const client = getClient(db, clientId)
+    const folder = join(client.folder, 'Updates')
+    const name = `Update ${pack.asOf}`
+
+    if (format === 'pdf') return writeHtmlPdf(workspacePath, html, folder, name)
+
+    await mkdir(resolveInWorkspace(workspacePath, folder), { recursive: true })
+    const relative = join(folder, `${name}.html`)
+    await writeFile(resolveInWorkspace(workspacePath, relative), html, 'utf8')
+    return relative
+  },
 
   'projects:list': (_g, args) => listProjects(session.requireDb(), args ?? {}),
   'projects:get': (_g, { id }) => getProject(session.requireDb(), id),
