@@ -1,3 +1,5 @@
+import { copyFileSync } from 'node:fs'
+import { basename, dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import { migrations } from './migrations'
 
@@ -113,8 +115,12 @@ export class Database {
       this.all<{ id: number }>('SELECT id FROM _migrations').map((row) => row.id)
     )
 
-    for (const migration of migrations) {
-      if (applied.has(migration.id)) continue
+    const pending = migrations.filter((migration) => !applied.has(migration.id))
+    if (pending.length === 0) return
+
+    this.snapshotBeforeMigrating(applied)
+
+    for (const migration of pending) {
       this.transaction(() => {
         this.db.exec(migration.sql)
         this.run('INSERT INTO _migrations (id, name, applied_at) VALUES (?, ?, datetime(\'now\'))', [
@@ -122,6 +128,52 @@ export class Database {
           migration.name
         ])
       })
+    }
+  }
+
+  /**
+   * Copy the database aside before changing its shape.
+   *
+   * Each migration runs in a transaction, so one that *throws* rolls itself
+   * back. This guards the other case: one that succeeds and is wrong. A
+   * rebuild that drops and recreates a table cannot be undone by a rollback
+   * that already committed.
+   *
+   * The rolling daily backup is not cover for this. It runs after the database
+   * is opened — so after migrations — and only once a day, which means on the
+   * morning of an update it has very often already run against the new shape.
+   *
+   * Synchronous, because migrations happen in the constructor and there is
+   * nowhere to await. That is the whole reason this is not a call to
+   * `backupDatabase`.
+   *
+   * A failure here stops the migration. Refusing to open until there is disk
+   * space is an annoyance somebody can act on; migrating irreversibly with no
+   * copy is not.
+   */
+  private snapshotBeforeMigrating(applied: Set<number>): void {
+    // Nothing applied means nothing to lose — a brand-new workspace, or an
+    // empty file. Copying it would only litter.
+    if (applied.size === 0) return
+    if (this.file === ':memory:') return
+
+    const from = Math.max(...applied)
+    const name = basename(this.file).replace(/[.]db$/, '')
+    const destination = join(dirname(this.file), `${name}.before-v${from}.db`)
+
+    try {
+      // In WAL mode the recent writes sit in the -wal file, so copying the .db
+      // alone can silently miss the last session's work. Same trap the daily
+      // backup documents.
+      this.db.exec('PRAGMA wal_checkpoint(TRUNCATE)')
+      copyFileSync(this.file, destination)
+    } catch (cause) {
+      throw new Error(
+        'SoloWrk needs to update how it stores your data, and could not take a backup first ' +
+          `(${cause instanceof Error ? cause.message : String(cause)}). ` +
+          'Nothing has been changed. Free some disk space and reopen SoloWrk.',
+        { cause }
+      )
     }
   }
 }
