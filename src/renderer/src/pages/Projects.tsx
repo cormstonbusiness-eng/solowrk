@@ -18,6 +18,7 @@ import { formatDate, formatMoney, toDateInput } from '@/lib/format'
 import { TaskList } from './tasks/TaskList'
 import { ProjectNotes } from './ProjectNotes'
 import { ProjectBoard } from './projects/Board'
+import { DEFAULT_ENTITY_COLOUR } from '@shared/types'
 
 const BLANK: ProjectInput = {
   name: '',
@@ -27,7 +28,7 @@ const BLANK: ProjectInput = {
   rate: null,
   budget: null,
   dueOn: null,
-  colour: '#6E56CF'
+  colour: DEFAULT_ENTITY_COLOUR
 }
 
 function statusMeta(status: ProjectStatus): { label: string; colour: string } {
@@ -242,7 +243,7 @@ function ProjectModal({
 
           <Field label="Colour">
             <ColourPicker
-              value={draft.colour ?? '#6E56CF'}
+              value={draft.colour ?? DEFAULT_ENTITY_COLOUR}
               onChange={(colour) => set('colour', colour)}
             />
           </Field>

@@ -29,6 +29,7 @@ import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { TaskRow } from './tasks/TaskRow'
 import { TaskModal } from './tasks/TaskModal'
+import { DEFAULT_ENTITY_COLOUR } from '@shared/types'
 
 type View = 'board' | 'list'
 
@@ -487,7 +488,7 @@ function CategoryManager({
 }): React.JSX.Element {
   const invalidate = useInvalidate()
   const [name, setName] = useState('')
-  const [colour, setColour] = useState('#6E56CF')
+  const [colour, setColour] = useState(DEFAULT_ENTITY_COLOUR)
 
   const { data: categories = [] } = useQuery({
     queryKey: keys.categories,

@@ -3,6 +3,7 @@ import type { Goal, GoalInput, GoalKind, GoalPeriod, GoalProgress, GoalStatus } 
 import { addDays, daysBetween } from '@shared/calendar'
 import { rangeFor, today } from '@shared/taxYear'
 import { summary } from './finance'
+import { DEFAULT_ENTITY_COLOUR } from '@shared/types'
 
 /**
  * Goals, measured from the data the app already holds.
@@ -202,7 +203,7 @@ export function createGoal(db: Database, input: GoalInput): GoalProgress {
       // from the calendar, so a stored start would only go stale.
       input.startsOn ?? (period === 'once' ? today() : null),
       input.endsOn ?? (period === 'once' ? addDays(today(), 90) : null),
-      input.colour ?? '#6E56CF',
+      input.colour ?? DEFAULT_ENTITY_COLOUR,
       input.status ?? 'active'
     ]
   )

@@ -1244,19 +1244,39 @@ export type AssistantEvent =
   | { kind: 'done'; conversationId: number }
   | { kind: 'error'; conversationId: number; message: string }
 
-/** Colour an event falls back to when it has no project and no colour set. */
-export const DEFAULT_EVENT_COLOUR = '#6E56CF'
+/**
+ * The colour a new client, project, goal or category starts life with.
+ *
+ * The accent, so a fresh workspace is one hue rather than one hue plus a
+ * leftover violet. These are user data rather than design tokens — somebody
+ * who picks purple for a client keeps it — which is why this is a literal and
+ * not a var(): it is stored in the database and read back by charts, canvas
+ * and PDF rendering, none of which can resolve a CSS variable.
+ */
+export const DEFAULT_ENTITY_COLOUR = '#FF7A2F'
 
-/** Palette offered in colour pickers, matching the app's semantic colours. */
+/** Colour an event falls back to when it has no project and no colour set. */
+export const DEFAULT_EVENT_COLOUR = DEFAULT_ENTITY_COLOUR
+
+/**
+ * Palette offered in colour pickers.
+ *
+ * Retuned alongside the theme: the semantic five now match the tokens they are
+ * named after, so a project coloured "green" and a paid invoice are the same
+ * green. Violet stays on the list — it is a perfectly good colour to label a
+ * client with, and removing it would silently recolour anything already using
+ * it.
+ */
 export const COLOUR_CHOICES = [
-  '#6E56CF',
-  '#3B82F6',
-  '#30A46C',
-  '#F5A623',
-  '#E5484D',
+  DEFAULT_ENTITY_COLOUR,
+  '#4B8FE5',
+  '#3FB950',
+  '#D9A03C',
+  '#E5534B',
   '#EC4899',
   '#06B6D4',
-  '#8a8a93'
+  '#6E56CF',
+  '#A8A8B3'
 ]
 
 export const DEFAULT_BUSINESS: WorkspaceSetup['business'] = {

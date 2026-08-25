@@ -11,48 +11,69 @@
 
 @theme {
   /* Surfaces, darkest to lightest */
-  --color-ground: #0a0a0b;
-  --color-surface: #141416;
-  --color-raised: #1c1c1f;
-  --color-overlay: #232327;
-  --color-hover: #2a2a2f;
+  --color-ground: #0a0a0c;
+  --color-ground-end: #101013;
+  --color-sidebar: #0c0c0f;
+  --color-surface: #141417;
+  --color-surface-hover: #18181c;
+  --color-raised: #1a1a1f;
+  --color-overlay: #1e1e23;
+  --color-hover: #222227;
 
-  /* Lines */
-  --color-line: #26262a;
-  --color-line-strong: #35353b;
+  /* Lines. Translucent so a card reads as lit rather than outlined, and so the
+     same values work over any surface underneath. */
+  --color-line: rgba(255, 255, 255, 0.06);
+  --color-line-strong: rgba(255, 255, 255, 0.12);
+  /* The 1px top edge of a card, which fakes a light source above the window. */
+  --color-line-top: rgba(255, 255, 255, 0.09);
 
   /* Text */
-  --color-ink: #ededef;
-  --color-muted: #8a8a93;
-  --color-faint: #5a5a63;
+  --color-ink: #f2f2f4;
+  --color-muted: #a8a8b3;
+  --color-faint: #6e6e7a;
+  --color-disabled: #45454e;
 
-  /* Accent */
-  --color-accent: #6e56cf;
-  --color-accent-hover: #7c66dd;
-  --color-accent-press: #5d47b8;
-  --color-accent-ink: #ffffff;
+  /* Accent — one hue in the whole application. */
+  --color-accent: #ff7a2f;
+  --color-accent-hover: #ff8f4d;
+  --color-accent-press: #e86a22;
+  --color-accent-ink: #0a0a0c;
+  --color-accent-subtle: rgba(255, 122, 47, 0.12);
+  --color-accent-glow: rgba(255, 122, 47, 0.06);
+  --color-focus: rgba(255, 122, 47, 0.5);
 
-  /* Semantic — paid / due / overdue / in-progress */
-  --color-success: #30a46c;
-  --color-warning: #f5a623;
-  --color-danger: #e5484d;
-  --color-info: #3b82f6;
+  /* Semantic — status only, never decoration. `danger` is for destructive
+     actions and overdue money, and for nothing else. */
+  --color-success: #3fb950;
+  --color-warning: #d9a03c;
+  --color-danger: #e5534b;
+  --color-info: #4b8fe5;
 
   /* Typography */
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', monospace;
 
-  /* Radii — 10px on cards, 8px on controls */
+  /* Radii — cards 12, controls 8, chips 6. */
+  --radius-chip: 6px;
   --radius-control: 8px;
-  --radius-card: 10px;
-  --radius-panel: 14px;
+  --radius-card: 12px;
+  --radius-panel: 12px;
 
-  /* Motion. Durations and easing live here so every animation in the app
-     pulls from the same scale instead of inventing its own. */
-  --ease-solo: cubic-bezier(0.32, 0.72, 0, 1);
-  --duration-press: 150ms;
-  --duration-page: 220ms;
-  --duration-modal: 320ms;
+  /* Spacing scale. Nothing off-scale. */
+  --spacing-card: 20px;
+  --spacing-gap: 16px;
+
+  /* Elevation. No shadow on hover — hover brightens the border and lifts. */
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.6);
+
+  /* Motion. Durations and easing live here so every animation in the app pulls
+     from the same scale instead of inventing its own. Nothing exceeds 250ms. */
+  --ease-solo: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-press: 120ms;
+  --duration-standard: 180ms;
+  --duration-page: 200ms;
+  --duration-modal: 180ms;
 }
 
 @layer base {
@@ -81,8 +102,10 @@
     background-color: color-mix(in oklab, var(--color-accent) 40%, transparent);
   }
 
+  /* Every interactive element gets a visible ring. The app is keyboard-usable
+     or it is not professionally built; there is no middle position. */
   :focus-visible {
-    outline: 2px solid var(--color-accent);
+    outline: 2px solid var(--color-focus);
     outline-offset: 2px;
   }
 
@@ -109,6 +132,53 @@
 }
 
 @layer utilities {
+  /**
+   * Ambient light.
+   *
+   * Two effects doing most of the work of making a flat dark window feel like
+   * a lit room: a vertical page gradient, and one large soft glow of the
+   * accent behind the top-left of the content area. The glow is meant to be
+   * felt rather than seen — if you can point at it, it is too strong.
+   *
+   * Both are painted by pseudo-elements at negative z-index so no card needs
+   * to know they exist, and neither can intercept a click.
+   */
+  .page-light {
+    position: relative;
+    background-image: linear-gradient(
+      to bottom,
+      var(--color-ground) 0%,
+      var(--color-ground-end) 100%
+    );
+  }
+
+  .page-light::before {
+    content: '';
+    position: absolute;
+    top: -220px;
+    left: -180px;
+    width: 700px;
+    height: 700px;
+    pointer-events: none;
+    z-index: 0;
+    background: radial-gradient(
+      circle closest-side,
+      var(--color-accent-glow) 0%,
+      transparent 100%
+    );
+  }
+
+  /**
+   * A card, with the light coming from above.
+   *
+   * The top edge is a hair brighter than the other three, which is the whole
+   * trick: a uniform border reads as an outline, an uneven one reads as a
+   * surface catching light.
+   */
+  .lit-card {
+    border-top-color: var(--color-line-top);
+  }
+
   /* Electron drag regions for the custom titlebar. */
   .drag-region {
     -webkit-app-region: drag;
@@ -122,6 +192,59 @@
   .numeric {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
+  }
+
+  /**
+   * The type scale. Five steps plus two meta sizes, and nothing between them.
+   *
+   * Weight separates a card title from body copy rather than size — at 13px
+   * the difference between 13 and 14 is noise, but the difference between 400
+   * and 600 is unmistakable.
+   */
+  .type-display {
+    font-size: 32px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
+  }
+
+  /* Figures stay monospaced so a column of money lines up and a changing digit
+     does not reflow the row around it. */
+  .type-figure {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 28px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+
+  .type-heading {
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .type-card-title {
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .type-body {
+    font-size: 13px;
+    font-weight: 400;
+  }
+
+  .type-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .type-meta {
+    font-size: 11px;
+    font-weight: 400;
   }
 }
 

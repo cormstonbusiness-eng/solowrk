@@ -1,10 +1,11 @@
-import { NavLink, useLocation } from 'react-router-dom'
-import { motion } from 'motion/react'
-import { useState } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { AnimatePresence, motion } from 'motion/react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, Lock, LogOut, Sparkles } from 'lucide-react'
+import { Bell, ChevronUp, Lock, Sparkles } from 'lucide-react'
 import { transition } from '@/lib/motion'
-import { useFeature } from '@/lib/features'
+import { useAuthState, useFeature } from '@/lib/features'
+import { useUpdates } from '@/hooks/useUpdates'
 import { footerNav, navGroups, type NavItem } from '@/lib/nav'
 import { themeById } from '@shared/themes'
 import { useTheme } from '@/hooks/useTheme'
@@ -21,9 +22,13 @@ function ActivePill(): React.JSX.Element {
     <motion.span
       layoutId="nav-active-pill"
       transition={transition.layout}
-      className="absolute inset-0 rounded-control bg-raised"
+      className="absolute inset-0 rounded-control bg-accent-subtle"
       aria-hidden
-    />
+    >
+      {/* The 3px bar rides inside the same layoutId, so it slides with the
+          fill rather than being a second thing that has to keep up. */}
+      <span className="absolute top-1 bottom-1 left-0 w-[3px] rounded-full bg-accent" />
+    </motion.span>
   )
 }
 
@@ -76,8 +81,10 @@ function AssistantButton(): React.JSX.Element {
   const { themeId } = useTheme()
   const isActive = pathname === '/assistant'
 
-  // A tinted orange on a near-black sidebar reads as a warm button; the same
-  // tint on a white one reads as a smudge. Light themes get the solid fill.
+  /**
+   * A tinted fill on a near-black sidebar reads as a warm button; the same
+   * tint on a white one reads as a smudge. Light themes get the solid fill.
+   */
   const light = themeById(themeId).light
 
   return (
@@ -85,13 +92,19 @@ function AssistantButton(): React.JSX.Element {
       to="/assistant"
       className={cn(
         'flex items-center gap-2.5 rounded-control px-2.5 py-[9px] text-[13px] font-medium',
-        'transition-colors duration-150',
-        // Warm orange, deliberately the only place this hue appears — the
-        // accent violet is spoken for by primary actions and active nav, so
-        // reusing it here would make the button disappear into the app.
+        'transition-colors duration-press ease-solo',
+        /**
+         * The accent, not a second orange.
+         *
+         * This button used to carry its own hue precisely because the accent
+         * was violet and reusing it would have made the button disappear. Now
+         * that the accent *is* orange, keeping the old one would put two
+         * oranges a few pixels apart, which is the single most obvious way to
+         * make a palette look unfinished.
+         */
         isActive || light
-          ? 'bg-[#E08A2E] text-white hover:bg-[#cc7c26]'
-          : 'bg-[#F2A65A]/16 text-[#F2A65A] hover:bg-[#F2A65A]/26'
+          ? 'bg-accent text-accent-ink hover:bg-accent-hover'
+          : 'bg-accent-subtle text-accent hover:bg-accent/25'
       )}
     >
       <Sparkles size={15} strokeWidth={2} />
@@ -120,23 +133,27 @@ function NavRow({ item }: { item: NavItem }): React.JSX.Element {
       to={item.path}
       className={cn(
         'relative flex items-center gap-2.5 rounded-control px-2.5 py-[7px]',
-        'text-[13px] transition-colors duration-150',
-        isActive ? 'text-ink' : 'text-muted hover:text-ink'
+        'text-[13px] transition-colors duration-press ease-solo',
+        isActive
+          ? 'text-ink'
+          : locked
+            ? 'text-disabled hover:bg-surface hover:text-faint'
+            : 'text-muted hover:bg-surface hover:text-ink'
       )}
     >
       {isActive && <ActivePill />}
       {/* Sits above the pill so the label never gets painted over. */}
       <Icon
-        size={16}
-        strokeWidth={1.75}
+        size={18}
+        strokeWidth={1.5}
         className={cn('relative z-10 shrink-0', isActive && 'text-accent')}
       />
-      <span className={cn('relative z-10 truncate', locked && 'text-faint')}>{item.label}</span>
+      <span className="relative z-10 truncate">{item.label}</span>
       {locked && (
         <Lock
           size={11}
           strokeWidth={2}
-          className="relative z-10 ml-auto shrink-0 text-faint"
+          className="relative z-10 ml-auto shrink-0"
           aria-label="Part of SoloWrk Pro"
         />
       )}
@@ -145,25 +162,27 @@ function NavRow({ item }: { item: NavItem }): React.JSX.Element {
 }
 
 /**
- * Logging out, under Settings.
+ * The account chip, pinned to the bottom of the sidebar.
  *
- * The one loud thing in the sidebar, and deliberately so — everything above it
- * is a place to go, this is an action that ends the session, and it should not
- * look like another nav row you might click by accident on the way to Settings.
- * The confirm names the account, because on a shared machine whose session is
- * ending matters more than the verb.
+ * It replaces a filled red LOG OUT button that was, by a distance, the
+ * highest-contrast element in the entire application — which put the strongest
+ * visual emphasis in the app on the action least worth taking. Logging out
+ * still lives here, one click deeper, in `danger` text rather than as a slab
+ * of red.
  *
- * Hidden entirely when there is no account server, because a log-out button
- * that logs you out of nothing is a puzzle rather than a feature.
+ * Shown whether or not an account server is configured: on an unlicensed build
+ * it is still the way to Settings and to check for updates, and a sidebar
+ * whose bottom is empty on some installs and not others looks broken on the
+ * install that has less.
  */
-function SignOutRow(): React.JSX.Element | null {
+function AccountChip(): React.JSX.Element {
   const queryClient = useQueryClient()
+  const navigate = useNavigate()
+  const [open, setOpen] = useState(false)
   const [confirming, setConfirming] = useState(false)
 
-  const { data: auth } = useQuery({
-    queryKey: ['auth', 'state'],
-    queryFn: () => window.solo.invoke('auth:state')
-  })
+  const auth = useAuthState()
+  const updates = useUpdates()
 
   const signOut = useMutation({
     mutationFn: () => window.solo.invoke('auth:signOut'),
@@ -175,28 +194,108 @@ function SignOutRow(): React.JSX.Element | null {
     }
   })
 
-  if (!auth?.configured || !auth.signedIn) return null
+  // Closes on any click that is not inside it, and on Escape. A popover you
+  // have to click exactly the right pixel to dismiss is a popover people learn
+  // to avoid opening.
+  useEffect(() => {
+    if (!open) return
+
+    const close = (): void => setOpen(false)
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+
+    window.addEventListener('pointerdown', close)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('pointerdown', close)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [open])
+
+  const name = auth?.account?.name?.trim() || auth?.account?.email?.split('@')[0] || 'Your account'
+  const tier = auth?.configured ? (auth.account?.plan ?? 'Not signed in') : 'Unlicensed'
 
   return (
-    <>
+    <div className="relative" onPointerDown={(event) => event.stopPropagation()}>
       <button
         type="button"
-        onClick={() => setConfirming(true)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((current) => !current)}
         className={cn(
-          'mt-1 flex items-center justify-center gap-2 rounded-control px-2.5 py-2',
-          // Mixed down from the danger token rather than used neat: #e5484d
-          // under white text is about 3.9:1, which fails AA at this size. The
-          // mix keeps one source of truth for the colour and lands near 5.5:1,
-          // and it follows the token if the theme ever changes it.
-          'bg-[color-mix(in_srgb,var(--color-danger)_85%,black)]',
-          'hover:bg-[color-mix(in_srgb,var(--color-danger)_72%,black)]',
-          'text-[12px] font-bold tracking-[0.09em] text-white uppercase',
-          'transition-colors duration-150'
+          'flex w-full items-center gap-2.5 rounded-control px-2 py-2 text-left',
+          'transition-colors duration-press ease-solo hover:bg-surface'
         )}
       >
-        <LogOut size={15} strokeWidth={2.25} className="shrink-0" />
-        Log out
+        <Avatar name={name} />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-[12.5px] text-ink">{name}</span>
+          <span className="block truncate text-[11px] text-faint">{tier}</span>
+        </span>
+        <ChevronUp
+          size={14}
+          strokeWidth={1.5}
+          className={cn(
+            'shrink-0 text-faint transition-transform duration-press ease-solo',
+            !open && 'rotate-180'
+          )}
+        />
       </button>
+
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            role="menu"
+            initial={{ opacity: 0, y: 6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.98 }}
+            transition={transition.press}
+            className={cn(
+              'absolute bottom-[calc(100%+6px)] left-0 z-50 w-[196px] origin-bottom',
+              'rounded-card border border-line bg-overlay p-1 shadow-modal'
+            )}
+          >
+            {auth?.configured && (
+              <>
+                <MenuLink href={`${SITE}/account`}>Account settings</MenuLink>
+                <MenuLink href={`${SITE}/account`}>Manage subscription</MenuLink>
+              </>
+            )}
+            <MenuButton
+              onClick={() => {
+                updates.check()
+                setOpen(false)
+              }}
+            >
+              Check for updates
+            </MenuButton>
+            <MenuButton
+              onClick={() => {
+                navigate('/settings')
+                setOpen(false)
+              }}
+            >
+              Settings
+            </MenuButton>
+
+            {auth?.configured && auth.signedIn && (
+              <>
+                <div className="my-1 h-px bg-line" />
+                <MenuButton
+                  danger
+                  onClick={() => {
+                    setOpen(false)
+                    setConfirming(true)
+                  }}
+                >
+                  Log out
+                </MenuButton>
+              </>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <ConfirmModal
         open={confirming}
@@ -204,13 +303,77 @@ function SignOutRow(): React.JSX.Element | null {
         onConfirm={() => signOut.mutate()}
         title="Log out?"
         body={
-          `You will need to sign in again as ${auth.account?.email ?? 'your account'} to use ` +
+          `You will need to sign in again as ${auth?.account?.email ?? 'your account'} to use ` +
           'SoloWrk on this computer. Your workspace stays exactly where it is — nothing in it ' +
           'is touched, and nothing is uploaded.'
         }
         confirmLabel="Log out"
       />
-    </>
+    </div>
+  )
+}
+
+const SITE = 'https://solo-wrk.com'
+
+/** Initials on a tinted circle, until there is a logo to put here instead. */
+function Avatar({ name }: { name: string }): React.JSX.Element {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]!.toUpperCase())
+    .join('')
+
+  return (
+    <span
+      aria-hidden
+      className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent-subtle text-[11px] font-semibold text-accent"
+    >
+      {initials || '·'}
+    </span>
+  )
+}
+
+const MENU_ITEM =
+  'block w-full rounded-chip px-2.5 py-1.5 text-left text-[12.5px] transition-colors duration-press ease-solo'
+
+function MenuButton({
+  onClick,
+  danger,
+  children
+}: {
+  onClick: () => void
+  danger?: boolean
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <button
+      type="button"
+      role="menuitem"
+      onClick={onClick}
+      className={cn(MENU_ITEM, danger ? 'text-danger hover:bg-danger/12' : 'text-muted hover:bg-hover hover:text-ink')}
+    >
+      {children}
+    </button>
+  )
+}
+
+/**
+ * Opens in the browser rather than in the app shell. The window's
+ * `setWindowOpenHandler` routes `target=_blank` out to the default browser and
+ * refuses to navigate the app away from itself, so this needs no IPC channel.
+ */
+function MenuLink({ href, children }: { href: string; children: React.ReactNode }): React.JSX.Element {
+  return (
+    <a
+      role="menuitem"
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className={cn(MENU_ITEM, 'text-muted hover:bg-hover hover:text-ink')}
+    >
+      {children}
+    </a>
   )
 }
 
@@ -254,7 +417,7 @@ export function Sidebar(): React.JSX.Element {
           .map((item) => (
             <NavRow key={item.path} item={item} />
           ))}
-        <SignOutRow />
+        <AccountChip />
       </div>
     </nav>
   )

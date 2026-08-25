@@ -31,6 +31,7 @@ import { formatMoney, formatRate } from '@/lib/format'
 import { useFeature } from '@/lib/features'
 import { listItemVariants, listVariants } from '@/lib/motion'
 import { cn } from '@/lib/utils'
+import { DEFAULT_ENTITY_COLOUR } from '@shared/types'
 
 const BLANK: ClientInput = {
   name: '',
@@ -42,7 +43,7 @@ const BLANK: ClientInput = {
   vatNumber: '',
   defaultRate: null,
   paymentTermsDays: null,
-  colour: '#6E56CF'
+  colour: DEFAULT_ENTITY_COLOUR
 }
 
 /** The directory columns, in reading order. */
@@ -446,7 +447,7 @@ function ClientModal({
 
           <Field label="Colour">
             <ColourPicker
-              value={draft.colour ?? '#6E56CF'}
+              value={draft.colour ?? DEFAULT_ENTITY_COLOUR}
               onChange={(colour) => set('colour', colour)}
             />
           </Field>

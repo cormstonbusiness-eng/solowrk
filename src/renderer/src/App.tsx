@@ -93,7 +93,7 @@ function Shell(): React.JSX.Element {
           <Sidebar />
           {/* `relative` so the decoration can sit inside it, `overflow-hidden`
               so nothing drifts out into the sidebar or the titlebar. */}
-          <main className="relative min-w-0 flex-1 overflow-hidden bg-ground">
+          <main className="page-light relative min-w-0 flex-1 overflow-hidden">
             <SeasonalLayer />
             <AnimatedRoutes />
           </main>

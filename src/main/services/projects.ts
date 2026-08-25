@@ -5,6 +5,7 @@ import type { Project, ProjectInput, ProjectSummary, TemplatePayload } from '@sh
 import { uniqueFolderName } from './naming'
 import { PROJECT_FOLDERS, resolveInWorkspace } from './workspace'
 import { getTemplate } from './templates'
+import { DEFAULT_ENTITY_COLOUR } from '@shared/types'
 
 export { PROJECT_FOLDERS }
 
@@ -139,7 +140,7 @@ export async function createProject(
       input.budget ?? null,
       input.startsOn ?? null,
       input.dueOn ?? null,
-      input.colour ?? '#6E56CF',
+      input.colour ?? DEFAULT_ENTITY_COLOUR,
       folder
     ]
   )

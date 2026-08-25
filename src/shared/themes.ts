@@ -30,6 +30,27 @@ export interface ThemeTokens {
   warning: string
   danger: string
   info: string
+
+  /**
+   * The four below are optional, which is a deliberate exception to the rule
+   * above rather than a hole in it.
+   *
+   * A partial theme is dangerous when the missing half comes from *another*
+   * theme — that is how you get grey text on a grey card. These fall back to
+   * values mixed from the theme's own ground, surface and faint, so an
+   * unspecified one always lands inside that theme's palette and in the right
+   * direction. Midnight states them exactly; the rest take the mix and stay
+   * coherent without twelve hand-tuned edits.
+   */
+
+  /** Bottom of the window gradient. A shade above `ground`. */
+  groundEnd?: string
+  /** The sidebar, which sits a touch above the page behind it. */
+  sidebar?: string
+  /** Card fill on hover. Distinct from `hover`, which is for controls. */
+  surfaceHover?: string
+  /** Genuinely disabled — never text that is still meant to be read. */
+  disabled?: string
 }
 
 /** Which decoration set a theme brings with it, if any. */
@@ -94,30 +115,40 @@ export const THEMES: Theme[] = [
   {
     id: 'midnight',
     name: 'Midnight',
-    description: 'The original. Near-black, one violet accent, quiet everywhere else.',
+    description: 'The default. Near-black, one orange accent, quiet everywhere else.',
     light: false,
     fontSans: INTER,
     fontMono: MONO,
-    radius: 10,
+    radius: 12,
     tokens: {
-      ground: '#0a0a0b',
-      surface: '#141416',
-      raised: '#1c1c1f',
-      overlay: '#232327',
-      hover: '#2a2a2f',
-      line: '#26262a',
-      lineStrong: '#35353b',
-      ink: '#ededef',
-      muted: '#8a8a93',
-      faint: '#5a5a63',
-      accent: '#6e56cf',
-      accentHover: '#7c66dd',
-      accentPress: '#5d47b8',
-      accentInk: '#ffffff',
-      success: '#30a46c',
-      warning: '#f5a623',
-      danger: '#e5484d',
-      info: '#3b82f6'
+      ground: '#0a0a0c',
+      groundEnd: '#101013',
+      sidebar: '#0c0c0f',
+      surface: '#141417',
+      surfaceHover: '#18181c',
+      raised: '#1a1a1f',
+      overlay: '#1e1e23',
+      // Controls sit *on* cards, so their hover has to clear the card's own
+      // hover fill or an icon button on a hovered card looks dead. Above
+      // surfaceHover, below overlay.
+      hover: '#222227',
+      line: 'rgba(255,255,255,0.06)',
+      lineStrong: 'rgba(255,255,255,0.12)',
+      ink: '#f2f2f4',
+      // Supporting copy, raised from #8a8a93 — the old value read as disabled.
+      muted: '#a8a8b3',
+      faint: '#6e6e7a',
+      disabled: '#45454e',
+      accent: '#ff7a2f',
+      accentHover: '#ff8f4d',
+      accentPress: '#e86a22',
+      // Near-black, not white. White on this orange measures 2.6:1 and fails
+      // AA outright; near-black is 7.6:1.
+      accentInk: '#0a0a0c',
+      success: '#3fb950',
+      warning: '#d9a03c',
+      danger: '#e5534b',
+      info: '#4b8fe5'
     }
   },
 
@@ -502,31 +533,66 @@ export function themeById(id: string): Theme {
 export function themeVariables(theme: Theme): Record<string, string> {
   const { tokens } = theme
 
+  /**
+   * Mixed from the theme's own palette when a theme does not state them.
+   *
+   * `color-mix` rather than a precomputed hex so the relationship holds for
+   * every theme, including any added later, and so a theme that does state one
+   * simply wins. The direction is what matters: the gradient end and the
+   * sidebar lift slightly off the page, a card lifts slightly on hover, and
+   * disabled text sinks toward the background.
+   */
+  const mix = (a: string, weight: number, b: string): string =>
+    `color-mix(in srgb, ${a} ${weight}%, ${b})`
+
   return {
     '--color-ground': tokens.ground,
+    '--color-ground-end': tokens.groundEnd ?? mix(tokens.ground, 94, tokens.ink),
+    '--color-sidebar': tokens.sidebar ?? mix(tokens.ground, 97, tokens.ink),
     '--color-surface': tokens.surface,
+    '--color-surface-hover': tokens.surfaceHover ?? mix(tokens.surface, 94, tokens.ink),
     '--color-raised': tokens.raised,
     '--color-overlay': tokens.overlay,
     '--color-hover': tokens.hover,
     '--color-line': tokens.line,
     '--color-line-strong': tokens.lineStrong,
+    /**
+     * The 1px top edge of a card, which fakes a light source above the window.
+     *
+     * Brighter than `line` on a dark theme and darker on a light one — a white
+     * highlight on a white card is invisible, and the illusion needs the edge
+     * nearest the light to be the lighter one either way.
+     */
+    '--color-line-top': theme.light
+      ? mix(tokens.lineStrong, 70, 'transparent')
+      : 'rgba(255,255,255,0.09)',
     '--color-ink': tokens.ink,
     '--color-muted': tokens.muted,
     '--color-faint': tokens.faint,
+    '--color-disabled': tokens.disabled ?? mix(tokens.faint, 55, tokens.ground),
     '--color-accent': tokens.accent,
     '--color-accent-hover': tokens.accentHover,
     '--color-accent-press': tokens.accentPress,
     '--color-accent-ink': tokens.accentInk,
+    // Tinted fills and the ambient page glow, always derived so they track
+    // whatever the accent is rather than being a second hex to keep in step.
+    '--color-accent-subtle': mix(tokens.accent, 12, 'transparent'),
+    '--color-accent-glow': mix(tokens.accent, 6, 'transparent'),
+    '--color-focus': mix(tokens.accent, 50, 'transparent'),
     '--color-success': tokens.success,
     '--color-warning': tokens.warning,
     '--color-danger': tokens.danger,
     '--color-info': tokens.info,
     '--font-sans': theme.fontSans,
     '--font-mono': theme.fontMono,
-    // Controls sit 2px tighter than cards, and panels 4px looser, so the whole
-    // scale moves together rather than each radius being set by hand.
-    '--radius-control': `${Math.max(2, theme.radius - 2)}px`,
+    /**
+     * Cards carry the theme's radius; controls sit 4px tighter and chips
+     * tighter again, so the whole scale moves together rather than each radius
+     * being set by hand. Floored so a square theme cannot go negative.
+     */
+    '--radius-control': `${Math.max(2, theme.radius - 4)}px`,
+    '--radius-chip': `${Math.max(2, theme.radius - 6)}px`,
     '--radius-card': `${theme.radius}px`,
-    '--radius-panel': `${theme.radius + 4}px`
+    '--radius-panel': `${theme.radius}px`
   }
 }

@@ -22,6 +22,7 @@ import { PLATFORMS } from '@shared/social'
 import { addDays, dayOf, daysBetween, minutesBetween } from '@shared/calendar'
 import { uniqueFileName } from './naming'
 import { resolveInWorkspace } from './workspace'
+import { DEFAULT_ENTITY_COLOUR } from '@shared/types'
 
 export const MARKETING_ROOT = 'Marketing'
 const ASSETS_ROOT = join(MARKETING_ROOT, 'Assets')
@@ -89,7 +90,7 @@ export function createCampaign(
       input.name,
       input.description ?? '',
       input.goal ?? '',
-      input.colour ?? '#6E56CF',
+      input.colour ?? DEFAULT_ENTITY_COLOUR,
       input.startsOn ?? null,
       input.endsOn ?? null,
       input.status ?? 'active'
@@ -174,7 +175,7 @@ export function createPillar(
     [
       input.name,
       input.description ?? '',
-      input.colour ?? '#6E56CF',
+      input.colour ?? DEFAULT_ENTITY_COLOUR,
       input.targetShare ?? 0,
       (next?.max_order ?? 0) + 1
     ]

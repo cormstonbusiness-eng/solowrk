@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { DEFAULT_EVENT_COLOUR } from '@shared/types'
 
 vi.mock('electron', () => ({
   shell: { trashItem: vi.fn(), openPath: vi.fn(), showItemInFolder: vi.fn() },
@@ -64,7 +65,7 @@ describe('events', () => {
     const explicit = createEvent(db, { ...meeting, projectId: project.id, colour: '#E5484D' })
     expect(explicit.displayColour).toBe('#E5484D')
 
-    expect(createEvent(db, meeting).displayColour).toBe('#6E56CF')
+    expect(createEvent(db, meeting).displayColour).toBe(DEFAULT_EVENT_COLOUR)
   })
 
   it('refuses to store an event that ends before it starts', () => {

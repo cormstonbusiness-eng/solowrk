@@ -15,13 +15,14 @@ import { keys, useInvalidate } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
 import { listItemVariants, listVariants, transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
+import { DEFAULT_ENTITY_COLOUR } from '@shared/types'
 
 const BLANK: GoalInput = {
   name: '',
   kind: 'revenue',
   target: 0,
   period: 'year',
-  colour: '#6E56CF'
+  colour: DEFAULT_ENTITY_COLOUR
 }
 
 const isMoney = (kind: GoalKind): boolean =>
@@ -336,7 +337,7 @@ function GoalModal({
 
           <Field label="Colour">
             <ColourPicker
-              value={draft.colour ?? '#6E56CF'}
+              value={draft.colour ?? DEFAULT_ENTITY_COLOUR}
               onChange={(colour) => set('colour', colour)}
             />
           </Field>

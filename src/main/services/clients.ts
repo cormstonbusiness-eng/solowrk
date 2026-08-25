@@ -4,6 +4,7 @@ import type { Database, Row } from '../db'
 import type { Client, ClientInput } from '@shared/types'
 import { toFolderName, uniqueFolderName } from './naming'
 import { resolveInWorkspace } from './workspace'
+import { DEFAULT_ENTITY_COLOUR } from '@shared/types'
 
 const CLIENTS_ROOT = 'Clients'
 
@@ -97,7 +98,7 @@ export async function createClient(
       input.defaultRate ?? null,
       input.paymentTermsDays ?? null,
       input.notes ?? '',
-      input.colour ?? '#6E56CF',
+      input.colour ?? DEFAULT_ENTITY_COLOUR,
       folder,
       status,
       // Stamped on the way in as well as on transition, so a client added

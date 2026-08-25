@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 const button = cva(
   [
     'inline-flex items-center justify-center gap-2 rounded-control font-medium',
-    'transition-colors duration-150 whitespace-nowrap',
+    'transition-colors duration-press ease-solo whitespace-nowrap',
     'disabled:pointer-events-none disabled:opacity-45'
   ],
   {
@@ -44,7 +44,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
   return (
     <motion.button
       ref={ref}
-      whileTap={props.disabled ? undefined : { scale: 0.97 }}
+      whileTap={props.disabled ? undefined : { scale: 0.98 }}
       transition={transition.press}
       className={cn(button({ variant, size }), className)}
       {...props}

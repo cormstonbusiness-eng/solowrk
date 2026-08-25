@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils'
 import { Composer } from './marketing/Composer'
 import { PillarMix } from './marketing/PillarMix'
 import { WEEKDAY_LABELS, monthLabel } from './calendar/grid'
+import { DEFAULT_ENTITY_COLOUR } from '@shared/types'
 
 const DRAG_THRESHOLD = 4
 
@@ -391,7 +392,7 @@ function PostChip({
   onPointerDown: (event: React.PointerEvent) => void
 }): React.JSX.Element {
   const status = POST_STATUSES.find((entry) => entry.value === post.status)
-  const colour = post.campaignColour ?? post.pillarColour ?? status?.colour ?? '#6E56CF'
+  const colour = post.campaignColour ?? post.pillarColour ?? status?.colour ?? DEFAULT_ENTITY_COLOUR
 
   return (
     <motion.div
