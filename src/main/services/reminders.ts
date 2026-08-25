@@ -6,6 +6,8 @@ import { runChasers } from './chaseRun'
 import { runAutomations } from './automations'
 import { dueReminders, markReminded } from './events'
 import { listDueTasks } from './tasks'
+import { pruneActivity } from './activity'
+import { pruneLinks } from './links'
 import { session } from './session'
 import { push } from './notifications'
 
@@ -119,6 +121,20 @@ function runDigest(getWindow: () => BrowserWindow | null, now: Date): void {
   })
 
   runRules(getWindow, db, day)
+
+  // Housekeeping. Both tables are polymorphic, so no foreign key can cascade
+  // when the other end is deleted — `relatedTo` and `activityFor` already hide
+  // what has gone, and this is what stops a workspace open for three years
+  // carrying the connections and the history of everything ever deleted.
+  //
+  // Silent on failure: it is tidying, and a workspace that will not tidy is
+  // still a workspace that works.
+  try {
+    pruneLinks(db)
+    pruneActivity(db)
+  } catch (error) {
+    console.error('Pruning failed:', error)
+  }
 }
 
 /**

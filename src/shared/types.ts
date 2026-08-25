@@ -1459,3 +1459,64 @@ export const DEFAULT_BUSINESS: WorkspaceSetup['business'] = {
   defaultHourlyRate: 5000,
   paymentTermsDays: 14
 }
+/**
+ * The things that can be linked to each other, and that keep an activity
+ * timeline.
+ *
+ * One union for both, deliberately. A type that can be linked but has no
+ * history, or has history but cannot be linked, is an asymmetry every caller
+ * would have to remember. Calendar events are the notable absence: they are
+ * already a record of when something happened, and they join the list when the
+ * calendar gets a detail drawer.
+ */
+export const ENTITY_TYPES = [
+  'client',
+  'project',
+  'task',
+  'invoice',
+  'quote',
+  'note',
+  'document',
+  'expense'
+] as const
+
+export type EntityType = (typeof ENTITY_TYPES)[number]
+
+/** A row, addressed the way the links and activity tables address it. */
+export interface EntityRef {
+  type: EntityType
+  id: number
+}
+
+/** A ref with enough on it to render a row without a second query. */
+export interface LinkedEntity extends EntityRef {
+  label: string
+  /**
+   * How this row is connected. 'related' for a hand-made link; otherwise the
+   * foreign key it came from, so the UI can say "invoiced under" rather than
+   * listing everything as generically related.
+   */
+  relationship: string
+  /** True when the connection is a foreign key rather than a link row. */
+  structural: boolean
+}
+
+export interface BacklinkGroup {
+  type: EntityType
+  /** Every connection of this type, capped for display. */
+  items: LinkedEntity[]
+  /** The real total, which can exceed `items.length`. */
+  count: number
+}
+
+export type ActivityAction = 'created' | 'edited' | 'status'
+
+export interface ActivityEntry {
+  id: number
+  entityType: EntityType
+  entityId: number
+  action: ActivityAction
+  /** The name at creation, or 'sent to paid' for a status change. */
+  detail: string
+  at: string
+}

@@ -37,7 +37,12 @@ describe('what read-only allows', () => {
       'chasing:sendQueued',
       // Neither name begins with a writing verb, and both create a record.
       'quotes:convert',
-      'templates:fromProject'
+      'templates:fromProject',
+      // Drawing a connection is a write, and so is cutting one. `remove`
+      // rather than `unlink` for exactly this reason — the classifier would
+      // have let `unlink` straight through.
+      'links:create',
+      'links:remove'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(false)
     }
@@ -67,7 +72,13 @@ describe('what read-only allows', () => {
       'files:reveal',
       'notes:read',
       'workspace:status',
-      'settings:get'
+      'settings:get',
+      // Seeing what a thing is connected to, and what has happened to it, is
+      // reading. A lapsed licence that hid the history would be hiding the
+      // user's own record of their own work.
+      'links:related',
+      'activity:for',
+      'activity:recent'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(true)
     }

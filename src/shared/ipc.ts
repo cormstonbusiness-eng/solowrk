@@ -14,6 +14,9 @@ import type {
   AutomationTrigger
 } from './automations'
 import type {
+  ActivityEntry,
+  BacklinkGroup,
+  EntityRef,
   AppNotification,
   AssistantEvent,
   AssistantStatus,
@@ -416,6 +419,33 @@ export interface IpcContract {
     res: AutomationSubject[]
   }
 
+  /**
+   * What one thing is connected to, grouped by what the other end is.
+   *
+   * One channel for both sources. The foreign keys carry ownership and the
+   * `links` table carries everything the keys do not express; a panel drawing
+   * a record should not have to know which of its rows came from where.
+   *
+   * Ungated, and it stays that way: this is how the app answers "what is this
+   * thing", not a feature on top of it.
+   */
+  'links:related': { req: EntityRef; res: BacklinkGroup[] }
+  /** Connect two things. Idempotent, and the same fact from either end. */
+  'links:create': { req: { a: EntityRef; b: EntityRef }; res: void }
+  /** Disconnect two things. Silent when they were not connected. */
+  'links:remove': { req: { a: EntityRef; b: EntityRef }; res: void }
+
+  /**
+   * One thing's history, newest first.
+   *
+   * Written by triggers rather than by the services, so it covers the writes
+   * nobody would have remembered to instrument. Edits arrive coalesced into one
+   * entry per ten minutes: a line means a sitting, not a keystroke.
+   */
+  'activity:for': { req: EntityRef & { limit?: number }; res: ActivityEntry[] }
+  /** Everything that has happened lately, across the workspace. */
+  'activity:recent': { req: { limit?: number } | void; res: ActivityEntry[] }
+
   'mail:status': { req: void; res: { configured: boolean; hasPassword: boolean } }
   'mail:password': { req: { password: string }; res: void }
   /** Send a test message to the user's own address, with the server's own words on failure. */
@@ -707,6 +737,11 @@ export const IPC_CHANNELS = [
   'chasing:send',
   'chasing:discard',
   'chasing:sendQueued',
+  'links:related',
+  'links:create',
+  'links:remove',
+  'activity:for',
+  'activity:recent',
   'automations:list',
   'automations:create',
   'automations:update',

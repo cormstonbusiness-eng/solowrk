@@ -20,6 +20,8 @@ import {
 } from '../services/chasers'
 import { readWindowState } from './window'
 import { session } from '../services/session'
+import { activityFor, recentActivity } from '../services/activity'
+import { link, relatedTo, unlink } from '../services/links'
 import { approveMail, cancelMail, getMail, listMail } from '../services/mailQueue'
 import { drainOutbox } from '../services/chaseRun'
 import {
@@ -496,6 +498,21 @@ const handlers: Handlers = {
   'chasing:discard': (_g, { id }) => cancelMail(session.requireDb(), id),
 
   'chasing:sendQueued': () => drainOutbox(session.requireDb()),
+
+  'links:related': (_g, ref) => relatedTo(session.requireDb(), ref),
+
+  'links:create': (_g, { a, b }) => {
+    link(session.requireDb(), a, b)
+  },
+
+  'links:remove': (_g, { a, b }) => {
+    unlink(session.requireDb(), a, b)
+  },
+
+  'activity:for': (_g, { type, id, limit }) =>
+    activityFor(session.requireDb(), { type, id }, limit),
+
+  'activity:recent': (_g, input) => recentActivity(session.requireDb(), input?.limit),
 
   'automations:list': () => listRules(session.requireDb()),
 

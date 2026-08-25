@@ -920,5 +920,209 @@ export const migrations: Migration[] = [
         PRIMARY KEY (rule_id, subject)
       );
     `
+  },
+  {
+    id: 18,
+    name: 'links_and_activity',
+    sql: `
+      -- Connections the foreign keys do not already express.
+      --
+      -- Deliberately *additive*. The existing keys are not going anywhere:
+      -- an invoice belongs to a client, a task belongs to a project, and that
+      -- is ownership rather than a link — modelling it here instead would
+      -- throw away every cascade and every constraint the database already
+      -- enforces, in exchange for nothing.
+      --
+      -- What this adds is the rest: a note about a client rather than about a
+      -- project, a document that belongs to two projects, a task that came out
+      -- of a quote. The backlinks query reads both — the keys for structure,
+      -- this for everything else — and returns one list.
+      --
+      -- Rows only. File attachments get their own table when they are built,
+      -- because a file reference needs things a row link does not: detecting
+      -- that the file has moved, and repairing the path. Making one table
+      -- serve both would compromise both.
+      CREATE TABLE links (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        source_type  TEXT    NOT NULL,
+        source_id    INTEGER NOT NULL,
+        target_type  TEXT    NOT NULL,
+        target_id    INTEGER NOT NULL,
+        -- Reserved. Everything is 'related' today; naming the column now means
+        -- 'blocks' and 'invoiced-by' do not need a migration later.
+        relationship TEXT    NOT NULL DEFAULT 'related',
+        created_at   TEXT    NOT NULL
+      );
+
+      -- One row per connection, whichever end it was made from. The service
+      -- orders the two ends before writing, so linking A to B and later B to A
+      -- is the same row rather than two rows that render as a duplicate.
+      CREATE UNIQUE INDEX idx_links_pair
+        ON links(source_type, source_id, target_type, target_id, relationship);
+
+      -- Both directions get an index, because the backlinks query asks in both.
+      CREATE INDEX idx_links_source ON links(source_type, source_id);
+      CREATE INDEX idx_links_target ON links(target_type, target_id);
+
+      -- What happened to a thing, and when.
+      --
+      -- Written by triggers rather than by the services. Every write path gets
+      -- covered including the ones nobody remembered — the assistant's tools,
+      -- the automation actions, the recurring-invoice run, a future importer —
+      -- and no service has to remember to call anything.
+      --
+      -- The catch worth knowing: a migration that rebuilds a table by dropping
+      -- and recreating it takes that table's triggers with it. Two migrations
+      -- have already done that. Any future one must recreate them.
+      CREATE TABLE activity (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_type TEXT    NOT NULL,
+        entity_id   INTEGER NOT NULL,
+        -- created | edited | status
+        action      TEXT    NOT NULL,
+        -- The name at creation, or 'sent to paid' for a status change. Held as
+        -- written rather than looked up later, so the timeline still reads
+        -- correctly after the thing has been renamed.
+        detail      TEXT    NOT NULL DEFAULT '',
+        at          TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_activity_entity ON activity(entity_type, entity_id, at DESC);
+
+      -- Edits are coalesced into one entry per ten minutes.
+      --
+      -- The spec asks for created, edited and status-changed. Taken literally,
+      -- 'edited' fires on every keystroke-triggered save the app already makes
+      -- — note bodies save as you type, task fields save on change — and an
+      -- Activity tab with four hundred identical 'edited' lines buries the
+      -- three events anybody wanted to see. So an edit inside ten minutes of
+      -- the last one is the same sitting, and is not recorded twice.
+      --
+      -- Status changes are never coalesced. Those are the timeline.
+      CREATE TRIGGER activity_clients_created AFTER INSERT ON clients BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('client', NEW.id, 'created', NEW.name, datetime('now'));
+      END;
+      CREATE TRIGGER activity_clients_edited AFTER UPDATE ON clients
+      WHEN NEW.updated_at != OLD.updated_at AND NOT EXISTS (
+        SELECT 1 FROM activity
+         WHERE entity_type = 'client' AND entity_id = NEW.id AND action = 'edited'
+           AND at > datetime('now', '-10 minutes')
+      ) BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('client', NEW.id, 'edited', '', datetime('now'));
+      END;
+      CREATE TRIGGER activity_projects_created AFTER INSERT ON projects BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('project', NEW.id, 'created', NEW.name, datetime('now'));
+      END;
+      CREATE TRIGGER activity_projects_status AFTER UPDATE OF status ON projects
+      WHEN OLD.status != NEW.status BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('project', NEW.id, 'status', OLD.status || ' to ' || NEW.status, datetime('now'));
+      END;
+      CREATE TRIGGER activity_projects_edited AFTER UPDATE ON projects
+      WHEN NEW.updated_at != OLD.updated_at AND NOT EXISTS (
+        SELECT 1 FROM activity
+         WHERE entity_type = 'project' AND entity_id = NEW.id AND action = 'edited'
+           AND at > datetime('now', '-10 minutes')
+      ) BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('project', NEW.id, 'edited', '', datetime('now'));
+      END;
+      CREATE TRIGGER activity_tasks_created AFTER INSERT ON tasks BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('task', NEW.id, 'created', NEW.title, datetime('now'));
+      END;
+      CREATE TRIGGER activity_tasks_status AFTER UPDATE OF status ON tasks
+      WHEN OLD.status != NEW.status BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('task', NEW.id, 'status', OLD.status || ' to ' || NEW.status, datetime('now'));
+      END;
+      CREATE TRIGGER activity_tasks_edited AFTER UPDATE ON tasks
+      WHEN NEW.updated_at != OLD.updated_at AND NOT EXISTS (
+        SELECT 1 FROM activity
+         WHERE entity_type = 'task' AND entity_id = NEW.id AND action = 'edited'
+           AND at > datetime('now', '-10 minutes')
+      ) BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('task', NEW.id, 'edited', '', datetime('now'));
+      END;
+      CREATE TRIGGER activity_invoices_created AFTER INSERT ON invoices BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('invoice', NEW.id, 'created', NEW.number, datetime('now'));
+      END;
+      CREATE TRIGGER activity_invoices_status AFTER UPDATE OF status ON invoices
+      WHEN OLD.status != NEW.status BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('invoice', NEW.id, 'status', OLD.status || ' to ' || NEW.status, datetime('now'));
+      END;
+      CREATE TRIGGER activity_invoices_edited AFTER UPDATE ON invoices
+      WHEN NEW.updated_at != OLD.updated_at AND NOT EXISTS (
+        SELECT 1 FROM activity
+         WHERE entity_type = 'invoice' AND entity_id = NEW.id AND action = 'edited'
+           AND at > datetime('now', '-10 minutes')
+      ) BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('invoice', NEW.id, 'edited', '', datetime('now'));
+      END;
+      CREATE TRIGGER activity_quotes_created AFTER INSERT ON quotes BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('quote', NEW.id, 'created', NEW.number, datetime('now'));
+      END;
+      CREATE TRIGGER activity_quotes_status AFTER UPDATE OF status ON quotes
+      WHEN OLD.status != NEW.status BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('quote', NEW.id, 'status', OLD.status || ' to ' || NEW.status, datetime('now'));
+      END;
+      CREATE TRIGGER activity_quotes_edited AFTER UPDATE ON quotes
+      WHEN NEW.updated_at != OLD.updated_at AND NOT EXISTS (
+        SELECT 1 FROM activity
+         WHERE entity_type = 'quote' AND entity_id = NEW.id AND action = 'edited'
+           AND at > datetime('now', '-10 minutes')
+      ) BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('quote', NEW.id, 'edited', '', datetime('now'));
+      END;
+      CREATE TRIGGER activity_notes_created AFTER INSERT ON notes BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('note', NEW.id, 'created', NEW.title, datetime('now'));
+      END;
+      CREATE TRIGGER activity_notes_edited AFTER UPDATE ON notes
+      WHEN NEW.updated_at != OLD.updated_at AND NOT EXISTS (
+        SELECT 1 FROM activity
+         WHERE entity_type = 'note' AND entity_id = NEW.id AND action = 'edited'
+           AND at > datetime('now', '-10 minutes')
+      ) BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('note', NEW.id, 'edited', '', datetime('now'));
+      END;
+      CREATE TRIGGER activity_documents_created AFTER INSERT ON documents BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('document', NEW.id, 'created', NEW.title, datetime('now'));
+      END;
+      CREATE TRIGGER activity_documents_edited AFTER UPDATE ON documents
+      WHEN NEW.updated_at != OLD.updated_at AND NOT EXISTS (
+        SELECT 1 FROM activity
+         WHERE entity_type = 'document' AND entity_id = NEW.id AND action = 'edited'
+           AND at > datetime('now', '-10 minutes')
+      ) BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('document', NEW.id, 'edited', '', datetime('now'));
+      END;
+      CREATE TRIGGER activity_expenses_created AFTER INSERT ON expenses BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('expense', NEW.id, 'created', NEW.description, datetime('now'));
+      END;
+      CREATE TRIGGER activity_expenses_edited AFTER UPDATE ON expenses
+      WHEN NEW.updated_at != OLD.updated_at AND NOT EXISTS (
+        SELECT 1 FROM activity
+         WHERE entity_type = 'expense' AND entity_id = NEW.id AND action = 'edited'
+           AND at > datetime('now', '-10 minutes')
+      ) BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('expense', NEW.id, 'edited', '', datetime('now'));
+      END;
+    `
   }
 ]
