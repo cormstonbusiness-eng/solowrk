@@ -102,18 +102,28 @@ export function Toggle({
   checked,
   onChange,
   label,
-  hint
+  hint,
+  hideLabel
 }: {
   checked: boolean
   onChange: (checked: boolean) => void
   label: string
   hint?: string
+  /**
+   * Hide the label visually but keep it for screen readers.
+   *
+   * For a switch sitting in a row that already names the thing it belongs to,
+   * where repeating the name would be noise on screen. Passing an empty string
+   * instead would leave a switch with no accessible name at all, which is the
+   * one thing this must not become.
+   */
+  hideLabel?: boolean
 }): React.JSX.Element {
   const id = useId()
 
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex flex-col gap-0.5">
+    <div className={cn('flex items-start gap-4', !hideLabel && 'justify-between')}>
+      <div className={cn('flex flex-col gap-0.5', hideLabel && 'sr-only')}>
         <label htmlFor={id} className="text-[13px] text-ink">
           {label}
         </label>

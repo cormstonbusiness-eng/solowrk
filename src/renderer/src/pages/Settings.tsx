@@ -24,6 +24,7 @@ import { type ChangeKind, type Release, changelog, releaseFor } from '@shared/ch
 import { Page } from '@/components/Page'
 import { Expand } from '@/components/ui/Expand'
 import { MailCard } from './settings/MailCard'
+import { Automations } from './settings/Automations'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, MoneyInput, NumberInput, TextInput, Toggle } from '@/components/ui/Field'
@@ -38,11 +39,12 @@ import { useWorkspace } from '@/hooks/useWorkspace'
 import { useFeature } from '@/lib/features'
 import { useTour } from '@/tour/TourProvider'
 
-type Tab = 'business' | 'money' | 'account' | 'assistant' | 'appearance' | 'app'
+type Tab = 'business' | 'money' | 'automations' | 'account' | 'assistant' | 'appearance' | 'app'
 
 const TABS: { value: Tab; label: string }[] = [
   { value: 'business', label: 'Business' },
   { value: 'money', label: 'Invoicing & tax' },
+  { value: 'automations', label: 'Automations' },
   { value: 'account', label: 'Account' },
   { value: 'assistant', label: 'Assistant' },
   { value: 'appearance', label: 'Appearance' },
@@ -322,6 +324,8 @@ export function Settings(): React.JSX.Element {
         <ChasingCard draft={draft} set={set} />
         <MailCard draft={draft} set={set} />
             </>}
+
+          {tab === 'automations' && <Automations />}
 
           {tab === 'account' && <AccountCard />}
 
