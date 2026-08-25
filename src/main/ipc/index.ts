@@ -151,6 +151,7 @@ import { writePdf } from '../services/pdf'
 import { buildStatement } from '../services/statements'
 import { writeDatasetCsv } from '../services/exports'
 import { buildYearEndPack } from '../services/yearEnd'
+import { trends } from '../services/trends'
 import { rangeFor } from '@shared/taxYear'
 import { updateSettings } from '../services/settings'
 import { getState, setState } from '../services/appState'
@@ -437,6 +438,8 @@ const handlers: Handlers = {
       getSettings(db)
     )
   },
+
+  'dashboard:trends': () => trends(session.requireDb()),
 
   'export:csv': (_g, { dataset, from, to }) =>
     writeDatasetCsv(session.requireDb(), session.requirePath(), dataset, { from, to }),

@@ -13,7 +13,8 @@ export function Page({
   actions,
   before,
   children,
-  className
+  className,
+  display
 }: {
   title: string
   description?: string
@@ -22,6 +23,14 @@ export function Page({
   before?: React.ReactNode
   children?: React.ReactNode
   className?: string
+  /**
+   * The greeting on the dashboard, at the Display step rather than Heading.
+   *
+   * One screen in the app is somebody's first screen every morning, and it is
+   * the only one that gets to open at 32px. Everywhere else, a page title that
+   * shouted would just be competing with the work.
+   */
+  display?: boolean
 }): React.JSX.Element {
   return (
     <motion.div
@@ -36,10 +45,8 @@ export function Page({
       <div className="flex shrink-0 items-start justify-between gap-4 px-7 pt-6 pb-4">
         <div>
           {before}
-          <h1 className="text-[19px] leading-tight font-semibold tracking-[-0.01em] text-ink">
-            {title}
-          </h1>
-          {description && <p className="mt-1 text-[13px] text-muted">{description}</p>}
+          <h1 className={cn(display ? 'type-display' : 'type-heading', 'text-ink')}>{title}</h1>
+          {description && <p className="type-body mt-1.5 text-muted">{description}</p>}
         </div>
         {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
       </div>

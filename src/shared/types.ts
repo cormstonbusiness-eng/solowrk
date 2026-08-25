@@ -917,6 +917,28 @@ export interface FinanceSummary {
   unbilledValue: Pence
 }
 
+/** One bucket on a dashboard sparkline. */
+export interface TrendPoint {
+  /** Short axis label — a month name, or a date of the month for weeks. */
+  label: string
+  /** Pence for money, seconds for time. Formatted at the edge, as everywhere. */
+  value: number
+}
+
+/**
+ * Six periods of history behind each dashboard figure, oldest first.
+ *
+ * `paid` is monthly totals; `outstanding` and `overdue` are point-in-time at
+ * the close of each month, because what you are owed is a position rather than
+ * a flow; `tracked` is weekly seconds, matching the card above it.
+ */
+export interface DashboardTrends {
+  paid: TrendPoint[]
+  outstanding: TrendPoint[]
+  overdue: TrendPoint[]
+  tracked: TrendPoint[]
+}
+
 export interface FinancePoint {
   /** 'yyyy-mm-dd' for daily, 'yyyy-mm' for monthly. */
   bucket: string

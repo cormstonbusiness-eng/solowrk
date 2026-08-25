@@ -38,6 +38,7 @@ import type {
   ClientTotal,
   EventInput,
   DocumentInput,
+  DashboardTrends,
   DocumentRecord,
   Dataset,
   DueChase,
@@ -384,6 +385,11 @@ export interface IpcContract {
     res: FinancePoint[]
   }
   'finance:topClients': { req: { period: Period; reference?: string }; res: ClientTotal[] }
+  /**
+   * Six periods behind each dashboard figure, for the sparklines. One call
+   * rather than four, because it is one screen and they arrive together.
+   */
+  'dashboard:trends': { req: void; res: DashboardTrends }
   'finance:profitability': {
     req: void
     res: {
@@ -607,6 +613,7 @@ export const IPC_CHANNELS = [
   'finance:summary',
   'finance:series',
   'finance:topClients',
+  'dashboard:trends',
   'finance:profitability',
   'events:list',
   'events:create',
