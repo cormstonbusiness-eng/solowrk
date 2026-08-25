@@ -3,6 +3,7 @@ import { addDays, dayOf, nowStamp, timeOf } from '@shared/calendar'
 import { hasFeature } from './auth'
 import { chaseDedupeKey, dueChasers } from './chasers'
 import { runChasers } from './chaseRun'
+import { runAutomations } from './automations'
 import { dueReminders, markReminded } from './events'
 import { listDueTasks } from './tasks'
 import { session } from './session'
@@ -116,6 +117,49 @@ function runDigest(getWindow: () => BrowserWindow | null, now: Date): void {
   void runChaseSweep(getWindow, db, day).catch((error) => {
     console.error('Chase sweep failed:', error)
   })
+
+  runRules(getWindow, db, day)
+}
+
+/**
+ * The user's own rules, once a day.
+ *
+ * Here rather than on a timer of its own because a rule is a thing that
+ * happens *on a day*, and the digest is already the once-a-day moment. Running
+ * it more often would not make an invoice overdue any sooner.
+ *
+ * Only `notify` rules raise anything: a rule that created a task has already
+ * put its result somewhere the user will see it, and announcing that as well
+ * would mean two notifications for one thing. A drafted invoice says so,
+ * because an invoice appearing that nobody wrote is otherwise unexplained.
+ */
+function runRules(
+  getWindow: () => BrowserWindow | null,
+  db: ReturnType<typeof session.requireDb>,
+  day: string
+): void {
+  let outcomes: ReturnType<typeof runAutomations>
+  try {
+    outcomes = runAutomations(db, day)
+  } catch (error) {
+    // A broken rule must not stop the reminders that have nothing to do with it.
+    console.error('Automations failed:', error)
+    return
+  }
+
+  for (const result of outcomes) {
+    if (result.action === 'create_task') continue
+
+    push(db, getWindow, {
+      kind: result.action === 'draft_invoice' ? 'money' : 'info',
+      title: result.ruleName,
+      body: result.outcome,
+      link: result.action === 'draft_invoice' ? '/invoices' : '/tasks',
+      // A rule acts on a thing once, so this is already unique — and it stays
+      // unique if the sweep runs twice in a morning.
+      dedupeKey: `rule-${result.ruleId}-${result.subject}`
+    })
+  }
 }
 
 /**

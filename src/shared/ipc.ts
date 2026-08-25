@@ -8,6 +8,12 @@
  */
 
 import type {
+  AutomationRule,
+  AutomationRuleInput,
+  AutomationSubject,
+  AutomationTrigger
+} from './automations'
+import type {
   AppNotification,
   AssistantEvent,
   AssistantStatus,
@@ -376,6 +382,40 @@ export interface IpcContract {
    * patch. It goes to the OS keychain and comes back only as a yes or no \u2014
    * there is no channel that reads it back out.
    */
+  /**
+   * Automation rules.
+   *
+   * Ungated for now, like the client update pack, because the tier this lands
+   * in is still an open question in the spec. When that is settled it needs one
+   * line in `gating.ts` and nothing else — the prefix is already its own.
+   */
+  'automations:list': { req: void; res: AutomationRule[] }
+  'automations:create': { req: AutomationRuleInput; res: AutomationRule }
+  'automations:update': { req: { id: number; patch: Partial<AutomationRuleInput> }; res: AutomationRule }
+  'automations:delete': { req: { id: number }; res: void }
+  /**
+   * What this rule has done, newest first.
+   *
+   * Worth having its own channel rather than riding along with the rule: a
+   * feature that acts on your behalf has to be able to show its working, and
+   * that history is the only answer to “why is there a task about this?”
+   */
+  'automations:history': {
+    req: { id: number }
+    res: { subject: string; ranAt: string; outcome: string }[]
+  }
+  /**
+   * What a rule would match if it were saved right now.
+   *
+   * The form calls it to say “this matches 12 things today, which will be left
+   * alone” — the sentence that makes the backfill visible instead of
+   * surprising.
+   */
+  'automations:preview': {
+    req: { trigger: AutomationTrigger; triggerDays: number }
+    res: AutomationSubject[]
+  }
+
   'mail:status': { req: void; res: { configured: boolean; hasPassword: boolean } }
   'mail:password': { req: { password: string }; res: void }
   /** Send a test message to the user's own address, with the server's own words on failure. */
@@ -667,6 +707,12 @@ export const IPC_CHANNELS = [
   'chasing:send',
   'chasing:discard',
   'chasing:sendQueued',
+  'automations:list',
+  'automations:create',
+  'automations:update',
+  'automations:delete',
+  'automations:history',
+  'automations:preview',
   'mail:status',
   'mail:password',
   'mail:test',

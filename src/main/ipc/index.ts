@@ -22,6 +22,14 @@ import { readWindowState } from './window'
 import { session } from '../services/session'
 import { approveMail, cancelMail, getMail, listMail } from '../services/mailQueue'
 import { drainOutbox } from '../services/chaseRun'
+import {
+  createRule,
+  deleteRule,
+  findSubjects,
+  listRules,
+  ruleHistory,
+  updateRule
+} from '../services/automations'
 import { hasSmtpPassword, sendTestEmail, smtpConfigured, storeSmtpPassword } from '../services/mail'
 import { suggestedWorkspacePath } from '../services/config'
 import { inspectFolder, resolveInWorkspace } from '../services/workspace'
@@ -488,6 +496,20 @@ const handlers: Handlers = {
   'chasing:discard': (_g, { id }) => cancelMail(session.requireDb(), id),
 
   'chasing:sendQueued': () => drainOutbox(session.requireDb()),
+
+  'automations:list': () => listRules(session.requireDb()),
+
+  'automations:create': (_g, input) => createRule(session.requireDb(), input),
+
+  'automations:update': (_g, { id, patch }) => updateRule(session.requireDb(), id, patch),
+
+  'automations:delete': (_g, { id }) => {
+    deleteRule(session.requireDb(), id)
+  },
+
+  'automations:history': (_g, { id }) => ruleHistory(session.requireDb(), id),
+
+  'automations:preview': (_g, rule) => findSubjects(session.requireDb(), rule),
 
   'mail:status': async () => {
     const db = session.requireDb()

@@ -862,5 +862,63 @@ export const migrations: Migration[] = [
       -- The drain asks for what is sendable, oldest first.
       CREATE INDEX idx_mail_queue_status ON mail_queue(status, send_after);
     `
+  },
+  {
+    id: 17,
+    name: 'automation_rules',
+    sql: `
+      -- When this, then that.
+      --
+      -- Columns rather than a JSON blob for the parameters. There are only
+      -- three things a rule ever needs to carry and they are all scalars, and a
+      -- blob would put the one part worth validating — what the user typed —
+      -- somewhere no constraint can see it.
+      CREATE TABLE automation_rules (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        name         TEXT    NOT NULL,
+
+        -- invoice_overdue | invoice_paid | project_completed
+        --   | task_overdue | document_expiring
+        trigger      TEXT    NOT NULL,
+        -- How many days late, or how many days before expiry. Ignored by the
+        -- triggers that do not have a horizon.
+        trigger_days INTEGER NOT NULL DEFAULT 0,
+
+        -- create_task | notify | draft_invoice
+        action       TEXT    NOT NULL,
+        -- The task title or the notification wording, with {name}, {client},
+        -- {amount} and {days} filled in.
+        action_text  TEXT    NOT NULL DEFAULT '',
+        -- Due this many days out, for a task. Null means no due date.
+        action_days  INTEGER,
+
+        enabled      INTEGER NOT NULL DEFAULT 1 CHECK (enabled IN (0, 1)),
+        created_at   TEXT    NOT NULL,
+        updated_at   TEXT    NOT NULL
+      );
+
+      -- What each rule has already acted on.
+      --
+      -- The primary key is the whole point: a rule fires once per thing, ever.
+      -- Without it the morning sweep would create the same task every morning
+      -- for as long as an invoice stayed unpaid, which is the exact behaviour
+      -- that makes people switch a feature like this off.
+      --
+      -- It is also how a new rule is stopped from acting on three years of
+      -- history: every currently-matching subject is written here at the moment
+      -- the rule is saved, so the rule only ever acts on what becomes true
+      -- afterwards. See backfillRule in automations.ts.
+      CREATE TABLE automation_runs (
+        rule_id INTEGER NOT NULL REFERENCES automation_rules(id) ON DELETE CASCADE,
+        -- 'invoice:12', 'project:4'. Typed because the same number means
+        -- different things in different tables.
+        subject TEXT    NOT NULL,
+        ran_at  TEXT    NOT NULL,
+        -- Empty when the rule was backfilled rather than run, so the history
+        -- can tell "already true when you made this" from "this happened".
+        outcome TEXT    NOT NULL DEFAULT '',
+        PRIMARY KEY (rule_id, subject)
+      );
+    `
   }
 ]
