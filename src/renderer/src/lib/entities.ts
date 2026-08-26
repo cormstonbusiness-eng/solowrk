@@ -1,4 +1,5 @@
 import {
+  CalendarClock,
   FileText,
   FolderKanban,
   ListChecks,
@@ -50,7 +51,12 @@ export const ENTITY_META: Record<EntityType, EntityMeta> = {
   quote: { noun: 'quote', plural: 'Quotes', icon: ScrollText },
   note: { noun: 'note', plural: 'Notes', icon: StickyNote },
   document: { noun: 'document', plural: 'Documents', icon: FileText },
-  expense: { noun: 'expense', plural: 'Expenses', icon: Wallet }
+  expense: { noun: 'expense', plural: 'Expenses', icon: Wallet },
+  // "Block" rather than "event": what goes in this calendar is an hour of
+  // something, and half of them are nobody's meeting.
+  // No route: a link to /calendar cannot know which week the block is in, and
+  // landing on today with the block off screen is worse than not offering it.
+  block: { noun: 'block', plural: 'Calendar', icon: CalendarClock }
 }
 
 /** `client:12`, the form a ref takes in a URL. */

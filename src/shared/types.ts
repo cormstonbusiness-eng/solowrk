@@ -1102,43 +1102,141 @@ export interface ClientTotal {
  * Calendar
  * ------------------------------------------------------------------ */
 
-/** Where an event came from. Everything is `local` until phase 8 adds sync. */
-export type EventKind = 'local' | 'google' | 'teams'
+/**
+ * What kind of hour a block is.
+ *
+ * This is the distinction the whole module turns on, and it is not the same
+ * question as where the block came from — that is `BlockSource`. An hour can
+ * be client work, a meeting, admin or a holiday regardless of whether it was
+ * typed in or pulled from a feed.
+ */
+export type BlockType =
+  | 'focus'
+  | 'task'
+  | 'meeting'
+  | 'admin'
+  | 'personal'
+  | 'travel'
+  | 'deadline'
+  | 'holiday'
+  | 'external'
 
-export interface CalendarEvent {
+/** Where a block came from. Only `local` is editable. */
+export type BlockSource = 'local' | 'ics_subscription' | 'ics_import'
+
+/**
+ * How each type behaves, in one place.
+ *
+ * Colour, capacity and draggability all follow from the type, and having the
+ * three answers in one table is what stops the week view, the month view and
+ * the capacity figures disagreeing about whether a holiday is committed work.
+ */
+export interface BlockTypeMeta {
+  value: BlockType
+  label: string
+  /** Used when the block has no colour of its own and no project to inherit. */
+  colour: string
+  /** Whether a new block of this type is billable unless told otherwise. */
+  billable: boolean
+  /**
+   * Whether these hours count as committed.
+   *
+   * A holiday is not work, but it is not free either: it blocks availability
+   * without adding to the day's load. Counting it would make a fortnight off
+   * look like the most overcommitted two weeks of the year.
+   */
+  counts: boolean
+  /** Deadlines are derived from other modules; external blocks are read-only. */
+  draggable: boolean
+}
+
+export const BLOCK_TYPES: BlockTypeMeta[] = [
+  { value: 'focus', label: 'Focus', colour: '#FF7A2F', billable: true, counts: true, draggable: true },
+  { value: 'task', label: 'Task', colour: '#FF7A2F', billable: true, counts: true, draggable: true },
+  { value: 'meeting', label: 'Meeting', colour: '#3B82F6', billable: false, counts: true, draggable: true },
+  { value: 'admin', label: 'Admin', colour: '#8a8a93', billable: false, counts: true, draggable: true },
+  { value: 'personal', label: 'Personal', colour: '#8B7BE5', billable: false, counts: false, draggable: true },
+  { value: 'travel', label: 'Travel', colour: '#F5A623', billable: false, counts: true, draggable: true },
+  { value: 'deadline', label: 'Deadline', colour: '#E5484D', billable: false, counts: false, draggable: false },
+  { value: 'holiday', label: 'Holiday', colour: '#30A46C', billable: false, counts: false, draggable: true },
+  { value: 'external', label: 'External', colour: '#8a8a93', billable: false, counts: true, draggable: false }
+]
+
+export function blockTypeMeta(type: BlockType): BlockTypeMeta {
+  return BLOCK_TYPES.find((entry) => entry.value === type) ?? BLOCK_TYPES[2]!
+}
+
+export interface CalendarBlock {
   id: number
   title: string
   description: string
   location: string
+  blockType: BlockType
   /** Local wall-clock stamp, `yyyy-mm-ddThh:mm` — see shared/calendar.ts. */
   startsAt: string
   endsAt: string
   allDay: boolean
-  kind: EventKind
-  externalId: string | null
-  meetingUrl: string
+  /** The IANA zone the wall time was written in. */
+  timezone: string
   projectId: number | null
   clientId: number | null
-  /** Empty string means "use the project's colour". */
+  /** Set when this block schedules a task. */
+  taskId: number | null
+  /** Empty string means "use the project's colour, then the type's". */
   colour: string
+  billable: boolean
+  /** RFC 5545 RRULE, or null for a single occurrence. */
+  recurrenceRule: string | null
+  recurrenceParentId: number | null
+  /** ISO dates this series skips. */
+  recurrenceExdates: string[]
+  source: BlockSource
+  sourceUid: string | null
+  sourceCalendarId: number | null
+  /** True for anything pulled from a feed: no editing, moving or resizing. */
+  locked: boolean
+  meetingUrl: string
   /** Minutes before the start, or null for no reminder. */
   reminderMinutes: number | null
   remindedAt: string | null
+  archived: boolean
+  archivedAt: string | null
   createdAt: string
   updatedAt: string
 }
 
-export interface CalendarEventWithContext extends CalendarEvent {
+export interface CalendarBlockWithContext extends CalendarBlock {
   projectName: string | null
   projectColour: string | null
   clientName: string | null
-  /** `colour` if set, otherwise the project's, otherwise the neutral default. */
+  taskTitle: string | null
+  /** `colour`, then the project's, then the block type's. Resolved once. */
   displayColour: string
 }
 
-export type EventInput = Partial<
-  Omit<CalendarEvent, 'id' | 'createdAt' | 'updatedAt' | 'remindedAt'>
+export type BlockInput = Partial<
+  Omit<
+    CalendarBlock,
+    'id' | 'createdAt' | 'updatedAt' | 'remindedAt' | 'archived' | 'archivedAt'
+  >
 > & { title: string; startsAt: string; endsAt: string }
+
+/** How the app stores a person's working shape. Minutes past midnight. */
+export interface CalendarSettings {
+  workingHoursStart: number
+  workingHoursEnd: number
+  /** Bitmask, Monday = bit 0. 31 is Monday to Friday. */
+  workingDays: number
+  dailyCapacityMinutes: number
+  weeklyBillableTarget: number
+  defaultBlockMinutes: number
+  snapMinutes: number
+  /** 0 = Monday. */
+  weekStartsOn: number
+  defaultView: string
+  showWeekends: boolean
+  hourHeight: number
+}
 
 export const REMINDER_CHOICES: { value: number; label: string }[] = [
   { value: 0, label: 'At the time' },
@@ -1465,9 +1563,12 @@ export const DEFAULT_BUSINESS: WorkspaceSetup['business'] = {
  *
  * One union for both, deliberately. A type that can be linked but has no
  * history, or has history but cannot be linked, is an asymmetry every caller
- * would have to remember. Calendar events are the notable absence: they are
- * already a record of when something happened, and they join the list when the
- * calendar gets a detail drawer.
+ * would have to remember.
+ *
+ * `block` is a calendar block. It joined when the calendar got a detail
+ * drawer, and joining is what gives every drag its undo: a moved block is an
+ * `entity:update` like any other, and a deleted one goes to the trash rather
+ * than nowhere.
  */
 export const ENTITY_TYPES = [
   'client',
@@ -1477,7 +1578,8 @@ export const ENTITY_TYPES = [
   'quote',
   'note',
   'document',
-  'expense'
+  'expense',
+  'block'
 ] as const
 
 export type EntityType = (typeof ENTITY_TYPES)[number]

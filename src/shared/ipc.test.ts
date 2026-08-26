@@ -21,7 +21,8 @@ describe('what read-only allows', () => {
       'files:trash',
       'settings:update',
       'expenses:create',
-      'events:create',
+      'calendar:createBlock',
+      'calendar:updateSettings',
       'ai:send',
       'ai:writeBusinessPlan',
       // Both advance the chase schedule, which is a write on the invoice. The

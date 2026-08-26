@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Trash2 } from 'lucide-react'
-import type { CalendarEventWithContext, EventInput } from '@shared/types'
-import { REMINDER_CHOICES } from '@shared/types'
+import type { BlockInput, BlockType, CalendarBlockWithContext } from '@shared/types'
+import { BLOCK_TYPES, REMINDER_CHOICES, blockTypeMeta } from '@shared/types'
 import { dayOf, minutesBetween, stampAt, timeOf } from '@shared/calendar'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput, Toggle } from '@/components/ui/Field'
 import { ColourPicker, Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { keys, useInvalidate } from '@/lib/api'
+import { useEntityActions } from '@/hooks/useEntityActions'
+import { cn } from '@/lib/utils'
 
 /** What the modal edits. Split into day + times because that is how people think. */
 interface Draft {
   title: string
+  blockType: BlockType
   day: string
   startTime: string
   endTime: string
@@ -22,13 +25,16 @@ interface Draft {
   meetingUrl: string
   description: string
   colour: string
+  billable: boolean
   reminderMinutes: number | null
 }
 
-function toDraft(event: CalendarEventWithContext | null, defaults: Partial<Draft>): Draft {
-  if (!event) {
+function toDraft(block: CalendarBlockWithContext | null, defaults: Partial<Draft>): Draft {
+  if (!block) {
+    const blockType = defaults.blockType ?? 'meeting'
     return {
       title: '',
+      blockType,
       day: defaults.day ?? dayOf(new Date().toISOString()),
       startTime: defaults.startTime ?? '09:00',
       endTime: defaults.endTime ?? '10:00',
@@ -38,42 +44,49 @@ function toDraft(event: CalendarEventWithContext | null, defaults: Partial<Draft
       meetingUrl: '',
       description: '',
       colour: '',
+      billable: blockTypeMeta(blockType).billable,
       reminderMinutes: 15
     }
   }
 
   return {
-    title: event.title,
-    day: dayOf(event.startsAt),
-    startTime: timeOf(event.startsAt),
-    endTime: timeOf(event.endsAt),
-    allDay: event.allDay,
-    projectId: event.projectId,
-    location: event.location,
-    meetingUrl: event.meetingUrl,
-    description: event.description,
-    colour: event.colour,
-    reminderMinutes: event.reminderMinutes
+    title: block.title,
+    blockType: block.blockType,
+    day: dayOf(block.startsAt),
+    startTime: timeOf(block.startsAt),
+    endTime: timeOf(block.endsAt),
+    allDay: block.allDay,
+    projectId: block.projectId,
+    location: block.location,
+    meetingUrl: block.meetingUrl,
+    description: block.description,
+    colour: block.colour,
+    billable: block.billable,
+    reminderMinutes: block.reminderMinutes
   }
 }
 
 /**
- * An all-day event still needs a start and an end, so it is stored as the
+ * An all-day block still needs a start and an end, so it is stored as the
  * whole day rather than as a null time. Everything downstream — overlap
  * layout, range queries, sync — then has one shape to handle.
  */
-function toInput(draft: Draft): EventInput {
+function toInput(draft: Draft): BlockInput {
   const startsAt = draft.allDay ? `${draft.day}T00:00` : `${draft.day}T${draft.startTime}`
   let endsAt = draft.allDay ? `${draft.day}T23:59` : `${draft.day}T${draft.endTime}`
 
   // An end before the start reads as running past midnight, which is what
   // someone typing 22:00–01:00 means.
   if (!draft.allDay && minutesBetween(startsAt, endsAt) < 0) {
-    endsAt = stampAt(draft.day, 1440 + Number(draft.endTime.slice(0, 2)) * 60 + Number(draft.endTime.slice(3, 5)))
+    endsAt = stampAt(
+      draft.day,
+      1440 + Number(draft.endTime.slice(0, 2)) * 60 + Number(draft.endTime.slice(3, 5))
+    )
   }
 
   return {
     title: draft.title.trim() || 'Untitled',
+    blockType: draft.blockType,
     startsAt,
     endsAt,
     allDay: draft.allDay,
@@ -82,30 +95,32 @@ function toInput(draft: Draft): EventInput {
     meetingUrl: draft.meetingUrl,
     description: draft.description,
     colour: draft.colour,
+    billable: draft.billable,
     reminderMinutes: draft.reminderMinutes
   }
 }
 
-export function EventModal({
+export function BlockModal({
   open,
-  event,
+  block,
   defaults,
   onClose
 }: {
   open: boolean
   /** null when creating. */
-  event: CalendarEventWithContext | null
+  block: CalendarBlockWithContext | null
   defaults?: Partial<Draft>
   onClose: () => void
 }): React.JSX.Element {
   const invalidate = useInvalidate()
-  const [draft, setDraft] = useState<Draft>(() => toDraft(event, defaults ?? {}))
+  const { remove } = useEntityActions()
+  const [draft, setDraft] = useState<Draft>(() => toDraft(block, defaults ?? {}))
 
   // Reset whenever the modal opens, so an edit does not inherit the last one.
   useEffect(() => {
-    if (open) setDraft(toDraft(event, defaults ?? {}))
+    if (open) setDraft(toDraft(block, defaults ?? {}))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, event?.id])
+  }, [open, block?.id])
 
   const { data: projects = [] } = useQuery({
     queryKey: keys.projects(),
@@ -116,57 +131,105 @@ export function EventModal({
   const update = <K extends keyof Draft>(key: K, value: Draft[K]): void =>
     setDraft((current) => ({ ...current, [key]: value }))
 
+  /**
+   * Changing the type re-answers the billable question with what that type
+   * usually means — but only while the answer is still the old type's default.
+   * Somebody who has deliberately said "this focus block is not billable"
+   * should not have that undone by reaching for a different type.
+   */
+  const chooseType = (blockType: BlockType): void =>
+    setDraft((current) =>
+      current.billable === blockTypeMeta(current.blockType).billable
+        ? { ...current, blockType, billable: blockTypeMeta(blockType).billable }
+        : { ...current, blockType }
+    )
+
   const save = useMutation({
     mutationFn: () =>
-      event
-        ? window.solo.invoke('events:update', { id: event.id, patch: toInput(draft) })
-        : window.solo.invoke('events:create', toInput(draft)),
+      block
+        ? window.solo.invoke('calendar:updateBlock', { id: block.id, patch: toInput(draft) })
+        : window.solo.invoke('calendar:createBlock', toInput(draft)),
     onSuccess: () => {
-      invalidate(['events'])
+      invalidate(['calendar'])
       onClose()
     }
   })
 
-  const remove = useMutation({
-    mutationFn: () => window.solo.invoke('events:delete', { id: event?.id ?? 0 }),
-    onSuccess: () => {
-      invalidate(['events'])
-      onClose()
-    }
-  })
+  // Nothing from a subscribed calendar is editable. The service refuses it too;
+  // this is so the modal does not offer something that will fail.
+  const locked = block?.locked ?? false
 
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title={event ? 'Edit event' : 'New event'}
-      description={event?.kind === 'local' || !event ? undefined : 'Synced from your calendar.'}
+      title={block ? 'Edit block' : 'New block'}
+      description={
+        locked ? 'From a calendar you subscribe to, so it is read-only here.' : undefined
+      }
       width={520}
       footer={
         <>
-          {event && (
-            <Button variant="danger" onClick={() => remove.mutate()} className="mr-auto">
+          {block && !locked && (
+            <Button
+              variant="danger"
+              className="mr-auto"
+              onClick={() => {
+                void remove({ type: 'block', id: block.id }, block.title)
+                onClose()
+              }}
+            >
               <Trash2 size={13} strokeWidth={1.75} />
               Delete
             </Button>
           )}
           <Button variant="ghost" onClick={onClose}>
-            Cancel
+            {locked ? 'Close' : 'Cancel'}
           </Button>
-          <Button variant="primary" onClick={() => save.mutate()} disabled={!draft.title.trim()}>
-            {event ? 'Save' : 'Add event'}
-          </Button>
+          {!locked && (
+            <Button variant="primary" onClick={() => save.mutate()} disabled={!draft.title.trim()}>
+              {block ? 'Save' : 'Add block'}
+            </Button>
+          )}
         </>
       }
     >
-      <div className="flex flex-col gap-3.5">
+      <fieldset disabled={locked} className="flex flex-col gap-3.5">
         <Field label="Title">
           <TextInput
             autoFocus
             value={draft.title}
             onChange={(e) => update('title', e.target.value)}
-            placeholder="Client call, deadline, site visit…"
+            placeholder="Client call, deep work, site visit…"
           />
+        </Field>
+
+        {/* Chips rather than a dropdown. The type decides colour, whether the
+            hour counts toward capacity and whether it is billable — too much
+            to hide behind a closed menu. */}
+        <Field label="Type" hint="What kind of hour this is.">
+          <div className="flex flex-wrap gap-1.5">
+            {BLOCK_TYPES.filter((one) => one.value !== 'external').map((one) => (
+              <button
+                key={one.value}
+                type="button"
+                onClick={() => chooseType(one.value)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-control border px-2.5 py-1 text-[12px] transition-colors',
+                  draft.blockType === one.value
+                    ? 'border-accent bg-accent-subtle text-ink'
+                    : 'border-line text-muted hover:border-line-strong hover:text-ink'
+                )}
+              >
+                <span
+                  aria-hidden
+                  className="size-2 rounded-full"
+                  style={{ background: one.colour }}
+                />
+                {one.label}
+              </button>
+            ))}
+          </div>
         </Field>
 
         <div className="grid grid-cols-[1fr_auto_auto] items-end gap-3">
@@ -205,7 +268,7 @@ export function EventModal({
         />
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Project" hint="Colours the event and links it to the work.">
+          <Field label="Project" hint="Colours the block and links it to the work.">
             <Select
               value={draft.projectId}
               onChange={(value) => update('projectId', value)}
@@ -222,6 +285,13 @@ export function EventModal({
             />
           </Field>
         </div>
+
+        <Toggle
+          checked={draft.billable}
+          onChange={(value) => update('billable', value)}
+          label="Billable"
+          hint="Counts toward the week's billable target."
+        />
 
         <div className="grid grid-cols-2 gap-3">
           <Field label="Location">
@@ -250,7 +320,7 @@ export function EventModal({
           />
         </Field>
 
-        <Field label="Colour" hint="Leave unset to follow the project's colour.">
+        <Field label="Colour" hint="Leave unset to follow the project, then the type.">
           <div className="flex items-center gap-3">
             <ColourPicker value={draft.colour} onChange={(colour) => update('colour', colour)} />
             {draft.colour && (
@@ -264,7 +334,7 @@ export function EventModal({
             )}
           </div>
         </Field>
-      </div>
+      </fieldset>
     </Modal>
   )
 }

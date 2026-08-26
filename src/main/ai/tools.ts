@@ -14,7 +14,8 @@ import { createEntry, listEntries } from '../services/time'
 import { createInvoice, listInvoices } from '../services/invoices'
 import { listExpenses } from '../services/expenses'
 import { summary } from '../services/finance'
-import { createEvent, listEvents } from '../services/events'
+import { BLOCK_TYPES, type BlockType } from '@shared/types'
+import { createBlock, listBlocks } from '../services/blocks'
 import { createNote, listNotes, writeNote } from '../services/notes'
 import { listDocuments } from '../services/documents'
 import {
@@ -54,7 +55,7 @@ export const MUTATING = new Set([
   'update_task',
   'log_time',
   'create_invoice_draft',
-  'create_event',
+  'create_block',
   'write_note',
   'create_campaign',
   'create_post',
@@ -89,7 +90,7 @@ export function describeCall(toolName: string, input: Record<string, unknown>): 
       return `Log ${name('minutes')} minutes of time`
     case 'create_invoice_draft':
       return `Create a draft invoice`
-    case 'create_event':
+    case 'create_block':
       return `Add “${name('title')}” to your calendar`
     case 'write_note':
       return `Write to the note “${name('title')}”`
@@ -339,26 +340,33 @@ export const soloTools = createSdkMcpServer({
     /* ---------------- Calendar and notes ---------------- */
 
     tool(
-      'list_events',
-      'List calendar events overlapping a date range.',
+      'list_blocks',
+      'List calendar blocks overlapping a date range.',
       { from: z.string().describe('yyyy-mm-dd'), to: z.string().describe('yyyy-mm-dd') },
-      async (args) => asJson(listEvents(db(), args))
+      async (args) => asJson(listBlocks(db(), args))
     ),
 
     tool(
-      'create_event',
-      'Add an event to the calendar. Times are local wall-clock, yyyy-mm-ddThh:mm, ' +
+      'create_block',
+      'Put something in the calendar. Times are local wall-clock, yyyy-mm-ddThh:mm, ' +
         'with no timezone. Requires the user to confirm.',
       {
         title: z.string(),
         startsAt: z.string().describe('yyyy-mm-ddThh:mm'),
         endsAt: z.string().describe('yyyy-mm-ddThh:mm'),
+        // No default: whether an hour is billable client work or an admin
+        // errand is exactly the thing the assistant must not guess, and the
+        // service falls back to 'meeting', which claims the least.
+        blockType: z
+          .enum(BLOCK_TYPES.map((one) => one.value) as [BlockType, ...BlockType[]])
+          .optional()
+          .describe('focus and task are billable work; meeting, admin, travel, personal, holiday'),
         projectId: z.number().int().nullable().default(null),
         location: z.string().default(''),
         description: z.string().default(''),
         reminderMinutes: z.number().int().nullable().default(15)
       },
-      async (args) => asJson(createEvent(db(), args))
+      async (args) => asJson(createBlock(db(), args))
     ),
 
     tool(

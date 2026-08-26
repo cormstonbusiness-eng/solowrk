@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react'
-import type { CalendarEventWithContext } from '@shared/types'
+import type { CalendarBlockWithContext } from '@shared/types'
 import { addDays, addMonths, dayFromDate, monthGrid, weekDays } from '@shared/calendar'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
@@ -12,7 +12,7 @@ import { useOpenParam } from '@/hooks/useOpenParam'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { AgendaView } from './calendar/AgendaView'
-import { EventModal } from './calendar/EventModal'
+import { BlockModal } from './calendar/BlockModal'
 import { MonthView } from './calendar/MonthView'
 import { TimeGrid } from './calendar/TimeGrid'
 import { dayLabel, monthLabel } from './calendar/grid'
@@ -76,7 +76,7 @@ export function Calendar(): React.JSX.Element {
   const [view, setView] = useState<View>('week')
   const [anchor, setAnchor] = useState(today)
   const [projectId, setProjectId] = useState<number | null>(null)
-  const [editing, setEditing] = useState<CalendarEventWithContext | null>(null)
+  const [editing, setEditing] = useState<CalendarBlockWithContext | null>(null)
   const [creating, setCreating] = useState<{ day: string; startTime: string; endTime: string } | null>(
     null
   )
@@ -89,9 +89,9 @@ export function Calendar(): React.JSX.Element {
   const to = days.at(-1) ?? anchor
 
   const { data: events = [] } = useQuery({
-    queryKey: keys.events(from, to, projectId),
+    queryKey: keys.blocks(from, to, projectId),
     queryFn: () =>
-      window.solo.invoke('events:list', {
+      window.solo.invoke('calendar:blocks', {
         from,
         to,
         ...(projectId === null ? {} : { projectId })
@@ -110,11 +110,11 @@ export function Calendar(): React.JSX.Element {
 
   const reschedule = useMutation({
     mutationFn: (input: { id: number; startsAt: string; endsAt: string }) =>
-      window.solo.invoke('events:update', {
+      window.solo.invoke('calendar:updateBlock', {
         id: input.id,
         patch: { startsAt: input.startsAt, endsAt: input.endsAt }
       }),
-    onSuccess: () => invalidate(['events'])
+    onSuccess: () => invalidate(['calendar'])
   })
 
   // A clicked reminder should land on the event it was reminding you about.
@@ -260,9 +260,9 @@ export function Calendar(): React.JSX.Element {
         </motion.div>
       </AnimatePresence>
 
-      <EventModal
+      <BlockModal
         open={editing !== null || creating !== null}
-        event={editing}
+        block={editing}
         defaults={creating ?? { day: anchor }}
         onClose={() => {
           setEditing(null)

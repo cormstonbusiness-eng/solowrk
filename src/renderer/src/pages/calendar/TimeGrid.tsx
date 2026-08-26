@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { CalendarEventWithContext } from '@shared/types'
+import type { CalendarBlockWithContext } from '@shared/types'
 import {
   MINUTES_PER_DAY,
   clamp,
@@ -45,10 +45,10 @@ export function TimeGrid({
 }: {
   days: string[]
   today: string
-  events: CalendarEventWithContext[]
-  onOpenEvent: (event: CalendarEventWithContext) => void
+  events: CalendarBlockWithContext[]
+  onOpenEvent: (event: CalendarBlockWithContext) => void
   onCreateSlot: (startsAt: string, endsAt: string) => void
-  onReschedule: (event: CalendarEventWithContext, span: { startsAt: string; endsAt: string }) => void
+  onReschedule: (event: CalendarBlockWithContext, span: { startsAt: string; endsAt: string }) => void
 }): React.JSX.Element {
   const scroller = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
@@ -76,7 +76,7 @@ export function TimeGrid({
    */
   function startDrag(
     pointerEvent: React.PointerEvent,
-    event: CalendarEventWithContext,
+    event: CalendarBlockWithContext,
     mode: 'move' | 'resize'
   ): void {
     if (pointerEvent.button !== 0) return
@@ -162,7 +162,7 @@ export function TimeGrid({
   }
 
   /** The dragged event's provisional span, so the drag reads as direct. */
-  function spanOf(event: CalendarEventWithContext): { startsAt: string; endsAt: string } {
+  function spanOf(event: CalendarBlockWithContext): { startsAt: string; endsAt: string } {
     return drag?.id === event.id ? { startsAt: drag.startsAt, endsAt: drag.endsAt } : event
   }
 

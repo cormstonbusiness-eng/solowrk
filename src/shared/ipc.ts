@@ -30,7 +30,8 @@ import type {
   AssistantMode,
   BusinessPlanStatus,
   BusinessSettings,
-  CalendarEventWithContext,
+  CalendarBlockWithContext,
+  CalendarSettings,
   Campaign,
   CampaignWithCounts,
   Category,
@@ -53,7 +54,7 @@ import type {
   ClientInput,
   ClientProfitability,
   ClientTotal,
-  EventInput,
+  BlockInput,
   DocumentInput,
   DashboardTrends,
   DocumentRecord,
@@ -614,14 +615,21 @@ export interface IpcContract {
   }
 
   /** `from` and `to` are `yyyy-mm-dd`; anything overlapping them comes back. */
-  'events:list': {
+  'calendar:blocks': {
     req: { from: string; to: string; projectId?: number }
-    res: CalendarEventWithContext[]
+    res: CalendarBlockWithContext[]
   }
-  'events:create': { req: EventInput; res: CalendarEventWithContext }
-  'events:update': { req: { id: number; patch: Partial<EventInput> }; res: CalendarEventWithContext }
-  'events:delete': { req: { id: number }; res: void }
-  'events:upcoming': { req: { limit?: number } | void; res: CalendarEventWithContext[] }
+  'calendar:block': { req: { id: number }; res: CalendarBlockWithContext }
+  'calendar:createBlock': { req: BlockInput; res: CalendarBlockWithContext }
+  'calendar:updateBlock': {
+    req: { id: number; patch: Partial<BlockInput> }
+    res: CalendarBlockWithContext
+  }
+  // No `deleteBlock`: a block is an entity, so it is deleted through
+  // `entity:delete` and lands in the trash like everything else.
+  'calendar:upcoming': { req: { limit?: number } | void; res: CalendarBlockWithContext[] }
+  'calendar:settings': { req: void; res: CalendarSettings }
+  'calendar:updateSettings': { req: Partial<CalendarSettings>; res: CalendarSettings }
 
   'marketing:campaigns': { req: { includeArchived?: boolean } | void; res: CampaignWithCounts[] }
   'marketing:createCampaign': { req: Partial<Campaign> & { name: string }; res: Campaign }
@@ -866,11 +874,13 @@ export const IPC_CHANNELS = [
   'finance:clientRates',
   'dashboard:trends',
   'finance:profitability',
-  'events:list',
-  'events:create',
-  'events:update',
-  'events:delete',
-  'events:upcoming',
+  'calendar:blocks',
+  'calendar:block',
+  'calendar:createBlock',
+  'calendar:updateBlock',
+  'calendar:upcoming',
+  'calendar:settings',
+  'calendar:updateSettings',
   'marketing:campaigns',
   'marketing:createCampaign',
   'marketing:updateCampaign',

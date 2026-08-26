@@ -32,5 +32,6 @@ export const ENTITY_SOURCES: Record<EntityType, EntitySource> = {
   expense: {
     table: 'expenses',
     label: (a) => `COALESCE(NULLIF(${a}.description, ''), ${a}.vendor)`
-  }
+  },
+  block: { table: 'calendar_blocks', label: (a) => `${a}.title` }
 }

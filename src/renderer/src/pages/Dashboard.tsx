@@ -122,8 +122,8 @@ export function Dashboard(): React.JSX.Element {
   // The whole week rather than just today, so the strip can show which days
   // have something on them without a second round trip per day.
   const { data: events = [] } = useQuery({
-    queryKey: keys.events(week.from, week.to, null),
-    queryFn: () => window.solo.invoke('events:list', { from: week.from, to: week.to })
+    queryKey: keys.blocks(week.from, week.to, null),
+    queryFn: () => window.solo.invoke('calendar:blocks', { from: week.from, to: week.to })
   })
 
   const { data: dueTasks = [] } = useQuery({

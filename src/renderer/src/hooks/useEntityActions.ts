@@ -22,7 +22,8 @@ const DOMAINS: Record<EntityType, Domain[]> = {
   quote: ['quotes'],
   note: ['notes'],
   document: ['documents'],
-  expense: ['expenses', 'finance']
+  expense: ['expenses', 'finance'],
+  block: ['calendar']
 }
 
 const NOUNS: Record<EntityType, string> = {
@@ -33,7 +34,8 @@ const NOUNS: Record<EntityType, string> = {
   quote: 'Quote',
   note: 'Note',
   document: 'Document',
-  expense: 'Expense'
+  expense: 'Expense',
+  block: 'Block'
 }
 
 export interface EntityActions {

@@ -1306,5 +1306,168 @@ export const migrations: Migration[] = [
       -- the original text is still there to look at. Nothing reads it after
       -- this migration.
     `
+  },
+  {
+    id: 23,
+    name: 'calendar_blocks',
+    sql: `
+      -- The calendar, rebuilt around what a block *is* rather than where it
+      -- came from.
+      --
+      -- The old table called its one classifying column 'kind', with values
+      -- local | google | teams. That is provenance, not type: it says nothing
+      -- about whether an hour is client work, a meeting, admin or a holiday,
+      -- which is the distinction the whole module now turns on. Provenance
+      -- moves to 'source', and block_type carries the meaning.
+      --
+      -- Ids stay INTEGER AUTOINCREMENT rather than the uuid the specification
+      -- asks for. EntityRef.id is a number across links, tags, activity, trash,
+      -- the drawer and quick-add, and restoring from the trash is only safe
+      -- because SQLite never reissues an autoincrement id. A uuid here would
+      -- either need a union id type threaded through all of that, or would put
+      -- the calendar outside every one of those features.
+      CREATE TABLE calendar_subscriptions (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        name            TEXT    NOT NULL,
+        url             TEXT    NOT NULL,
+        colour          TEXT    NOT NULL DEFAULT '#8a8a93',
+        visible         INTEGER NOT NULL DEFAULT 1 CHECK (visible IN (0, 1)),
+        last_synced_at  TEXT,
+        last_status     TEXT    NOT NULL DEFAULT '',
+        sync_error      TEXT    NOT NULL DEFAULT '',
+        refresh_minutes INTEGER NOT NULL DEFAULT 60,
+        created_at      TEXT    NOT NULL,
+        updated_at      TEXT    NOT NULL
+      );
+
+      CREATE TABLE calendar_blocks (
+        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+        title            TEXT    NOT NULL,
+        description      TEXT    NOT NULL DEFAULT '',
+        location         TEXT    NOT NULL DEFAULT '',
+
+        -- What kind of hour this is. Drives colour, whether it counts toward
+        -- capacity, and whether it can be dragged.
+        block_type       TEXT    NOT NULL DEFAULT 'meeting'
+                                 CHECK (block_type IN ('focus', 'task', 'meeting', 'admin',
+                                                       'personal', 'travel', 'deadline',
+                                                       'holiday', 'external')),
+
+        -- Local wall time, 'yyyy-mm-ddThh:mm'. Never a UTC instant: a block at
+        -- 09:00 is at 09:00 wherever the laptop happens to be.
+        starts_at        TEXT    NOT NULL,
+        ends_at          TEXT    NOT NULL,
+        all_day          INTEGER NOT NULL DEFAULT 0 CHECK (all_day IN (0, 1)),
+        -- The IANA zone the wall time was written in, so a block booked in
+        -- London still means 09:00 London after a flight.
+        timezone         TEXT    NOT NULL DEFAULT 'Europe/London',
+
+        project_id       INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+        client_id        INTEGER REFERENCES clients(id)  ON DELETE SET NULL,
+        -- Set when the block schedules a task. SET NULL rather than CASCADE:
+        -- deleting a task does take its blocks, but that is a confirmed action
+        -- in the service, not something the schema does quietly.
+        task_id          INTEGER REFERENCES tasks(id) ON DELETE SET NULL,
+
+        -- Empty means "inherit", falling back to the project colour and then
+        -- the block type's own, so recolouring a project recolours its work.
+        colour           TEXT    NOT NULL DEFAULT '',
+        billable         INTEGER NOT NULL DEFAULT 0 CHECK (billable IN (0, 1)),
+
+        -- RFC 5545 RRULE. Null is a single occurrence. The rule is stored, not
+        -- the occurrences: a weekly stand-up is one row, expanded for whatever
+        -- range is on screen.
+        recurrence_rule      TEXT,
+        -- Set on a materialised exception, pointing at the series it broke off.
+        recurrence_parent_id INTEGER REFERENCES calendar_blocks(id) ON DELETE CASCADE,
+        -- Comma-separated ISO dates the parent series skips.
+        recurrence_exdates   TEXT NOT NULL DEFAULT '',
+
+        source           TEXT    NOT NULL DEFAULT 'local'
+                                 CHECK (source IN ('local', 'ics_subscription', 'ics_import')),
+        source_uid       TEXT,
+        source_calendar_id INTEGER REFERENCES calendar_subscriptions(id) ON DELETE CASCADE,
+        -- Read-only, for anything pulled from someone else's calendar.
+        locked           INTEGER NOT NULL DEFAULT 0 CHECK (locked IN (0, 1)),
+
+        meeting_url      TEXT    NOT NULL DEFAULT '',
+        reminder_minutes INTEGER,
+        reminded_at      TEXT,
+
+        archived         INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
+        archived_at      TEXT,
+        created_at       TEXT    NOT NULL,
+        updated_at       TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_blocks_span     ON calendar_blocks(starts_at, ends_at);
+      CREATE INDEX idx_blocks_project  ON calendar_blocks(project_id);
+      CREATE INDEX idx_blocks_task     ON calendar_blocks(task_id);
+      CREATE INDEX idx_blocks_reminder ON calendar_blocks(reminded_at, reminder_minutes);
+      CREATE INDEX idx_blocks_series   ON calendar_blocks(recurrence_parent_id);
+      CREATE UNIQUE INDEX idx_blocks_source
+        ON calendar_blocks(source_calendar_id, source_uid)
+        WHERE source_uid IS NOT NULL;
+
+      -- Everything that was in the calendar comes across, keeping its id.
+      --
+      -- All of it was written by hand, so all of it is 'meeting': the one type
+      -- that means "an hour with a time on it" without claiming anything the
+      -- user never said. Guessing 'focus' from a project link would invent
+      -- billable hours and put them straight into the capacity figures.
+      INSERT INTO calendar_blocks
+        (id, title, description, location, block_type, starts_at, ends_at, all_day,
+         project_id, client_id, colour, meeting_url, reminder_minutes, reminded_at,
+         source, source_uid, created_at, updated_at)
+      SELECT id, title, description, location, 'meeting', starts_at, ends_at, all_day,
+             project_id, client_id, colour, meeting_url, reminder_minutes, reminded_at,
+             CASE kind WHEN 'local' THEN 'local' ELSE 'ics_subscription' END,
+             external_id, created_at, updated_at
+        FROM events;
+
+      DROP TABLE events;
+
+      -- How this person works. One row, and the CHECK keeps it one row.
+      CREATE TABLE calendar_settings (
+        id                     INTEGER PRIMARY KEY CHECK (id = 1),
+        -- Minutes past midnight, matching how the grid already measures a day.
+        working_hours_start    INTEGER NOT NULL DEFAULT 540,
+        working_hours_end      INTEGER NOT NULL DEFAULT 1050,
+        -- Bitmask, Monday = bit 0. 31 is Monday to Friday.
+        working_days           INTEGER NOT NULL DEFAULT 31,
+        -- Six hours, deliberately. Eight-hour days of billable work do not
+        -- exist, and a capacity nobody can hit is a warning nobody reads.
+        daily_capacity_minutes INTEGER NOT NULL DEFAULT 360,
+        weekly_billable_target INTEGER NOT NULL DEFAULT 1500,
+        default_block_minutes  INTEGER NOT NULL DEFAULT 60,
+        snap_minutes           INTEGER NOT NULL DEFAULT 15,
+        -- 0 = Monday. UK default, and configurable because it has to be.
+        week_starts_on         INTEGER NOT NULL DEFAULT 0,
+        default_view           TEXT    NOT NULL DEFAULT 'week',
+        show_weekends          INTEGER NOT NULL DEFAULT 1 CHECK (show_weekends IN (0, 1)),
+        hour_height            INTEGER NOT NULL DEFAULT 56,
+        updated_at             TEXT    NOT NULL
+      );
+
+      INSERT INTO calendar_settings (id, updated_at) VALUES (1, datetime('now'));
+
+      -- A block is an entity now, so it keeps a timeline like the other eight.
+      -- The ten-minute window on 'edited' matters more here than anywhere
+      -- else: dragging a block across a week is one intention and a great many
+      -- writes, and a timeline recording each of them would be unreadable.
+      CREATE TRIGGER activity_blocks_created AFTER INSERT ON calendar_blocks BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('block', NEW.id, 'created', NEW.title, datetime('now'));
+      END;
+      CREATE TRIGGER activity_blocks_edited AFTER UPDATE ON calendar_blocks
+      WHEN NEW.updated_at != OLD.updated_at AND NOT EXISTS (
+        SELECT 1 FROM activity
+         WHERE entity_type = 'block' AND entity_id = NEW.id AND action = 'edited'
+           AND at > datetime('now', '-10 minutes')
+      ) BEGIN
+        INSERT INTO activity (entity_type, entity_id, action, detail, at)
+        VALUES ('block', NEW.id, 'edited', '', datetime('now'));
+      END;
+    `
   }
 ]

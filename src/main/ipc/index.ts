@@ -131,13 +131,8 @@ import {
   taxPosition,
   topClients
 } from '../services/finance'
-import {
-  createEvent,
-  deleteEvent,
-  listEvents,
-  updateEvent,
-  upcomingEvents
-} from '../services/events'
+import { createBlock, getBlock, listBlocks, updateBlock, upcomingBlocks } from '../services/blocks'
+import { getCalendarSettings, updateCalendarSettings } from '../services/calendarSettings'
 import { nowStamp } from '@shared/calendar'
 import {
   createCampaign,
@@ -743,18 +738,20 @@ const handlers: Handlers = {
 
   'finance:profitability': () => projectProfitability(session.requireDb()),
 
-  'events:list': (_g, range) => listEvents(session.requireDb(), range),
+  'calendar:blocks': (_g, range) => listBlocks(session.requireDb(), range),
 
-  'events:create': (_g, input) => createEvent(session.requireDb(), input),
+  'calendar:block': (_g, { id }) => getBlock(session.requireDb(), id),
 
-  'events:update': (_g, { id, patch }) => updateEvent(session.requireDb(), id, patch),
+  'calendar:createBlock': (_g, input) => createBlock(session.requireDb(), input),
 
-  'events:delete': (_g, { id }) => {
-    deleteEvent(session.requireDb(), id)
-  },
+  'calendar:updateBlock': (_g, { id, patch }) => updateBlock(session.requireDb(), id, patch),
 
-  'events:upcoming': (_g, payload) =>
-    upcomingEvents(session.requireDb(), nowStamp(), payload?.limit ?? 5),
+  'calendar:upcoming': (_g, payload) =>
+    upcomingBlocks(session.requireDb(), nowStamp(), payload?.limit ?? 5),
+
+  'calendar:settings': () => getCalendarSettings(session.requireDb()),
+
+  'calendar:updateSettings': (_g, patch) => updateCalendarSettings(session.requireDb(), patch),
 
   'app:version': () => app.getVersion(),
 

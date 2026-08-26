@@ -18,8 +18,9 @@ export const keys = {
   notes: (projectId: number) => ['notes', projectId] as const,
   note: (id: number) => ['note', id] as const,
   templates: ['templates'] as const,
-  events: (from: string, to: string, projectId: number | null) =>
-    ['events', { from, to, projectId }] as const,
+  blocks: (from: string, to: string, projectId: number | null) =>
+    ['calendar', { from, to, projectId }] as const,
+  calendarSettings: ['calendar', 'settings'] as const,
   posts: (filter?: unknown) =>
     filter ? (['marketing', 'posts', filter] as const) : (['marketing', 'posts'] as const),
   campaigns: ['marketing', 'campaigns'] as const,
@@ -54,7 +55,7 @@ export type Domain =
   | 'quotes'
   | 'expenses'
   | 'finance'
-  | 'events'
+  | 'calendar'
   | 'marketing'
   | 'social'
   | 'goals'

@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import type { CalendarEventWithContext } from '@shared/types'
+import type { CalendarBlockWithContext } from '@shared/types'
 import { dayOf, daysBetween, isSameMonth, monthGrid, occursOn, timeOf } from '@shared/calendar'
 import { cn } from '@/lib/utils'
 import { transition } from '@/lib/motion'
@@ -20,10 +20,10 @@ export function MonthView({
   /** Any day in the month being shown. */
   month: string
   today: string
-  events: CalendarEventWithContext[]
-  onOpenEvent: (event: CalendarEventWithContext) => void
+  events: CalendarBlockWithContext[]
+  onOpenEvent: (event: CalendarBlockWithContext) => void
   onCreateAt: (day: string) => void
-  onMoveEvent: (event: CalendarEventWithContext, days: number) => void
+  onMoveEvent: (event: CalendarBlockWithContext, days: number) => void
 }): React.JSX.Element {
   const days = monthGrid(month)
   const [dragging, setDragging] = useState<{ id: number; overDay: string } | null>(null)
@@ -38,7 +38,7 @@ export function MonthView({
    * `elementFromPoint` answers directly, and it leaves the chip's own click
    * behaviour intact when the pointer never actually moves.
    */
-  function startDrag(pointerEvent: React.PointerEvent, event: CalendarEventWithContext): void {
+  function startDrag(pointerEvent: React.PointerEvent, event: CalendarBlockWithContext): void {
     if (pointerEvent.button !== 0) return
     origin.current = {
       x: pointerEvent.clientX,

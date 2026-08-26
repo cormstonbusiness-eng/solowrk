@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import { CalendarDays, MapPin, Video } from 'lucide-react'
-import type { CalendarEventWithContext } from '@shared/types'
+import type { CalendarBlockWithContext } from '@shared/types'
 import { describeSpan, occursOn } from '@shared/calendar'
 import { Empty } from '@/components/ui/Empty'
 import { cn } from '@/lib/utils'
@@ -20,8 +20,8 @@ export function AgendaView({
 }: {
   days: string[]
   today: string
-  events: CalendarEventWithContext[]
-  onOpenEvent: (event: CalendarEventWithContext) => void
+  events: CalendarBlockWithContext[]
+  onOpenEvent: (event: CalendarBlockWithContext) => void
 }): React.JSX.Element {
   const rows = days
     .map((day) => ({
