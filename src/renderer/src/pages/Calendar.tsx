@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
+import { useUndo } from '@/hooks/useUndo'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { AgendaView } from './calendar/AgendaView'
@@ -91,6 +92,7 @@ function headingFor(view: View, anchor: string, days: string[]): string {
 
 export function Calendar(): React.JSX.Element {
   const invalidate = useInvalidate()
+  const { offer } = useUndo()
   const today = dayFromDate(new Date())
 
   const [view, setView] = useState<View>('week')
@@ -136,14 +138,64 @@ export function Calendar(): React.JSX.Element {
   // mixing a month of scheduled posts into the working week buries the two
   // appointments that actually needed your attention.
 
-  const reschedule = useMutation({
-    mutationFn: (input: { id: number; startsAt: string; endsAt: string }) =>
-      window.solo.invoke('calendar:updateBlock', {
-        id: input.id,
-        patch: { startsAt: input.startsAt, endsAt: input.endsAt }
-      }),
-    onSuccess: () => invalidate(['calendar'])
-  })
+  /**
+   * Moving something, with the offer to put it back.
+   *
+   * Every drag goes through here, including the ones from the month view. A
+   * calendar is a thing people rearrange quickly and occasionally by accident,
+   * and a drag with no way back is the reason people stop trusting one.
+   */
+  const reschedule = async (
+    block: CalendarBlockWithContext,
+    span: { startsAt: string; endsAt: string }
+  ): Promise<void> => {
+    const before = { startsAt: block.startsAt, endsAt: block.endsAt }
+    await window.solo.invoke('calendar:updateBlock', { id: block.id, patch: span })
+    invalidate(['calendar'])
+
+    offer(`Moved ${block.title}`, async () => {
+      await window.solo.invoke('calendar:updateBlock', { id: block.id, patch: before })
+      invalidate(['calendar'])
+    })
+  }
+
+  const duplicate = async (
+    block: CalendarBlockWithContext,
+    span: { startsAt: string; endsAt: string }
+  ): Promise<void> => {
+    const copy = await window.solo.invoke('calendar:createBlock', {
+      title: block.title,
+      blockType: block.blockType,
+      description: block.description,
+      location: block.location,
+      meetingUrl: block.meetingUrl,
+      projectId: block.projectId,
+      clientId: block.clientId,
+      colour: block.colour,
+      billable: block.billable,
+      reminderMinutes: block.reminderMinutes,
+      ...span
+    })
+    invalidate(['calendar'])
+
+    offer(`Copied ${block.title}`, async () => {
+      await window.solo.invoke('entity:delete', { type: 'block', id: copy.id })
+      invalidate(['calendar'])
+    })
+  }
+
+  const create = async (
+    span: { startsAt: string; endsAt: string },
+    title: string
+  ): Promise<void> => {
+    const block = await window.solo.invoke('calendar:createBlock', { title, ...span })
+    invalidate(['calendar'])
+
+    offer(`Added ${title}`, async () => {
+      await window.solo.invoke('entity:delete', { type: 'block', id: block.id })
+      invalidate(['calendar'])
+    })
+  }
 
   // Zoom is stored rather than kept in component state: the height of an hour
   // is a preference about how you read a week, not something to re-choose
@@ -291,8 +343,7 @@ export function Calendar(): React.JSX.Element {
               onOpenBlock={setEditing}
               onCreateAt={(day) => openNew(day)}
               onMoveBlock={(block, dayDelta) =>
-                reschedule.mutate({
-                  id: block.id,
+                void reschedule(block, {
                   startsAt: shiftDays(block.startsAt, dayDelta),
                   endsAt: shiftDays(block.endsAt, dayDelta)
                 })
@@ -307,10 +358,10 @@ export function Calendar(): React.JSX.Element {
               blocks={blocks}
               settings={settings}
               onOpenBlock={setEditing}
-              onCreateSlot={(startsAt, endsAt) =>
-                openNew(startsAt.slice(0, 10), startsAt.slice(11, 16), endsAt.slice(11, 16))
-              }
-              onReschedule={(block, span) => reschedule.mutate({ id: block.id, ...span })}
+              onCreate={(span, title) => void create(span, title)}
+              onReschedule={(block, span) => void reschedule(block, span)}
+              onDuplicate={(block, span) => void duplicate(block, span)}
+              onAdvance={(direction) => setAnchor(step(view, anchor, direction))}
             />
           )}
 
