@@ -213,10 +213,6 @@ export function updateQuote(
   })
 }
 
-export function deleteQuote(db: Database, id: number): void {
-  db.run('DELETE FROM quotes WHERE id = ?', [id])
-}
-
 /**
  * Turn an accepted quote into work: a project to do it in, and optionally a
  * deposit invoice.

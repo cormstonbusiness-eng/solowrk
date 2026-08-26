@@ -12,6 +12,7 @@ import { StruckText, Tickbox } from '@/components/ui/Tickbox'
 import { keys, useInvalidate } from '@/lib/api'
 import { toDateInput } from '@/lib/format'
 import { transition } from '@/lib/motion'
+import { useEntityActions } from '@/hooks/useEntityActions'
 
 /**
  * Edits a task and its subtasks. Subtasks are ordinary tasks with a parent, so
@@ -77,13 +78,15 @@ export function TaskModal({
     onSuccess: () => invalidate(['tasks'])
   })
 
+  const actions = useEntityActions()
+
   const removeSubtask = useMutation({
-    mutationFn: (id: number) => window.solo.invoke('tasks:delete', { id }),
-    onSuccess: () => invalidate(['tasks'])
+    mutationFn: (subtask: { id: number; title: string }) =>
+      actions.remove({ type: 'task', id: subtask.id }, subtask.title)
   })
 
   const remove = useMutation({
-    mutationFn: () => window.solo.invoke('tasks:delete', { id: task!.id }),
+    mutationFn: () => actions.remove({ type: 'task', id: task!.id }, task!.title),
     onSuccess: () => {
       invalidate(['tasks'])
       onClose()
@@ -222,7 +225,7 @@ export function TaskModal({
                     </StruckText>
                     <button
                       type="button"
-                      onClick={() => removeSubtask.mutate(subtask.id)}
+                      onClick={() => removeSubtask.mutate(subtask)}
                       className="text-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger"
                     >
                       <Trash2 size={12} strokeWidth={1.75} />

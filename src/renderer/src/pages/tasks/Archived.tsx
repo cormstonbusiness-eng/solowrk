@@ -12,6 +12,7 @@ import { Swap } from '@/components/ui/Swap'
 import { keys, useInvalidate } from '@/lib/api'
 import { formatDate } from '@/lib/format'
 import { listItemVariants, listVariants, transition } from '@/lib/motion'
+import { useEntityActions } from '@/hooks/useEntityActions'
 import { cn } from '@/lib/utils'
 
 /**
@@ -45,9 +46,11 @@ export function ArchivedTasks(): React.JSX.Element {
     onSuccess: () => invalidate(['tasks'])
   })
 
+  const actions = useEntityActions()
+
   const remove = useMutation({
-    mutationFn: (id: number) => window.solo.invoke('tasks:delete', { id }),
-    onSuccess: () => invalidate(['tasks'])
+    mutationFn: (task: { id: number; title: string }) =>
+      actions.remove({ type: 'task', id: task.id }, task.title)
   })
 
   const visible = tasks.filter((task) => {
@@ -174,7 +177,7 @@ export function ArchivedTasks(): React.JSX.Element {
                         type="button"
                         aria-label={`Delete ${task.title}`}
                         title="Delete permanently"
-                        onClick={() => remove.mutate(task.id)}
+                        onClick={() => remove.mutate(task)}
                         className="text-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger"
                       >
                         <Trash2 size={13} strokeWidth={1.75} />

@@ -9,6 +9,7 @@ import { Empty } from '@/components/ui/Empty'
 import { keys, useInvalidate } from '@/lib/api'
 import { formatDate } from '@/lib/format'
 import { transition } from '@/lib/motion'
+import { useEntityActions } from '@/hooks/useEntityActions'
 import { cn } from '@/lib/utils'
 
 /**
@@ -66,10 +67,15 @@ export function ProjectNotes({ projectId }: { projectId: number }): React.JSX.El
     }
   })
 
+  const actions = useEntityActions()
+
   const remove = useMutation({
-    mutationFn: () => window.solo.invoke('notes:delete', { id: selectedId! }),
+    mutationFn: () =>
+      actions.remove(
+        { type: 'note', id: selectedId! },
+        notes.find((note) => note.id === selectedId)?.title ?? 'note'
+      ),
     onSuccess: () => {
-      invalidate(['notes'])
       setSelectedId(null)
       setContent('')
     }

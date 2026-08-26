@@ -9,6 +9,7 @@ import { Empty } from '@/components/ui/Empty'
 import { Swap } from '@/components/ui/Swap'
 import { keys, useInvalidate } from '@/lib/api'
 import { TICK_SETTLE_MS, transition } from '@/lib/motion'
+import { useEntityActions } from '@/hooks/useEntityActions'
 import { TaskRow } from './TaskRow'
 import { TaskModal } from './TaskModal'
 
@@ -41,9 +42,11 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
     onSuccess: () => invalidate(['tasks'])
   })
 
+  const actions = useEntityActions()
+
   const remove = useMutation({
-    mutationFn: (id: number) => window.solo.invoke('tasks:delete', { id }),
-    onSuccess: () => invalidate(['tasks'])
+    mutationFn: (task: { id: number; title: string }) =>
+      actions.remove({ type: 'task', id: task.id }, task.title)
   })
 
   const toggle = useMutation({
@@ -105,7 +108,7 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
                 onToggle={() => toggle.mutate(task)}
                 onOpen={() => setOpen(task)}
                 onArchive={() => archive.mutate(task.id)}
-                onDelete={() => remove.mutate(task.id)}
+                onDelete={() => remove.mutate(task)}
               />
             ))}
           </AnimatePresence>

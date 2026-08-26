@@ -155,11 +155,6 @@ export function updateDocument(
   return toDocument(row)
 }
 
-/** Removes the record. The file stays in the workspace, as everywhere else. */
-export function deleteDocument(db: Database, id: number): void {
-  db.run('DELETE FROM documents WHERE id = ?', [id])
-}
-
 /**
  * Documents expiring within `days`, plus anything already expired.
  *

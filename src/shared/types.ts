@@ -1482,6 +1482,31 @@ export const ENTITY_TYPES = [
 
 export type EntityType = (typeof ENTITY_TYPES)[number]
 
+/**
+ * The types that can be filed away rather than deleted.
+ *
+ * Invoices and quotes are deliberately absent: an invoice's status already
+ * says where it is in its life, and a second axis for "put this away" would
+ * mean two answers to the question of where an invoice went. A paid invoice is
+ * filed by being paid.
+ *
+ * Shared because the main process enforces it and the drawer decides whether
+ * to draw the button from it, and two copies would drift the first time the
+ * list changed — leaving a button that throws, or a type that can be archived
+ * with no way to do it.
+ */
+export const ARCHIVABLE_TYPES = [
+  'client',
+  'project',
+  'task',
+  'note',
+  'document'
+] as const satisfies readonly EntityType[]
+
+export function canArchive(type: EntityType): boolean {
+  return (ARCHIVABLE_TYPES as readonly EntityType[]).includes(type)
+}
+
 /** A row, addressed the way the links and activity tables address it. */
 export interface EntityRef {
   type: EntityType
@@ -1535,4 +1560,22 @@ export interface SavedView {
   name: string
   query: string
   sortOrder: number
+}
+
+/**
+ * Something deleted, kept for a while.
+ *
+ * The row itself is gone from its own table — see the note on the `trash`
+ * table in migration 20 for why that rather than a `deleted_at` column
+ * everywhere. `label` and `summary` are held as written because there is
+ * nothing left to look them up from.
+ */
+export interface TrashEntry {
+  id: number
+  entityType: EntityType
+  entityId: number
+  label: string
+  /** What else went with it: '3 tasks, 2 notes'. Empty when nothing did. */
+  summary: string
+  deletedAt: string
 }

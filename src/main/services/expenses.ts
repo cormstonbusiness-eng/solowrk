@@ -194,11 +194,6 @@ export async function updateExpense(
   return getExpense(db, id)
 }
 
-/** Removes the record. Any receipt stays in the workspace. */
-export function deleteExpense(db: Database, id: number): void {
-  db.run('DELETE FROM expenses WHERE id = ?', [id])
-}
-
 export function expensesTotal(db: Database, from: string, to: string): Pence {
   const row = db.get<Row & { total: number | null }>(
     'SELECT SUM(total) AS total FROM expenses WHERE date >= ? AND date <= ?',

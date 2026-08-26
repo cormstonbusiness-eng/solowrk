@@ -1163,5 +1163,73 @@ export const migrations: Migration[] = [
       CREATE UNIQUE INDEX idx_saved_views_name ON saved_views(page, name);
       CREATE INDEX idx_saved_views_page ON saved_views(page, sort_order);
     `
+  },
+  {
+    id: 20,
+    name: 'trash',
+    sql: `
+      -- Deleted things, kept for a while.
+      --
+      -- The row is genuinely gone from its own table. The alternative — a
+      -- deleted_at column on all eight, and 'AND deleted_at IS NULL' on every
+      -- query in the app — puts the correctness of every report in the hands of
+      -- whoever writes the next SELECT, and the failure mode is a deleted
+      -- invoice quietly turning up in a tax year. So the row is removed, and
+      -- what it takes with it is captured here first.
+      --
+      -- payload is JSON: the row, every row SQLite's cascades would have taken
+      -- with it, every reference that would have been nulled, and the links and
+      -- activity that no foreign key covers. Restoring puts them all back.
+      --
+      -- This is only safe because every table uses INTEGER PRIMARY KEY
+      -- AUTOINCREMENT, so SQLite never reissues an id. A restored row goes back
+      -- under the number it had, and everything that referred to it still
+      -- refers to it.
+      CREATE TABLE trash (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        entity_type TEXT    NOT NULL,
+        entity_id   INTEGER NOT NULL,
+        -- What it was called, held as written. The row is gone, so there is
+        -- nothing left to look the name up from.
+        label       TEXT    NOT NULL DEFAULT '',
+        -- A sentence for the trash list: '3 tasks, 2 notes'.
+        summary     TEXT    NOT NULL DEFAULT '',
+        payload     TEXT    NOT NULL,
+        deleted_at  TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_trash_when ON trash(deleted_at DESC);
+      CREATE INDEX idx_trash_entity ON trash(entity_type, entity_id);
+
+      -- Archive reaches the two lists that wanted it and did not have it.
+      -- Clients, projects and tasks already had it; invoices and quotes do not
+      -- get it, because an invoice already has a status and a second axis for
+      -- "put this away" would mean two answers to where it went.
+      ALTER TABLE notes ADD COLUMN archived INTEGER NOT NULL DEFAULT 0
+        CHECK (archived IN (0, 1));
+      ALTER TABLE notes ADD COLUMN archived_at TEXT;
+      CREATE INDEX idx_notes_archived ON notes(archived);
+
+      ALTER TABLE documents ADD COLUMN archived INTEGER NOT NULL DEFAULT 0
+        CHECK (archived IN (0, 1));
+      ALTER TABLE documents ADD COLUMN archived_at TEXT;
+      CREATE INDEX idx_documents_archived ON documents(archived);
+    `
+  },
+  {
+    id: 21,
+    name: 'archived_at_everywhere',
+    sql: `
+      -- Clients and projects have had 'archived' since the beginning but never
+      -- recorded when. Tasks, notes and documents all do, and one service now
+      -- archives all five through the same door — so the odd two out get the
+      -- column rather than the service growing a special case for them.
+      --
+      -- Nothing backfills. There is no honest value for when something was
+      -- filed away before anybody was writing it down, and inventing one would
+      -- put a wrong date on a real record.
+      ALTER TABLE clients ADD COLUMN archived_at TEXT;
+      ALTER TABLE projects ADD COLUMN archived_at TEXT;
+    `
   }
 ]

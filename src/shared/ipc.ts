@@ -20,6 +20,7 @@ import type {
   EntityType,
   LinkedEntity,
   SavedView,
+  TrashEntry,
   AppNotification,
   AssistantEvent,
   AssistantStatus,
@@ -447,6 +448,29 @@ export interface IpcContract {
    * of the same name rather than refusing — the UI asks first, because "I have
    * adjusted this, save it again" is what people actually do.
    */
+  /**
+   * What has been deleted lately, and putting it back.
+   *
+   * Every `*:delete` above now goes through the trash, so each of them returns
+   * the entry id an undo needs. Nothing is hidden from the rest of the app on
+   * the way — the row is really gone from its own table, and what it took with
+   * it was captured first. See migration 20.
+   */
+  'trash:list': { req: void; res: TrashEntry[] }
+  /** Put one back. `orphaned` names the parents that have gone in the meantime. */
+  'trash:restore': { req: { id: number }; res: { restored: string; orphaned: string[] } }
+  'trash:purge': { req: { id: number }; res: void }
+  'trash:empty': { req: void; res: { count: number } }
+
+  /**
+   * File something away, or bring it back. One channel for the five types that
+   * can be — invoices and quotes are deliberately not among them, because an
+   * invoice's status already says where it went.
+   */
+  'entity:archive': { req: EntityRef & { archived: boolean }; res: void }
+  /** Delete anything, by type. What the drawer uses; the per-type channels stay. */
+  'entity:delete': { req: EntityRef; res: TrashEntry }
+
   'views:list': { req: { page: string }; res: SavedView[] }
   'views:save': { req: { page: string; name: string; query: string }; res: SavedView }
   'views:delete': { req: { id: number }; res: void }
@@ -768,6 +792,12 @@ export const IPC_CHANNELS = [
   'chasing:send',
   'chasing:discard',
   'chasing:sendQueued',
+  'trash:list',
+  'trash:restore',
+  'trash:purge',
+  'trash:empty',
+  'entity:archive',
+  'entity:delete',
   'views:list',
   'views:save',
   'views:delete',
@@ -869,6 +899,15 @@ const WRITABLE_WHEN_READ_ONLY = new Set<string>([
   'notifications:archiveRead',
   'notifications:restore',
   'notifications:delete',
+  /**
+   * Recovering something already yours, which read-only must never stand in
+   * the way of. It is also the one write here that a lapsed licence could
+   * genuinely lose by: the trash expires after thirty days, so a user who
+   * could not restore would watch their own deleted work go permanently.
+   * Emptying the trash stays blocked — that is destructive, and nobody needs
+   * to do it while their licence is lapsed.
+   */
+  'trash:restore',
   'ai:interrupt',
   'ai:permission'
 ])
@@ -877,7 +916,7 @@ const WRITABLE_WHEN_READ_ONLY = new Set<string>([
 const BLOCKED_WHEN_READ_ONLY = new Set<string>(['templates:fromProject', 'quotes:convert'])
 
 const WRITE_VERBS =
-  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync)/
+  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync|archive|restore|purge|empty)/
 
 /**
  * Whether a channel is allowed while the app is read-only.

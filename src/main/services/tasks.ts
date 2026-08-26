@@ -257,10 +257,6 @@ export function moveTask(
   return updateTask(db, id, { status: target.status, projectId: target.projectId, sortOrder })
 }
 
-export function deleteTask(db: Database, id: number): void {
-  db.run('DELETE FROM tasks WHERE id = ?', [id])
-}
-
 /** Tasks due on or before `date`, across all projects — for the dashboard. */
 export function listDueTasks(db: Database, date: string): TaskWithContext[] {
   return db

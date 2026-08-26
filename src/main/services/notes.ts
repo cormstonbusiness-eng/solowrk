@@ -1,4 +1,4 @@
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { Database, Row } from '../db'
 import type { Note, NoteWithContext } from '@shared/types'
@@ -151,15 +151,3 @@ export async function writeNote(
   db.run("UPDATE notes SET updated_at = datetime('now') WHERE id = ?", [id])
 }
 
-/** Deletes both the record and the file — a note is its file. */
-export async function deleteNote(
-  db: Database,
-  workspacePath: string,
-  id: number
-): Promise<void> {
-  const row = db.get<NoteRow>('SELECT * FROM notes WHERE id = ?', [id])
-  if (!row) return
-
-  await rm(resolveInWorkspace(workspacePath, row.file), { force: true })
-  db.run('DELETE FROM notes WHERE id = ?', [id])
-}

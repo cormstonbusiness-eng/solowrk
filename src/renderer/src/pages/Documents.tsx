@@ -20,6 +20,7 @@ import { Inspect } from '@/components/detail/Inspect'
 import { Toolbar } from '@/components/list/Toolbar'
 import { SavedViews } from '@/components/list/SavedViews'
 import { useListState } from '@/hooks/useListState'
+import { useEntityActions } from '@/hooks/useEntityActions'
 import { cn } from '@/lib/utils'
 
 /**
@@ -41,6 +42,7 @@ function expiryState(expiryAt: string | null): { label: string; colour: string }
 export function Documents(): React.JSX.Element {
   const invalidate = useInvalidate()
   const list = useListState()
+  const actions = useEntityActions()
   const [editing, setEditing] = useState<(DocumentInput & { id?: number }) | null>(null)
   const [pendingFile, setPendingFile] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<DocumentRecord | null>(null)
@@ -80,8 +82,8 @@ export function Documents(): React.JSX.Element {
   })
 
   const remove = useMutation({
-    mutationFn: (id: number) => window.solo.invoke('documents:delete', { id }),
-    onSuccess: () => invalidate(['documents'])
+    mutationFn: (doc: { id: number; title: string }) =>
+      actions.remove({ type: 'document', id: doc.id }, doc.title)
   })
 
   /** Pick the file first: everything else describes a file that already exists. */
@@ -266,7 +268,7 @@ export function Documents(): React.JSX.Element {
       <ConfirmModal
         open={deleting !== null}
         onClose={() => setDeleting(null)}
-        onConfirm={() => deleting && remove.mutate(deleting.id)}
+        onConfirm={() => deleting && remove.mutate(deleting)}
         title={`Remove ${deleting?.title ?? ''}?`}
         body="This removes it from the Documents list. The file itself stays in your workspace folder."
         confirmLabel="Remove"

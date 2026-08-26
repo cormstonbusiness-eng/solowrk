@@ -1,3 +1,4 @@
+import { rm } from 'node:fs/promises'
 import type { BrowserWindow } from 'electron'
 import { addDays, dayOf, nowStamp, timeOf } from '@shared/calendar'
 import { hasFeature } from './auth'
@@ -7,8 +8,10 @@ import { runAutomations } from './automations'
 import { dueReminders, markReminded } from './events'
 import { listDueTasks } from './tasks'
 import { pruneActivity } from './activity'
+import { expireTrash } from './trash'
 import { pruneLinks } from './links'
 import { session } from './session'
+import { resolveInWorkspace } from './workspace'
 import { push } from './notifications'
 
 /**
@@ -132,6 +135,11 @@ function runDigest(getWindow: () => BrowserWindow | null, now: Date): void {
   try {
     pruneLinks(db)
     pruneActivity(db)
+    // And let go of what has been in the trash long enough. The files it
+    // hands back are note bodies; removing them is the caller's job because
+    // this is synchronous and unlinking is not.
+    const { files } = expireTrash(db)
+    if (files.length > 0) removeExpired(files)
   } catch (error) {
     console.error('Pruning failed:', error)
   }
@@ -268,4 +276,20 @@ export function stopReminders(): void {
   if (!timer) return
   clearInterval(timer)
   timer = null
+}
+
+/**
+ * Delete note bodies whose trash entry has expired.
+ *
+ * Best effort. The database row has already gone, so a file that will not
+ * delete is litter rather than a failure, and it must not take the sweep down.
+ */
+function removeExpired(files: string[]): void {
+  const workspacePath = session.path
+  if (!workspacePath) return
+  for (const file of files) {
+    void rm(resolveInWorkspace(workspacePath, file), { force: true }).catch(() => {
+      // Nothing useful to do about it, and nothing depends on it.
+    })
+  }
 }

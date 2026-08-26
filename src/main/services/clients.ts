@@ -217,14 +217,6 @@ async function renameClientFolder(
   }
 }
 
-/**
- * Remove the client from SoloWrk. Files are deliberately left on disk — deleting
- * a record should never destroy a client's work.
- */
-export function deleteClient(db: Database, id: number): void {
-  db.run('DELETE FROM clients WHERE id = ?', [id])
-}
-
 export function clientFolderName(name: string): string {
   return toFolderName(name)
 }

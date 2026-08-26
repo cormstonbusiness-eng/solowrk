@@ -46,7 +46,14 @@ describe('what read-only allows', () => {
       // A saved view is the user's own arrangement of a screen, but it is
       // still a write, and `save` and `delete` are both writing verbs.
       'views:save',
-      'views:delete'
+      'views:delete',
+      // Emptying the trash is destructive, filing something away is work, and
+      // `purge`, `empty` and `archive` were all added to the verb list so the
+      // classifier catches them rather than an exceptions entry doing it.
+      'trash:purge',
+      'trash:empty',
+      'entity:archive',
+      'entity:delete'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(false)
     }
@@ -88,7 +95,13 @@ describe('what read-only allows', () => {
       'entity:find',
       // Reading the views, and asking whether a name is taken.
       'views:list',
-      'views:taken'
+      'views:taken',
+      // Reading the trash, and taking something back out of it. The second is
+      // a write, and it is in the exceptions set on purpose: the trash expires
+      // after thirty days, so a lapsed licence that could not restore would
+      // lose its own deleted work permanently.
+      'trash:list',
+      'trash:restore'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(true)
     }

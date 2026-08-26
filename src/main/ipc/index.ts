@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises'
+import { mkdir, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
   app,
@@ -23,6 +23,14 @@ import { session } from '../services/session'
 import { activityFor, recentActivity } from '../services/activity'
 import { findAcrossTypes, findEntities, labelFor } from '../services/entities'
 import { deleteView, listViews, saveView, viewExists } from '../services/views'
+import { setArchived } from '../services/archive'
+import {
+  emptyTrash,
+  listTrash,
+  purgeTrash,
+  restoreTrash,
+  trashEntity
+} from '../services/trash'
 import { link, relatedTo, unlink } from '../services/links'
 import { approveMail, cancelMail, getMail, listMail } from '../services/mailQueue'
 import { drainOutbox } from '../services/chaseRun'
@@ -39,26 +47,24 @@ import { suggestedWorkspacePath } from '../services/config'
 import { inspectFolder, resolveInWorkspace } from '../services/workspace'
 import {
   createClient,
-  deleteClient,
   getClient,
   listClients,
   updateClient
 } from '../services/clients'
 import {
   createProject,
-  deleteProject,
   getProject,
   listProjects,
   updateProject
 } from '../services/projects'
-import { createTask, deleteTask, listTasks, moveTask, updateTask } from '../services/tasks'
+import { createTask, listTasks, moveTask, updateTask } from '../services/tasks'
 import {
   createCategory,
   deleteCategory,
   listCategories,
   updateCategory
 } from '../services/categories'
-import { createNote, deleteNote, listNotes, readNote, writeNote } from '../services/notes'
+import { createNote, listNotes, readNote, writeNote } from '../services/notes'
 import { deleteTemplate, listTemplates, templateFromProject } from '../services/templates'
 import {
   createFolder,
@@ -72,7 +78,6 @@ import {
 } from '../services/files'
 import {
   addDocument,
-  deleteDocument,
   expiringDocuments,
   listDocuments,
   updateDocument
@@ -90,7 +95,6 @@ import {
 } from '../services/time'
 import {
   createInvoice,
-  deleteInvoice,
   getInvoice,
   listInvoices,
   overdueInvoices,
@@ -99,14 +103,12 @@ import {
 import {
   convertQuote,
   createQuote,
-  deleteQuote,
   getQuote,
   listQuotes,
   updateQuote
 } from '../services/quotes'
 import {
   createExpense,
-  deleteExpense,
   listExpenses,
   updateExpense
 } from '../services/expenses'
@@ -207,6 +209,24 @@ type Handlers = {
   ) => IpcContract[C]['res'] | Promise<IpcContract[C]['res']>
 }
 
+/**
+ * Remove workspace files a purge has finished with.
+ *
+ * Best effort and deliberately not awaited. The database row has already gone,
+ * so a file that will not delete — open in an editor, on a Dropbox folder
+ * mid-sync — is litter rather than a failure, and refusing to empty somebody's
+ * trash over it would be the worse outcome.
+ */
+function removeFiles(files: string[]): void {
+  if (files.length === 0) return
+  const workspacePath = session.requirePath()
+  for (const file of files) {
+    void rm(resolveInWorkspace(workspacePath, file), { force: true }).catch((error) => {
+      console.error('Could not remove', file, error)
+    })
+  }
+}
+
 const handlers: Handlers = {
   'app:info': () => ({
     name: 'SoloWrk',
@@ -275,7 +295,9 @@ const handlers: Handlers = {
     createClient(session.requireDb(), session.requirePath(), input),
   'clients:update': (_g, { id, patch }) =>
     updateClient(session.requireDb(), session.requirePath(), id, patch),
-  'clients:delete': (_g, { id }) => deleteClient(session.requireDb(), id),
+  'clients:delete': (_g, { id }) => {
+    trashEntity(session.requireDb(), { type: 'client', id })
+  },
 
   'clients:updatePack': async (_g, { clientId, format, since }) => {
     const db = session.requireDb()
@@ -306,7 +328,9 @@ const handlers: Handlers = {
     createProject(session.requireDb(), session.requirePath(), input),
   'projects:update': (_g, { id, patch }) =>
     updateProject(session.requireDb(), session.requirePath(), id, patch),
-  'projects:delete': (_g, { id }) => deleteProject(session.requireDb(), id),
+  'projects:delete': (_g, { id }) => {
+    trashEntity(session.requireDb(), { type: 'project', id })
+  },
   'projects:reveal': (_g, { id }) => {
     const project = getProject(session.requireDb(), id)
     void shell.openPath(resolveInWorkspace(session.requirePath(), project.folder))
@@ -317,7 +341,9 @@ const handlers: Handlers = {
   'tasks:update': (_g, { id, patch }) => updateTask(session.requireDb(), id, patch),
   'tasks:move': (_g, { id, status, projectId, beforeId }) =>
     moveTask(session.requireDb(), id, { status, projectId, beforeId }),
-  'tasks:delete': (_g, { id }) => deleteTask(session.requireDb(), id),
+  'tasks:delete': (_g, { id }) => {
+    trashEntity(session.requireDb(), { type: 'task', id })
+  },
 
   'categories:list': () => listCategories(session.requireDb()),
   'categories:create': (_g, { name, colour }) =>
@@ -331,7 +357,11 @@ const handlers: Handlers = {
   'notes:read': (_g, { id }) => readNote(session.requireDb(), session.requirePath(), id),
   'notes:write': (_g, { id, content }) =>
     writeNote(session.requireDb(), session.requirePath(), id, content),
-  'notes:delete': (_g, { id }) => deleteNote(session.requireDb(), session.requirePath(), id),
+  // The .md stays on disk until the trash entry is purged, or a restore
+  // would hand back a note whose body had already been deleted.
+  'notes:delete': (_g, { id }) => {
+    trashEntity(session.requireDb(), { type: 'note', id })
+  },
 
   'templates:list': () => listTemplates(session.requireDb()),
   'templates:fromProject': (_g, { projectId, name, description }) =>
@@ -368,7 +398,9 @@ const handlers: Handlers = {
   'documents:add': (_g, input) =>
     addDocument(session.requireDb(), session.requirePath(), input),
   'documents:update': (_g, { id, patch }) => updateDocument(session.requireDb(), id, patch),
-  'documents:delete': (_g, { id }) => deleteDocument(session.requireDb(), id),
+  'documents:delete': (_g, { id }) => {
+    trashEntity(session.requireDb(), { type: 'document', id })
+  },
   'documents:expiring': (_g, args) => expiringDocuments(session.requireDb(), args?.days ?? 45),
 
   'shell:mailto': (_g, { to, subject, body }) => {
@@ -392,7 +424,9 @@ const handlers: Handlers = {
   'invoices:get': (_g, { id }) => getInvoice(session.requireDb(), id),
   'invoices:create': (_g, input) => createInvoice(session.requireDb(), input),
   'invoices:update': (_g, { id, patch }) => updateInvoice(session.requireDb(), id, patch),
-  'invoices:delete': (_g, { id }) => deleteInvoice(session.requireDb(), id),
+  'invoices:delete': (_g, { id }) => {
+    trashEntity(session.requireDb(), { type: 'invoice', id })
+  },
   'invoices:overdue': () => overdueInvoices(session.requireDb()),
 
   'invoices:pdf': async (_g, { id }) => {
@@ -501,6 +535,26 @@ const handlers: Handlers = {
 
   'chasing:sendQueued': () => drainOutbox(session.requireDb()),
 
+  'trash:list': () => listTrash(session.requireDb()),
+
+  'trash:restore': (_g, { id }) => restoreTrash(session.requireDb(), id),
+
+  'trash:purge': (_g, { id }) => {
+    removeFiles(purgeTrash(session.requireDb(), id))
+  },
+
+  'trash:empty': () => {
+    const { count, files } = emptyTrash(session.requireDb())
+    removeFiles(files)
+    return { count }
+  },
+
+  'entity:archive': (_g, { type, id, archived }) => {
+    setArchived(session.requireDb(), { type, id }, archived)
+  },
+
+  'entity:delete': (_g, ref) => trashEntity(session.requireDb(), ref),
+
   'views:list': (_g, { page }) => listViews(session.requireDb(), page),
 
   'views:save': (_g, { page, name, query }) => saveView(session.requireDb(), page, name, query),
@@ -582,7 +636,9 @@ const handlers: Handlers = {
   'quotes:get': (_g, { id }) => getQuote(session.requireDb(), id),
   'quotes:create': (_g, input) => createQuote(session.requireDb(), input),
   'quotes:update': (_g, { id, patch }) => updateQuote(session.requireDb(), id, patch),
-  'quotes:delete': (_g, { id }) => deleteQuote(session.requireDb(), id),
+  'quotes:delete': (_g, { id }) => {
+    trashEntity(session.requireDb(), { type: 'quote', id })
+  },
 
   'quotes:pdf': async (_g, { id }) => {
     const db = session.requireDb()
@@ -626,7 +682,9 @@ const handlers: Handlers = {
     createExpense(session.requireDb(), session.requirePath(), input),
   'expenses:update': (_g, { id, patch }) =>
     updateExpense(session.requireDb(), session.requirePath(), id, patch),
-  'expenses:delete': (_g, { id }) => deleteExpense(session.requireDb(), id),
+  'expenses:delete': (_g, { id }) => {
+    trashEntity(session.requireDb(), { type: 'expense', id })
+  },
 
   'finance:summary': (_g, { period, reference }) =>
     summary(session.requireDb(), rangeFor(period, reference)),

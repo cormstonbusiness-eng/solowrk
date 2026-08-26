@@ -335,10 +335,6 @@ export function updateInvoice(
   })
 }
 
-export function deleteInvoice(db: Database, id: number): void {
-  db.run('DELETE FROM invoices WHERE id = ?', [id])
-}
-
 export function nextIssueDate(from: string, recurrence: Recurrence): string | null {
   switch (recurrence) {
     case 'weekly':

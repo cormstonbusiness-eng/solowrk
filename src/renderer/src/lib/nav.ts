@@ -14,6 +14,7 @@ import {
   Settings,
   Sparkles,
   Target,
+  Trash2,
   Users,
   type LucideIcon
 } from 'lucide-react'
@@ -65,7 +66,11 @@ export const navGroups: NavGroup[] = [
     label: 'Library',
     items: [
       { label: 'Files', path: '/files', icon: FolderOpen },
-      { label: 'Documents', path: '/documents', icon: FileText }
+      { label: 'Documents', path: '/documents', icon: FileText },
+      // In the library rather than pinned at the bottom: it is a place things
+      // are kept, not a setting, and it wants finding when somebody is already
+      // looking for something they cannot see.
+      { label: 'Trash', path: '/trash', icon: Trash2 }
     ]
   }
 ]

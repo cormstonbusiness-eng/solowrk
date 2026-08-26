@@ -12,7 +12,9 @@ import { WorkspaceContext } from '@/hooks/useWorkspace'
 import { ThemeContext, useThemeState } from '@/hooks/useTheme'
 import { TourProvider } from '@/tour/TourProvider'
 import { Palette } from '@/palette/Palette'
+import { Trash } from '@/pages/Trash'
 import { DetailDrawer } from '@/components/detail/DetailDrawer'
+import { UndoProvider } from '@/hooks/useUndo'
 import { DrawerProvider } from '@/hooks/useDrawer'
 import { Toasts } from '@/components/Toasts'
 import { SeasonalLayer } from '@/components/seasonal/SeasonalLayer'
@@ -78,6 +80,7 @@ function AnimatedRoutes(): React.JSX.Element {
         <Route path="/finance" element={<Finance />} />
         <Route path="/files" element={<Files />} />
         <Route path="/documents" element={<Documents />} />
+        <Route path="/trash" element={<Trash />} />
         <Route path="/assistant" element={<Assistant />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Dashboard />} />
@@ -93,24 +96,27 @@ function Shell(): React.JSX.Element {
           URL, so a notification or the palette can open one, and the back
           button closes it. */}
       <DrawerProvider>
-        {/* Also inside: the tour navigates between routes as it goes. */}
-        <TourProvider>
-          <div className="flex min-h-0 flex-1">
-            <Sidebar />
-            {/* `relative` so the decoration can sit inside it, `overflow-hidden`
-                so nothing drifts out into the sidebar or the titlebar. */}
-            <main className="page-light relative min-w-0 flex-1 overflow-hidden">
-              <SeasonalLayer />
-              <AnimatedRoutes />
-            </main>
-          </div>
-          {/* Inside the router too: every command it runs is a navigation. */}
-          <Palette />
-          {/* Same reason — a toast is a shortcut to the page it is about. */}
-          <Toasts />
-          {/* Mounted once for the whole app: every list opens this one. */}
-          <DetailDrawer />
-        </TourProvider>
+        {/* Wraps everything that can delete, which is everything. */}
+        <UndoProvider>
+          {/* Also inside: the tour navigates between routes as it goes. */}
+          <TourProvider>
+            <div className="flex min-h-0 flex-1">
+              <Sidebar />
+              {/* `relative` so the decoration can sit inside it, `overflow-hidden`
+                  so nothing drifts out into the sidebar or the titlebar. */}
+              <main className="page-light relative min-w-0 flex-1 overflow-hidden">
+                <SeasonalLayer />
+                <AnimatedRoutes />
+              </main>
+            </div>
+            {/* Inside the router too: every command it runs is a navigation. */}
+            <Palette />
+            {/* Same reason — a toast is a shortcut to the page it is about. */}
+            <Toasts />
+            {/* Mounted once for the whole app: every list opens this one. */}
+            <DetailDrawer />
+          </TourProvider>
+        </UndoProvider>
       </DrawerProvider>
     </HashRouter>
   )

@@ -31,6 +31,7 @@ import { Inspect } from '@/components/detail/Inspect'
 import { Toolbar } from '@/components/list/Toolbar'
 import { SavedViews } from '@/components/list/SavedViews'
 import { useListState } from '@/hooks/useListState'
+import { useEntityActions } from '@/hooks/useEntityActions'
 import { cn } from '@/lib/utils'
 
 const PERIODS: { value: Period; label: string }[] = [
@@ -327,11 +328,11 @@ function Stat({
 }
 
 function Expenses({ period }: { period: Period }): React.JSX.Element {
-  const invalidate = useInvalidate()
   const range = rangeFor(period)
   const [adding, setAdding] = useState(false)
 
   const list = useListState()
+  const actions = useEntityActions()
 
   const { data: found = [] } = useQuery({
     queryKey: ['expenses', range.from, range.to],
@@ -353,8 +354,8 @@ function Expenses({ period }: { period: Period }): React.JSX.Element {
   const categories = [...new Set(found.map((expense) => expense.category))].sort()
 
   const remove = useMutation({
-    mutationFn: (id: number) => window.solo.invoke('expenses:delete', { id }),
-    onSuccess: () => invalidate(['expenses', 'finance'])
+    mutationFn: (expense: { id: number; label: string }) =>
+      actions.remove({ type: 'expense', id: expense.id }, expense.label)
   })
 
   const total = expenses.reduce((sum, expense) => sum + expense.total, 0)
@@ -442,7 +443,12 @@ function Expenses({ period }: { period: Period }): React.JSX.Element {
                   <button
                     type="button"
                     aria-label="Delete expense"
-                    onClick={() => remove.mutate(expense.id)}
+                    onClick={() =>
+                      remove.mutate({
+                        id: expense.id,
+                        label: expense.vendor || expense.description || 'expense'
+                      })
+                    }
                     className="text-faint transition-colors hover:text-danger"
                   >
                     <Trash2 size={13} strokeWidth={1.75} />

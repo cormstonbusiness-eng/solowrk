@@ -22,6 +22,7 @@ import { TextInput } from '@/components/ui/Field'
 import { Toolbar, ViewSwitcher } from '@/components/list/Toolbar'
 import { SavedViews } from '@/components/list/SavedViews'
 import { useListState } from '@/hooks/useListState'
+import { useEntityActions } from '@/hooks/useEntityActions'
 import { ColourPicker, Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { Dot, Empty } from '@/components/ui/Empty'
@@ -205,9 +206,11 @@ export function Tasks(): React.JSX.Element {
     onSuccess: () => invalidate(['tasks'])
   })
 
+  const actions = useEntityActions()
+
   const remove = useMutation({
-    mutationFn: (id: number) => window.solo.invoke('tasks:delete', { id }),
-    onSuccess: () => invalidate(['tasks'])
+    mutationFn: (task: { id: number; title: string }) =>
+      actions.remove({ type: 'task', id: task.id }, task.title)
   })
 
   const move = useMutation({
@@ -390,7 +393,7 @@ export function Tasks(): React.JSX.Element {
                 onToggle={() => toggle.mutate(task)}
                 onOpen={() => setOpen(task)}
                 onArchive={() => archive.mutate(task.id)}
-                onDelete={() => remove.mutate(task.id)}
+                onDelete={() => remove.mutate(task)}
               />
             ))}
           </AnimatePresence>

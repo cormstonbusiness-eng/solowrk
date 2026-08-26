@@ -13,6 +13,7 @@ import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { formatDate } from '@/lib/format'
 import { transition } from '@/lib/motion'
+import { useEntityActions } from '@/hooks/useEntityActions'
 import { Inspect } from '@/components/detail/Inspect'
 import { cn } from '@/lib/utils'
 
@@ -105,10 +106,12 @@ export function Notes(): React.JSX.Element {
     onSuccess: () => invalidate(['notes'])
   })
 
+  const actions = useEntityActions()
+
   const remove = useMutation({
-    mutationFn: (id: number) => window.solo.invoke('notes:delete', { id }),
+    mutationFn: (note: { id: number; title: string }) =>
+      actions.remove({ type: 'note', id: note.id }, note.title),
     onSuccess: () => {
-      invalidate(['notes'])
       setSelectedId(null)
       setDeleting(null)
     }
@@ -262,7 +265,7 @@ export function Notes(): React.JSX.Element {
       <ConfirmModal
         open={deleting !== null}
         onClose={() => setDeleting(null)}
-        onConfirm={() => deleting && remove.mutate(deleting.id)}
+        onConfirm={() => deleting && remove.mutate(deleting)}
         title={`Delete “${deleting?.title ?? ''}”?`}
         body="This deletes the markdown file as well — a note is its file."
         confirmLabel="Delete note"

@@ -15,6 +15,7 @@ import { Empty, Pill } from '@/components/ui/Empty'
 import { Swap } from '@/components/ui/Swap'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
+import { useEntityActions } from '@/hooks/useEntityActions'
 import { formatDate, formatMoney, toDateInput } from '@/lib/format'
 import { TaskList } from './tasks/TaskList'
 import { ProjectNotes } from './ProjectNotes'
@@ -284,12 +285,12 @@ export function ProjectDetail(): React.JSX.Element {
     }
   })
 
+  const actions = useEntityActions()
+
   const remove = useMutation({
-    mutationFn: () => window.solo.invoke('projects:delete', { id: projectId }),
-    onSuccess: () => {
-      invalidate(['projects', 'tasks'])
-      navigate('/projects')
-    }
+    mutationFn: () =>
+      actions.remove({ type: 'project', id: projectId }, project?.name ?? 'project'),
+    onSuccess: () => navigate('/projects')
   })
 
   const saveTemplate = useMutation({

@@ -5,11 +5,11 @@ import { join } from 'node:path'
 import { Database } from '../db'
 import {
   addDocument,
-  deleteDocument,
   expiringDocuments,
   listDocuments,
   updateDocument
 } from './documents'
+import { trashEntity } from './trash'
 import { scaffoldWorkspace } from './workspace'
 
 function isoInDays(days: number): string {
@@ -132,8 +132,11 @@ describe('documents', () => {
   })
 
   it('leaves the file on disk when the record is removed', async () => {
+    // Deleting goes through the trash now — there is deliberately no other
+    // way — and a document's file is the user's own, so it stays whatever the
+    // app does with its record of it.
     const doc = await addDocument(db, root, { sourcePath: await sampleFile(), title: 'Policy' })
-    deleteDocument(db, doc.id)
+    trashEntity(db, { type: 'document', id: doc.id })
 
     expect(listDocuments(db)).toHaveLength(0)
     expect(await readFile(join(root, doc.file), 'utf8')).toBe('contents')

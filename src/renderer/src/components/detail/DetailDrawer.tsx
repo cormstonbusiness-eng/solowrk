@@ -1,12 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
+import { useState } from 'react'
+import { Archive, ChevronDown, ChevronUp, ExternalLink } from 'lucide-react'
+import { canArchive } from '@shared/types'
 import type { EntityType } from '@shared/types'
 import { Drawer, DrawerClose } from '@/components/ui/Drawer'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useDrawer, useDrawerKeys } from '@/hooks/useDrawer'
 import { keys } from '@/lib/api'
 import { ENTITY_META } from '@/lib/entities'
+import { useEntityActions } from '@/hooks/useEntityActions'
 import { Activity } from './Activity'
 import { Related } from './Related'
 
@@ -59,6 +62,8 @@ function Body({
 }): React.JSX.Element {
   const meta = ENTITY_META[type]
   const Icon = meta.icon
+  const actions = useEntityActions()
+  const [filing, setFiling] = useState(false)
 
   const { data: label, isPending } = useQuery({
     queryKey: keys.entityLabel(type, id),
@@ -115,18 +120,42 @@ function Body({
         )}
       </div>
 
-      {/* Only for the two types with a page of their own. A link that goes
-          nowhere is worse than no link. */}
-      {!gone && meta.route && (
-        <footer className="border-t border-line px-5 py-3">
-          <Link
-            to={meta.route(id)}
-            onClick={onClose}
-            className="flex items-center gap-1.5 text-[12.5px] text-muted transition-colors hover:text-ink"
-          >
-            <ExternalLink size={13} strokeWidth={1.75} />
-            Open the full {meta.noun}
-          </Link>
+      {!gone && (meta.route || canArchive(type)) && (
+        <footer className="flex items-center gap-3 border-t border-line px-5 py-3">
+          {/* Only for the two types with a page of their own. A link that goes
+              nowhere is worse than no link. */}
+          {meta.route && (
+            <Link
+              to={meta.route(id)}
+              onClick={onClose}
+              className="flex items-center gap-1.5 text-[12.5px] text-muted transition-colors hover:text-ink"
+            >
+              <ExternalLink size={13} strokeWidth={1.75} />
+              Open the full {meta.noun}
+            </Link>
+          )}
+
+          <div className="flex-1" />
+
+          {/* Archive lives here because this is the one screen every type
+              shares. Projects and tasks keep their own buttons; notes and
+              documents had nowhere to put one until now. */}
+          {canArchive(type) && (
+            <button
+              type="button"
+              disabled={filing}
+              onClick={() => {
+                setFiling(true)
+                void actions
+                  .archive({ type, id }, label ?? meta.noun, true)
+                  .finally(() => setFiling(false))
+              }}
+              className="flex items-center gap-1.5 text-[12.5px] text-muted transition-colors hover:text-ink disabled:opacity-45"
+            >
+              <Archive size={13} strokeWidth={1.75} />
+              Archive
+            </button>
+          )}
         </footer>
       )}
     </>

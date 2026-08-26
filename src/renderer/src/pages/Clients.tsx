@@ -31,6 +31,7 @@ import { Inspect } from '@/components/detail/Inspect'
 import { Toolbar } from '@/components/list/Toolbar'
 import { SavedViews } from '@/components/list/SavedViews'
 import { useListState } from '@/hooks/useListState'
+import { useEntityActions } from '@/hooks/useEntityActions'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { formatMoney, formatRate } from '@/lib/format'
@@ -484,7 +485,6 @@ export function ClientDetail(): React.JSX.Element {
   const { id } = useParams<{ id: string }>()
   const clientId = Number(id)
   const navigate = useNavigate()
-  const invalidate = useInvalidate()
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const { data: client } = useQuery({
@@ -499,12 +499,11 @@ export function ClientDetail(): React.JSX.Element {
     enabled: Number.isFinite(clientId)
   })
 
+  const actions = useEntityActions()
+
   const remove = useMutation({
-    mutationFn: () => window.solo.invoke('clients:delete', { id: clientId }),
-    onSuccess: () => {
-      invalidate(['clients', 'projects'])
-      navigate('/clients')
-    }
+    mutationFn: () => actions.remove({ type: 'client', id: clientId }, client?.name ?? 'client'),
+    onSuccess: () => navigate('/clients')
   })
 
   if (!client) return <Page title="Client" />

@@ -13,6 +13,7 @@ import { Inspect } from '@/components/detail/Inspect'
 import { Toolbar } from '@/components/list/Toolbar'
 import { SavedViews } from '@/components/list/SavedViews'
 import { useListState } from '@/hooks/useListState'
+import { useEntityActions } from '@/hooks/useEntityActions'
 import { Swap } from '@/components/ui/Swap'
 import { useInvalidate } from '@/lib/api'
 import { useFeature } from '@/lib/features'
@@ -158,9 +159,11 @@ function InvoiceList({
     }
   })
 
+  const actions = useEntityActions()
+
   const remove = useMutation({
-    mutationFn: (id: number) => window.solo.invoke('invoices:delete', { id }),
-    onSuccess: () => invalidate(['invoices', 'time', 'finance'])
+    mutationFn: (invoice: { id: number; number: string }) =>
+      actions.remove({ type: 'invoice', id: invoice.id }, invoice.number)
   })
 
   const statuses = list.values('status')
@@ -358,7 +361,7 @@ function InvoiceList({
       <ConfirmModal
         open={deleting !== null}
         onClose={() => setDeleting(null)}
-        onConfirm={() => deleting && remove.mutate(deleting.id)}
+        onConfirm={() => deleting && remove.mutate(deleting)}
         title={`Delete ${deleting?.number ?? 'invoice'}?`}
         body="Any time billed on this invoice returns to your unbilled pool. Its PDF, if you exported one, stays in your workspace."
       />
@@ -593,12 +596,12 @@ function QuoteList({
     onSuccess: (path) => void window.solo.invoke('files:open', { path })
   })
 
+  const actions = useEntityActions()
+
   const remove = useMutation({
-    mutationFn: (id: number) => window.solo.invoke('quotes:delete', { id }),
-    onSuccess: () => {
-      invalidate(['quotes'])
-      setDeleting(null)
-    }
+    mutationFn: (quote: { id: number; number: string }) =>
+      actions.remove({ type: 'quote', id: quote.id }, quote.number),
+    onSuccess: () => setDeleting(null)
   })
 
   const setStatus = useMutation({
@@ -721,7 +724,7 @@ function QuoteList({
       <ConfirmModal
         open={deleting !== null}
         onClose={() => setDeleting(null)}
-        onConfirm={() => deleting && remove.mutate(deleting.id)}
+        onConfirm={() => deleting && remove.mutate(deleting)}
         title={`Delete quote ${deleting?.number ?? ''}?`}
         body="The quote and its lines are removed. Any PDF already exported stays on disk, and a project or invoice converted from it is untouched."
         confirmLabel="Delete quote"
