@@ -12,6 +12,7 @@ import { ENTITY_META } from '@/lib/entities'
 import { useEntityActions } from '@/hooks/useEntityActions'
 import { Activity } from './Activity'
 import { Related } from './Related'
+import { Tags } from './Tags'
 
 /**
  * The record inspector.
@@ -114,6 +115,7 @@ function Body({
           </p>
         ) : (
           <>
+            <Tags subject={{ type, id }} />
             <Related subject={{ type, id }} />
             <Activity subject={{ type, id }} />
           </>

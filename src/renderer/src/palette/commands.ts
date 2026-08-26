@@ -355,7 +355,7 @@ export function useCommands({
         subtitle: document.category,
         group: 'Document',
         icon: FileText,
-        searchText: `${document.title} ${document.category} ${document.tags.join(' ')} document`,
+        searchText: `${document.title} ${document.category} document`,
         run: open('/documents', { type: 'document', id: document.id })
       })
     }

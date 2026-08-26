@@ -1579,3 +1579,20 @@ export interface TrashEntry {
   summary: string
   deletedAt: string
 }
+
+/**
+ * A tag, from the one vocabulary shared by every kind of record.
+ *
+ * Free text per table could not be renamed, coloured or counted across types —
+ * see migration 22 for what this replaced.
+ */
+export interface Tag {
+  id: number
+  name: string
+  colour: string
+}
+
+export interface TagWithCount extends Tag {
+  /** How many records carry it, across every type. */
+  uses: number
+}

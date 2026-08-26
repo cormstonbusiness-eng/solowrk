@@ -25,6 +25,17 @@ import { findAcrossTypes, findEntities, labelFor } from '../services/entities'
 import { deleteView, listViews, saveView, viewExists } from '../services/views'
 import { setArchived } from '../services/archive'
 import {
+  deleteTag,
+  ensureTag,
+  listTags,
+  recolourTag,
+  renameTag,
+  tag as tagEntity,
+  taggedIds,
+  tagsFor,
+  untag
+} from '../services/tags'
+import {
   emptyTrash,
   listTrash,
   purgeTrash,
@@ -534,6 +545,35 @@ const handlers: Handlers = {
   'chasing:discard': (_g, { id }) => cancelMail(session.requireDb(), id),
 
   'chasing:sendQueued': () => drainOutbox(session.requireDb()),
+
+  'tags:list': () => listTags(session.requireDb()),
+
+  'tags:for': (_g, ref) => tagsFor(session.requireDb(), ref),
+
+  'tags:add': (_g, { type, id, name }) => {
+    const db = session.requireDb()
+    return db.transaction(() => {
+      const made = ensureTag(db, name)
+      tagEntity(db, { type, id }, made.id)
+      return made
+    })
+  },
+
+  'tags:remove': (_g, { type, id, tagId }) => {
+    untag(session.requireDb(), { type, id }, tagId)
+  },
+
+  'tags:rename': (_g, { id, name }) => renameTag(session.requireDb(), id, name),
+
+  'tags:recolour': (_g, { id, colour }) => {
+    recolourTag(session.requireDb(), id, colour)
+  },
+
+  'tags:delete': (_g, { id }) => {
+    deleteTag(session.requireDb(), id)
+  },
+
+  'tags:matching': (_g, { type, tagIds }) => taggedIds(session.requireDb(), type, tagIds),
 
   'trash:list': () => listTrash(session.requireDb()),
 

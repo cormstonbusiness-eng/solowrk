@@ -57,14 +57,34 @@ describe('documents', () => {
     expect(doc.category).toBe('Business')
   })
 
-  it('normalises tags to lower case and drops blanks', async () => {
+  it('keeps tags as typed, and drops blanks', async () => {
+    // Tags moved to the shared vocabulary in migration 22, which matches
+    // case-insensitively but stores the case somebody wrote. Lower-casing them
+    // used to be how duplicates were avoided; now the unique index does that,
+    // and "VAT" can read as "VAT" instead of "vat".
     const doc = await addDocument(db, root, {
       sourcePath: await sampleFile(),
       title: 'Policy',
       tags: ['Insurance', '  Renewal ', '']
     })
 
-    expect(doc.tags).toEqual(['insurance', 'renewal'])
+    expect(doc.tags).toEqual(['Insurance', 'Renewal'])
+  })
+
+  it('does not make a second tag for a different capitalisation', async () => {
+    const first = await addDocument(db, root, {
+      sourcePath: await sampleFile('a.pdf'),
+      title: 'One',
+      tags: ['Insurance']
+    })
+    const second = await addDocument(db, root, {
+      sourcePath: await sampleFile('b.pdf'),
+      title: 'Two',
+      tags: ['insurance']
+    })
+
+    expect(second.tags).toEqual(['Insurance'])
+    expect(first.tags).toEqual(['Insurance'])
   })
 
   it('searches titles, tags and notes', async () => {
@@ -119,7 +139,7 @@ describe('documents', () => {
     expect(expiring.map((doc) => doc.title)).toEqual(['Already expired', 'Expiring soon'])
   })
 
-  it('updates fields and re-packs tags', async () => {
+  it('updates fields and replaces the tags', async () => {
     const doc = await addDocument(db, root, { sourcePath: await sampleFile(), title: 'Policy' })
     const updated = updateDocument(db, doc.id, {
       title: 'Renewed policy',
@@ -128,7 +148,19 @@ describe('documents', () => {
     })
 
     expect(updated.title).toBe('Renewed policy')
-    expect(updated.tags).toEqual(['insurance'])
+    expect(updated.tags).toEqual(['Insurance'])
+  })
+
+  it('takes away a tag left out of the patch', async () => {
+    // The patch is the whole set, not an addition. Otherwise there is no way
+    // to remove one.
+    const doc = await addDocument(db, root, {
+      sourcePath: await sampleFile(),
+      title: 'Policy',
+      tags: ['Insurance', 'Renewal']
+    })
+
+    expect(updateDocument(db, doc.id, { tags: ['Insurance'] }).tags).toEqual(['Insurance'])
   })
 
   it('leaves the file on disk when the record is removed', async () => {

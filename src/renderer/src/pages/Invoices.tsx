@@ -13,6 +13,7 @@ import { Inspect } from '@/components/detail/Inspect'
 import { Toolbar } from '@/components/list/Toolbar'
 import { SavedViews } from '@/components/list/SavedViews'
 import { useListState } from '@/hooks/useListState'
+import { useTagFilter } from '@/hooks/useTagFilter'
 import { useEntityActions } from '@/hooks/useEntityActions'
 import { Swap } from '@/components/ui/Swap'
 import { useInvalidate } from '@/lib/api'
@@ -124,6 +125,7 @@ function InvoiceList({
 }): React.JSX.Element {
   const invalidate = useInvalidate()
   const list = useListState()
+  const tagFilter = useTagFilter('invoice', list)
   const [chaser, setChaser] = useState<ChaserDraft | null>(null)
   const [deleting, setDeleting] = useState<InvoiceWithContext | null>(null)
 
@@ -170,6 +172,7 @@ function InvoiceList({
   const search = (list.one('q') ?? '').trim().toLowerCase()
 
   const visible = invoices.filter((invoice) => {
+    if (!tagFilter.keep(invoice.id)) return false
     if (statuses.length > 0 && !statuses.includes(invoice.displayStatus)) return false
     if (!search) return true
     // Number and client, because those are the two things anybody has in front
@@ -203,7 +206,8 @@ function InvoiceList({
               colour: STATUS_COLOURS[status],
               count: invoices.filter((invoice) => invoice.displayStatus === status).length
             }))
-          }
+          },
+          tagFilter.facet
         ]}
       >
         <span className="text-[12px] text-muted">

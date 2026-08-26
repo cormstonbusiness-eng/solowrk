@@ -31,6 +31,7 @@ import { Inspect } from '@/components/detail/Inspect'
 import { Toolbar } from '@/components/list/Toolbar'
 import { SavedViews } from '@/components/list/SavedViews'
 import { useListState } from '@/hooks/useListState'
+import { useTagFilter } from '@/hooks/useTagFilter'
 import { useEntityActions } from '@/hooks/useEntityActions'
 import { cn } from '@/lib/utils'
 
@@ -332,6 +333,7 @@ function Expenses({ period }: { period: Period }): React.JSX.Element {
   const [adding, setAdding] = useState(false)
 
   const list = useListState()
+  const tagFilter = useTagFilter('expense', list)
   const actions = useEntityActions()
 
   const { data: found = [] } = useQuery({
@@ -343,6 +345,7 @@ function Expenses({ period }: { period: Period }): React.JSX.Element {
   const search = (list.one('q') ?? '').trim().toLowerCase()
 
   const expenses = found.filter((expense) => {
+    if (!tagFilter.keep(expense.id)) return false
     if (chosen.length > 0 && !chosen.includes(expense.category)) return false
     if (!search) return true
     return `${expense.vendor} ${expense.description}`.toLowerCase().includes(search)
@@ -373,7 +376,8 @@ function Expenses({ period }: { period: Period }): React.JSX.Element {
               label: name,
               count: found.filter((expense) => expense.category === name).length
             }))
-          }
+          },
+          tagFilter.facet
         ]}
       >
         <p className="text-[12px] text-muted">

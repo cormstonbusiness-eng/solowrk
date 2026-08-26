@@ -20,6 +20,8 @@ import type {
   EntityType,
   LinkedEntity,
   SavedView,
+  Tag,
+  TagWithCount,
   TrashEntry,
   AppNotification,
   AssistantEvent,
@@ -456,6 +458,24 @@ export interface IpcContract {
    * the way — the row is really gone from its own table, and what it took with
    * it was captured first. See migration 20.
    */
+  /**
+   * One vocabulary of tags, shared by every kind of record.
+   *
+   * `tags:add` takes a name rather than an id, and makes the tag if it is new.
+   * Typing a tag and picking one are the same gesture, and splitting them into
+   * two channels would put the difference in the caller's hands.
+   */
+  'tags:list': { req: void; res: TagWithCount[] }
+  'tags:for': { req: EntityRef; res: Tag[] }
+  'tags:add': { req: EntityRef & { name: string }; res: Tag }
+  'tags:remove': { req: EntityRef & { tagId: number }; res: void }
+  'tags:rename': { req: { id: number; name: string }; res: Tag }
+  'tags:recolour': { req: { id: number; colour: string }; res: void }
+  /** Removes it from the vocabulary and from everything carrying it. */
+  'tags:delete': { req: { id: number }; res: void }
+  /** The ids of one type carrying *every* one of these tags. */
+  'tags:matching': { req: { type: EntityType; tagIds: number[] }; res: number[] }
+
   'trash:list': { req: void; res: TrashEntry[] }
   /** Put one back. `orphaned` names the parents that have gone in the meantime. */
   'trash:restore': { req: { id: number }; res: { restored: string; orphaned: string[] } }
@@ -792,6 +812,14 @@ export const IPC_CHANNELS = [
   'chasing:send',
   'chasing:discard',
   'chasing:sendQueued',
+  'tags:list',
+  'tags:for',
+  'tags:add',
+  'tags:remove',
+  'tags:rename',
+  'tags:recolour',
+  'tags:delete',
+  'tags:matching',
   'trash:list',
   'trash:restore',
   'trash:purge',
@@ -916,7 +944,7 @@ const WRITABLE_WHEN_READ_ONLY = new Set<string>([
 const BLOCKED_WHEN_READ_ONLY = new Set<string>(['templates:fromProject', 'quotes:convert'])
 
 const WRITE_VERBS =
-  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync|archive|restore|purge|empty)/
+  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync|archive|restore|purge|empty|recolour)/
 
 /**
  * Whether a channel is allowed while the app is read-only.

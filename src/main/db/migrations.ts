@@ -1231,5 +1231,80 @@ export const migrations: Migration[] = [
       ALTER TABLE clients ADD COLUMN archived_at TEXT;
       ALTER TABLE projects ADD COLUMN archived_at TEXT;
     `
+  },
+  {
+    id: 22,
+    name: 'tags',
+    sql: `
+      -- One vocabulary of tags, shared by everything.
+      --
+      -- Documents already had tags as a comma-separated column, with a comment
+      -- saying a tags table would be the textbook answer but that these were a
+      -- search aid rather than a relation. That was true when documents were
+      -- the only thing with them. A tag that means the same on a document, a
+      -- project and an invoice is a relation, and free text cannot be renamed,
+      -- coloured, or counted.
+      CREATE TABLE tags (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT    NOT NULL,
+        colour     TEXT    NOT NULL DEFAULT '#8a8a93',
+        created_at TEXT    NOT NULL
+      );
+
+      -- Case-insensitive, so 'Urgent' and 'urgent' cannot both exist. People
+      -- capitalise inconsistently and would otherwise end up with two tags that
+      -- look identical in a filter list.
+      CREATE UNIQUE INDEX idx_tags_name ON tags(name COLLATE NOCASE);
+
+      -- Polymorphic, like links: a tag reaches every kind of record, and no
+      -- foreign key can express "any of eight tables".
+      CREATE TABLE entity_tags (
+        tag_id      INTEGER NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
+        entity_type TEXT    NOT NULL,
+        entity_id   INTEGER NOT NULL,
+        created_at  TEXT    NOT NULL,
+        PRIMARY KEY (tag_id, entity_type, entity_id)
+      );
+
+      CREATE INDEX idx_entity_tags_entity ON entity_tags(entity_type, entity_id);
+
+      -- Bring the document tags across.
+      --
+      -- Split on the comma with a recursive CTE. Doing it here rather than in
+      -- application code means it happens exactly once, inside the migration's
+      -- own transaction, and a user who never opens the Documents page still
+      -- gets their tags.
+      INSERT OR IGNORE INTO tags (name, colour, created_at)
+      WITH RECURSIVE split(id, tag, rest) AS (
+        SELECT id, '', tags || ',' FROM documents WHERE tags != ''
+        UNION ALL
+        SELECT id,
+               TRIM(SUBSTR(rest, 1, INSTR(rest, ',') - 1)),
+               SUBSTR(rest, INSTR(rest, ',') + 1)
+          FROM split WHERE rest != ''
+      )
+      SELECT DISTINCT tag, '#8a8a93', datetime('now') FROM split WHERE tag != '';
+
+      INSERT OR IGNORE INTO entity_tags (tag_id, entity_type, entity_id, created_at)
+      WITH RECURSIVE split(id, tag, rest) AS (
+        SELECT id, '', tags || ',' FROM documents WHERE tags != ''
+        UNION ALL
+        SELECT id,
+               TRIM(SUBSTR(rest, 1, INSTR(rest, ',') - 1)),
+               SUBSTR(rest, INSTR(rest, ',') + 1)
+          FROM split WHERE rest != ''
+      )
+      SELECT t.id, 'document', s.id, datetime('now')
+        FROM split s
+        JOIN tags t ON t.name = s.tag COLLATE NOCASE
+       WHERE s.tag != '';
+
+      -- documents.tags stays, and stops being written.
+      --
+      -- Kept rather than dropped because it is the only record of what the
+      -- backfill above read: if the split turns out to have mangled something,
+      -- the original text is still there to look at. Nothing reads it after
+      -- this migration.
+    `
   }
 ]

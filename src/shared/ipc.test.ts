@@ -53,7 +53,15 @@ describe('what read-only allows', () => {
       'trash:purge',
       'trash:empty',
       'entity:archive',
-      'entity:delete'
+      'entity:delete',
+      // Tags. `recolour` had to be added to the verb list: it is a write, and
+      // the classifier fails open, so an unrecognised verb would have let it
+      // through on a lapsed licence.
+      'tags:add',
+      'tags:remove',
+      'tags:rename',
+      'tags:recolour',
+      'tags:delete'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(false)
     }
@@ -101,7 +109,10 @@ describe('what read-only allows', () => {
       // after thirty days, so a lapsed licence that could not restore would
       // lose its own deleted work permanently.
       'trash:list',
-      'trash:restore'
+      'trash:restore',
+      'tags:list',
+      'tags:for',
+      'tags:matching'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(true)
     }

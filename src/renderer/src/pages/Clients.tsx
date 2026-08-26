@@ -31,6 +31,7 @@ import { Inspect } from '@/components/detail/Inspect'
 import { Toolbar } from '@/components/list/Toolbar'
 import { SavedViews } from '@/components/list/SavedViews'
 import { useListState } from '@/hooks/useListState'
+import { useTagFilter } from '@/hooks/useTagFilter'
 import { useEntityActions } from '@/hooks/useEntityActions'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
@@ -94,6 +95,7 @@ export function Clients(): React.JSX.Element {
   const navigate = useNavigate()
   const [editing, setEditing] = useState<ClientInput & { id?: number } | null>(null)
   const list = useListState()
+  const tagFilter = useTagFilter('client', list)
   const [sort, setSort] = useState<{ key: SortKey; descending: boolean }>({
     key: 'name',
     descending: false
@@ -113,6 +115,7 @@ export function Clients(): React.JSX.Element {
     const needle = search.trim().toLowerCase()
 
     const matched = clients.filter((client) => {
+      if (!tagFilter.keep(client.id)) return false
       if (statuses.length > 0 && !statuses.includes(client.status)) return false
       if (needle === '') return true
       // Every column is searchable, plus the phone number, which people
@@ -143,7 +146,7 @@ export function Clients(): React.JSX.Element {
 
       return String(left).localeCompare(String(right), 'en-GB') * direction
     })
-  }, [clients, search, statuses.join(','), sort])
+  }, [clients, search, statuses.join(','), sort, tagFilter.keep])
 
   const toggleSort = (key: SortKey): void =>
     setSort((current) =>
@@ -201,7 +204,8 @@ export function Clients(): React.JSX.Element {
                   colour: entry.colour,
                   count: clients.filter((client) => client.status === entry.value).length
                 }))
-              }
+              },
+              tagFilter.facet
             ]}
           >
             <SavedViews page="clients" state={list} />

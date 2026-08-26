@@ -22,6 +22,7 @@ import { TextInput } from '@/components/ui/Field'
 import { Toolbar, ViewSwitcher } from '@/components/list/Toolbar'
 import { SavedViews } from '@/components/list/SavedViews'
 import { useListState } from '@/hooks/useListState'
+import { useTagFilter } from '@/hooks/useTagFilter'
 import { QuickAddHint, useQuickAdd } from '@/components/list/QuickAdd'
 import { useEntityActions } from '@/hooks/useEntityActions'
 import { ColourPicker, Select } from '@/components/ui/Select'
@@ -121,6 +122,7 @@ export function Tasks(): React.JSX.Element {
   const invalidate = useInvalidate()
   const navigate = useNavigate()
   const list = useListState()
+  const tagFilter = useTagFilter('task', list)
   const [newTitle, setNewTitle] = useState('')
   const quick = useQuickAdd(newTitle)
   // Which shape the list is drawn in travels with the filters, so a saved view
@@ -234,6 +236,7 @@ export function Tasks(): React.JSX.Element {
   const search = (list.one('q') ?? '').trim().toLowerCase()
 
   const visible = tasks.filter((task) => {
+    if (!tagFilter.keep(task.id)) return false
     if (projectFilter.length > 0 && !projectFilter.includes(String(task.projectId))) return false
     if (categoryFilter.length > 0 && !categoryFilter.includes(String(task.categoryId))) return false
     if (search && !task.title.toLowerCase().includes(search)) return false
@@ -346,7 +349,8 @@ export function Tasks(): React.JSX.Element {
               colour: category.colour,
               count: tasks.filter((task) => task.categoryId === category.id).length
             }))
-          }
+          },
+          tagFilter.facet
         ]}
       >
         <SavedViews page="tasks" state={list} />

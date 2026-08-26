@@ -20,6 +20,8 @@ import { Inspect } from '@/components/detail/Inspect'
 import { Toolbar } from '@/components/list/Toolbar'
 import { SavedViews } from '@/components/list/SavedViews'
 import { useListState } from '@/hooks/useListState'
+import { useTagFilter } from '@/hooks/useTagFilter'
+import { RowTags } from '@/components/list/RowTags'
 import { useEntityActions } from '@/hooks/useEntityActions'
 import { cn } from '@/lib/utils'
 
@@ -42,6 +44,7 @@ function expiryState(expiryAt: string | null): { label: string; colour: string }
 export function Documents(): React.JSX.Element {
   const invalidate = useInvalidate()
   const list = useListState()
+  const tagFilter = useTagFilter('document', list)
   const actions = useEntityActions()
   const [editing, setEditing] = useState<(DocumentInput & { id?: number }) | null>(null)
   const [pendingFile, setPendingFile] = useState<string | null>(null)
@@ -59,8 +62,10 @@ export function Documents(): React.JSX.Element {
     queryFn: () => window.solo.invoke('documents:list', { search: search || undefined })
   })
 
-  const documents =
-    categories.length === 0 ? found : found.filter((doc) => categories.includes(doc.category))
+  const documents = found.filter((doc) => {
+    if (!tagFilter.keep(doc.id)) return false
+    return categories.length === 0 || categories.includes(doc.category)
+  })
 
   const add = useMutation({
     mutationFn: (draft: DocumentInput & { sourcePath: string }) =>
@@ -86,7 +91,17 @@ export function Documents(): React.JSX.Element {
       actions.remove({ type: 'document', id: doc.id }, doc.title)
   })
 
-  /** Pick the file first: everything else describes a file that already exists. */
+  /**
+ * The tags on one document row.
+ *
+ * Reads the shared vocabulary rather than the old comma-separated column,
+ * which migration 22 moved across and nothing writes any more.
+ */
+function DocumentTags({ id }: { id: number }): React.JSX.Element {
+  return <RowTags type="document" id={id} />
+}
+
+/** Pick the file first: everything else describes a file that already exists. */
   const startAdd = async (): Promise<void> => {
     const [source] = await window.solo.invoke('files:pick', { multiple: false })
     if (!source) return
@@ -95,7 +110,6 @@ export function Documents(): React.JSX.Element {
     setEditing({
       title: source.split('\\').pop() ?? '',
       category: 'Business',
-      tags: [],
       notes: '',
       expiryAt: null
     })
@@ -115,7 +129,7 @@ export function Documents(): React.JSX.Element {
       }
     >
       <Toolbar
-        search={{ placeholder: 'Search titles, tags and notes' }}
+        search={{ placeholder: 'Search titles and notes' }}
         state={list}
         facets={[
           {
@@ -125,7 +139,8 @@ export function Documents(): React.JSX.Element {
               label: name,
               count: found.filter((doc) => doc.category === name).length
             }))
-          }
+          },
+          tagFilter.facet
         ]}
       >
         <SavedViews page="documents" state={list} />
@@ -198,9 +213,7 @@ export function Documents(): React.JSX.Element {
                   </button>
 
                   <div className="flex shrink-0 items-center gap-2.5">
-                    {doc.tags.length > 0 && (
-                      <span className="text-[11px] text-faint">{doc.tags.join(' · ')}</span>
-                    )}
+                    <DocumentTags id={doc.id} />
                     {doc.expiryAt && (
                       <span
                         className={cn('text-[11.5px]', !expiry && 'text-faint')}
@@ -365,18 +378,6 @@ function DocumentModal({
             />
           </Field>
 
-          <Field label="Tags" hint="Comma separated.">
-            <TextInput
-              value={(draft.tags ?? []).join(', ')}
-              onChange={(event) =>
-                set(
-                  'tags',
-                  event.target.value.split(',').map((tag) => tag.trim())
-                )
-              }
-              placeholder="insurance, renewal"
-            />
-          </Field>
 
           <Field label="Notes">
             <TextInput

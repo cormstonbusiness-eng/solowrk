@@ -10,6 +10,7 @@ import { listDueTasks } from './tasks'
 import { pruneActivity } from './activity'
 import { expireTrash } from './trash'
 import { pruneLinks } from './links'
+import { pruneTags } from './tags'
 import { session } from './session'
 import { resolveInWorkspace } from './workspace'
 import { push } from './notifications'
@@ -135,6 +136,7 @@ function runDigest(getWindow: () => BrowserWindow | null, now: Date): void {
   try {
     pruneLinks(db)
     pruneActivity(db)
+    pruneTags(db)
     // And let go of what has been in the trash long enough. The files it
     // hands back are note bodies; removing them is the caller's job because
     // this is synchronous and unlinking is not.

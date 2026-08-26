@@ -3,6 +3,7 @@ import { basename, join } from 'node:path'
 import type { Database, Row } from '../db'
 import type { DocumentInput, DocumentRecord } from '@shared/types'
 import { uniqueFileName } from './naming'
+import { ensureTag, tag as tagEntity, tagsFor, tagsForMany, untag } from './tags'
 import { resolveInWorkspace } from './workspace'
 
 const DOCUMENTS_ROOT = 'Documents'
@@ -20,13 +21,20 @@ interface DocumentRow extends Row {
   updated_at: string
 }
 
-function toDocument(row: DocumentRow): DocumentRecord {
+/**
+ * `tags` comes from the shared vocabulary, not from the row.
+ *
+ * The old comma-separated column is still on the table — migration 22 kept it
+ * so a bad backfill could be inspected — but nothing reads or writes it now.
+ * Passing the tags in means one query for a whole list rather than one per row.
+ */
+function toDocument(row: DocumentRow, tags: string[] = []): DocumentRecord {
   return {
     id: row.id,
     title: row.title,
     category: row.category,
     file: row.file,
-    tags: row.tags === '' ? [] : row.tags.split(','),
+    tags,
     notes: row.notes,
     expiryAt: row.expiry_at,
     clientId: row.client_id,
@@ -35,13 +43,26 @@ function toDocument(row: DocumentRow): DocumentRecord {
   }
 }
 
-/** Stored lower-cased and comma-joined so LIKE search is predictable. */
-function packTags(tags: string[] | undefined): string {
-  if (!tags) return ''
-  return tags
-    .map((tag) => tag.trim().toLowerCase())
-    .filter((tag) => tag.length > 0)
-    .join(',')
+/** Replace a document's tags with exactly this set, making any that are new. */
+function applyTags(db: Database, id: number, tags: string[]): void {
+  const ref = { type: 'document' as const, id }
+  const wanted = tags.map((one) => one.trim()).filter((one) => one.length > 0)
+  const existing = tagsFor(db, ref)
+
+  for (const one of existing) {
+    if (!wanted.some((name) => name.toLowerCase() === one.name.toLowerCase())) {
+      untag(db, ref, one.id)
+    }
+  }
+  for (const name of wanted) {
+    tagEntity(db, ref, ensureTag(db, name).id)
+  }
+}
+
+/** The tags for a set of document rows, in one query. */
+function withTags(db: Database, rows: DocumentRow[]): DocumentRecord[] {
+  const byId = tagsForMany(db, 'document', rows.map((row) => row.id))
+  return rows.map((row) => toDocument(row, (byId[row.id] ?? []).map((one) => one.name)))
 }
 
 export function listDocuments(
@@ -57,20 +78,31 @@ export function listDocuments(
   }
 
   if (options.search) {
-    conditions.push('(title LIKE ? OR tags LIKE ? OR notes LIKE ?)')
+    // Tags moved out to their own table in migration 22, so searching them
+    // means a subquery rather than a LIKE on a column. Worth keeping: a
+    // document filed under "insurance" is far more often remembered by that
+    // than by whatever it was named.
+    conditions.push(
+      `(title LIKE ? OR notes LIKE ? OR id IN (
+         SELECT e.entity_id FROM entity_tags e
+           JOIN tags t ON t.id = e.tag_id
+          WHERE e.entity_type = 'document' AND t.name LIKE ?
+       ))`
+    )
     const like = `%${options.search}%`
     params.push(like, like, like)
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
 
-  return db
-    .all<DocumentRow>(
+  return withTags(
+    db,
+    db.all<DocumentRow>(
       `SELECT * FROM documents ${where}
         ORDER BY category COLLATE NOCASE, title COLLATE NOCASE`,
       params
     )
-    .map(toDocument)
+  )
 }
 
 /**
@@ -96,14 +128,13 @@ export async function addDocument(
   const file = join(folderRelative, name)
 
   db.run(
-    `INSERT INTO documents (title, category, file, tags, notes, expiry_at, client_id,
+    `INSERT INTO documents (title, category, file, notes, expiry_at, client_id,
                             created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+     VALUES (?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
     [
       input.title?.trim() || basename(input.sourcePath),
       category,
       file,
-      packTags(input.tags),
       input.notes ?? '',
       input.expiryAt ?? null,
       input.clientId ?? null
@@ -112,7 +143,9 @@ export async function addDocument(
 
   const row = db.get<DocumentRow>('SELECT * FROM documents WHERE id = last_insert_rowid()')
   if (!row) throw new Error('Document was not created')
-  return toDocument(row)
+
+  if (input.tags) applyTags(db, row.id, input.tags)
+  return toDocument(row, tagsFor(db, { type: 'document', id: row.id }).map((one) => one.name))
 }
 
 const UPDATABLE: Record<string, string> = {
@@ -138,11 +171,6 @@ export function updateDocument(
     values.push(value as string | number | null)
   }
 
-  if (patch.tags !== undefined) {
-    assignments.push('tags = ?')
-    values.push(packTags(patch.tags))
-  }
-
   if (assignments.length > 0) {
     db.run(
       `UPDATE documents SET ${assignments.join(', ')}, updated_at = datetime('now') WHERE id = ?`,
@@ -150,9 +178,11 @@ export function updateDocument(
     )
   }
 
+  if (patch.tags !== undefined) applyTags(db, id, patch.tags)
+
   const row = db.get<DocumentRow>('SELECT * FROM documents WHERE id = ?', [id])
   if (!row) throw new Error(`No document with id ${id}`)
-  return toDocument(row)
+  return toDocument(row, tagsFor(db, { type: 'document', id }).map((one) => one.name))
 }
 
 /**
@@ -164,12 +194,13 @@ export function updateDocument(
 export function expiringDocuments(db: Database, days = 45): DocumentRecord[] {
   const cutoff = new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10)
 
-  return db
-    .all<DocumentRow>(
+  return withTags(
+    db,
+    db.all<DocumentRow>(
       `SELECT * FROM documents
         WHERE expiry_at IS NOT NULL AND expiry_at <= ?
         ORDER BY expiry_at`,
       [cutoff]
     )
-    .map(toDocument)
+  )
 }
