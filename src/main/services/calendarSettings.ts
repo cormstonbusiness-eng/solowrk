@@ -85,16 +85,6 @@ export function updateCalendarSettings(
   return getCalendarSettings(db)
 }
 
-/**
- * Whether a given day is one this person works.
- *
- * A bitmask rather than seven columns, and Monday-first rather than
- * Sunday-first, because the UK week starts on Monday and every other part of
- * the calendar already counts that way.
- */
-export function isWorkingDay(settings: CalendarSettings, day: string): boolean {
-  const [year, month, date] = day.split('-').map(Number) as [number, number, number]
-  const sundayFirst = new Date(Date.UTC(year, month - 1, date)).getUTCDay()
-  const mondayFirst = (sundayFirst + 6) % 7
-  return (settings.workingDays & (1 << mondayFirst)) !== 0
-}
+// `isWorkingDay` lives in @shared/calendar: the grid shades non-working days
+// and the capacity maths skips them, and a copy on each side of the bridge
+// would eventually disagree about which day Sunday is.

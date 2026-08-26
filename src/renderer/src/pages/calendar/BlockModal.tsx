@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { Trash2 } from 'lucide-react'
+import { PanelRight, Trash2 } from 'lucide-react'
 import type { BlockInput, BlockType, CalendarBlockWithContext } from '@shared/types'
 import { BLOCK_TYPES, REMINDER_CHOICES, blockTypeMeta } from '@shared/types'
 import { dayOf, minutesBetween, stampAt, timeOf } from '@shared/calendar'
@@ -10,6 +10,7 @@ import { ColourPicker, Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { keys, useInvalidate } from '@/lib/api'
 import { useEntityActions } from '@/hooks/useEntityActions'
+import { useDrawer } from '@/hooks/useDrawer'
 import { cn } from '@/lib/utils'
 
 /** What the modal edits. Split into day + times because that is how people think. */
@@ -114,6 +115,7 @@ export function BlockModal({
 }): React.JSX.Element {
   const invalidate = useInvalidate()
   const { remove } = useEntityActions()
+  const { open: openDrawer } = useDrawer()
   const [draft, setDraft] = useState<Draft>(() => toDraft(block, defaults ?? {}))
 
   // Reset whenever the modal opens, so an edit does not inherit the last one.
@@ -181,6 +183,21 @@ export function BlockModal({
             >
               <Trash2 size={13} strokeWidth={1.75} />
               Delete
+            </Button>
+          )}
+          {/* The modal is for changing the block; the drawer is for everything
+              attached to it. Two screens rather than a tabbed one, because
+              tags and history are read far less often than a time is moved. */}
+          {block && (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                onClose()
+                openDrawer({ type: 'block', id: block.id })
+              }}
+            >
+              <PanelRight size={13} strokeWidth={1.75} />
+              Links &amp; history
             </Button>
           )}
           <Button variant="ghost" onClick={onClose}>

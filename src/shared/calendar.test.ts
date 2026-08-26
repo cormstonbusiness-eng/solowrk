@@ -225,6 +225,75 @@ describe('placeOverlapping', () => {
     }))
     expect(placeOverlapping(items, bounds)).toHaveLength(20)
   })
+
+  describe('widening into empty columns', () => {
+    it('gives a lone block in a wide cluster the whole width', () => {
+      // The 9–12 block forces three columns. The 3pm block is in the same
+      // cluster only by being chained to it, and nothing sits beside it — so
+      // it should not be drawn at a third of the width with two empty stripes.
+      const placed = placeOverlapping(
+        [
+          { start: 540, end: 720 },
+          { start: 555, end: 600 },
+          { start: 570, end: 630 },
+          { start: 700, end: 900 }
+        ],
+        bounds
+      )
+
+      const lone = placed.find((p) => p.item.start === 700)
+      expect(lone).toMatchObject({ column: 1, columns: 3, span: 2 })
+    })
+
+    it('stops at the first column with something in the way', () => {
+      const placed = placeOverlapping(
+        [
+          { start: 540, end: 720 },
+          { start: 540, end: 600 },
+          { start: 540, end: 600 }
+        ],
+        bounds
+      )
+      expect(placed.map((p) => p.span)).toEqual([1, 1, 1])
+    })
+
+    it('treats touching as clear, not as overlapping', () => {
+      // Two 9–10s fill columns 1 and 2. The 10–12 block takes the first of
+      // those back and should widen over the second: a block ending at 10:00
+      // and one starting at 10:00 never cover each other.
+      const placed = placeOverlapping(
+        [
+          { start: 540, end: 720 },
+          { start: 540, end: 600 },
+          { start: 540, end: 600 },
+          { start: 600, end: 720 }
+        ],
+        bounds
+      )
+
+      const later = placed.find((p) => p.item.start === 600)
+      expect(later).toMatchObject({ column: 1, columns: 3, span: 2 })
+    })
+
+    it('never widens leftward, so nothing already placed has to move', () => {
+      const placed = placeOverlapping(
+        [
+          { start: 540, end: 600 },
+          { start: 550, end: 700 },
+          { start: 610, end: 640 }
+        ],
+        bounds
+      )
+      // The 10:10 block sits in column 0, freed by the first block ending, and
+      // widens right only as far as the still-running column-1 block allows.
+      expect(placed.find((p) => p.item.start === 610)).toMatchObject({ column: 0, span: 1 })
+    })
+
+    it('leaves a lone block alone', () => {
+      const [placed] = placeOverlapping([{ start: 540, end: 600 }], bounds)
+      expect(placed).toMatchObject({ column: 0, columns: 1, span: 1 })
+    })
+  })
 })
 
 describe('snapMinutes', () => {

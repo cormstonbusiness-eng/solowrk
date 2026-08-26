@@ -158,16 +158,29 @@ export interface Placed<T> {
   column: number
   /** How many columns that cluster needs — the divisor for the width. */
   columns: number
+  /**
+   * How many columns wide this one is drawn, starting at `column`.
+   *
+   * Usually 1. More when the columns to its right happen to be empty for the
+   * whole time it runs — see the expansion pass below.
+   */
+  span: number
 }
 
 /**
- * Side-by-side placement for events that overlap in time.
+ * Side-by-side placement for blocks that overlap in time.
  *
- * Events are grouped into clusters of transitively-overlapping items, and
+ * Blocks are grouped into clusters of transitively-overlapping items, and
  * within a cluster each one takes the first column that is free at its start.
  * The cluster is what decides the width: two meetings at 9 and 10 that both
  * overlap an all-morning block sit in the same cluster, so all three keep a
  * consistent width instead of the middle one jumping.
+ *
+ * Then each block widens rightward for as long as nothing is in the way. A
+ * three-column cluster caused by a 9–10 and a 9–11 overlap should not leave a
+ * lone 3pm block at a third of the width with a stripe of nothing beside it —
+ * the columns exist to keep two things from covering each other, and where
+ * there is nothing to cover they are just wasted space.
  */
 export function placeOverlapping<T>(
   items: T[],
@@ -176,7 +189,7 @@ export function placeOverlapping<T>(
   const sorted = [...items].sort((a, b) => {
     const left = bounds(a)
     const right = bounds(b)
-    // Longer first when two start together, so the backdrop event takes column 0.
+    // Longer first when two start together, so the backdrop block takes column 0.
     return left.start - right.start || right.end - right.start - (left.end - left.start)
   })
 
@@ -186,7 +199,11 @@ export function placeOverlapping<T>(
   let columnEnds: number[] = []
 
   const flush = (): void => {
-    for (const entry of cluster) entry.columns = columnEnds.length
+    const columns = columnEnds.length
+    for (const entry of cluster) {
+      entry.columns = columns
+      entry.span = expand(entry, cluster, columns, bounds)
+    }
     placed.push(...cluster)
     cluster = []
     columnEnds = []
@@ -205,12 +222,58 @@ export function placeOverlapping<T>(
       columnEnds[column] = end
     }
 
-    cluster.push({ item, column, columns: 1 })
+    cluster.push({ item, column, columns: 1, span: 1 })
     clusterEnd = Math.max(clusterEnd, end)
   }
 
   if (cluster.length > 0) flush()
   return placed
+}
+
+/**
+ * How far right one block can widen before it would cover another.
+ *
+ * Stops at the first column holding anything that overlaps it in time. Only
+ * rightward, and only into whole columns, so widening one block never moves
+ * another: every block keeps the column it was given.
+ */
+function expand<T>(
+  entry: Placed<T>,
+  cluster: Placed<T>[],
+  columns: number,
+  bounds: (item: T) => { start: number; end: number }
+): number {
+  const own = bounds(entry.item)
+  let span = 1
+
+  for (let column = entry.column + 1; column < columns; column += 1) {
+    const blocked = cluster.some((other) => {
+      if (other.column !== column) return false
+      const theirs = bounds(other.item)
+      // Touching is not overlapping: a block ending at 10:00 and one starting
+      // at 10:00 can share a column boundary.
+      return theirs.start < own.end && own.start < theirs.end
+    })
+    if (blocked) break
+    span += 1
+  }
+
+  return span
+}
+
+/**
+ * Whether a day is one this person works.
+ *
+ * A bitmask rather than seven flags, Monday = bit 0, because the UK week
+ * starts on Monday and every other part of the calendar already counts that
+ * way. Shared because the grid shades non-working days and the capacity maths
+ * skips them, and two copies of the bit-shift would eventually disagree about
+ * which day Sunday is.
+ */
+export function isWorkingDay(workingDays: number, day: string): boolean {
+  const [year, month, date] = day.split('-').map(Number) as [number, number, number]
+  const mondayFirst = (new Date(Date.UTC(year, month - 1, date)).getUTCDay() + 6) % 7
+  return (workingDays & (1 << mondayFirst)) !== 0
 }
 
 /** Round minutes to the nearest `step`, for drag and resize. */

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { CalendarPlus, ChevronLeft, ChevronRight } from 'lucide-react'
-import type { CalendarBlockWithContext } from '@shared/types'
+import { CalendarPlus, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react'
+import type { CalendarBlockWithContext, CalendarSettings } from '@shared/types'
 import { addDays, addMonths, dayFromDate, monthGrid, weekDays } from '@shared/calendar'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
@@ -15,7 +15,7 @@ import { AgendaView } from './calendar/AgendaView'
 import { BlockModal } from './calendar/BlockModal'
 import { MonthView } from './calendar/MonthView'
 import { TimeGrid } from './calendar/TimeGrid'
-import { dayLabel, monthLabel } from './calendar/grid'
+import { ZOOM_LEVELS, dayLabel, monthLabel, nearestZoom, stepZoom } from './calendar/grid'
 
 type View = 'month' | 'week' | 'day' | 'agenda'
 
@@ -28,6 +28,26 @@ const VIEWS: { value: View; label: string }[] = [
 
 /** How many days ahead the agenda looks. */
 const AGENDA_DAYS = 30
+
+/**
+ * What the grid uses before the settings query comes back.
+ *
+ * A fallback rather than a loading state: an empty calendar that then fills in
+ * is worse than a calendar drawn at the default height for one frame.
+ */
+const FALLBACK_SETTINGS: CalendarSettings = {
+  workingHoursStart: 540,
+  workingHoursEnd: 1050,
+  workingDays: 31,
+  dailyCapacityMinutes: 360,
+  weeklyBillableTarget: 1500,
+  defaultBlockMinutes: 60,
+  snapMinutes: 15,
+  weekStartsOn: 0,
+  defaultView: 'week',
+  showWeekends: true,
+  hourHeight: 56
+}
 
 /** The days a view covers — which is also exactly what it queries for. */
 function daysInView(view: View, anchor: string): string[] {
@@ -77,18 +97,26 @@ export function Calendar(): React.JSX.Element {
   const [anchor, setAnchor] = useState(today)
   const [projectId, setProjectId] = useState<number | null>(null)
   const [editing, setEditing] = useState<CalendarBlockWithContext | null>(null)
-  const [creating, setCreating] = useState<{ day: string; startTime: string; endTime: string } | null>(
-    null
-  )
+  const [creating, setCreating] = useState<{
+    day: string
+    startTime: string
+    endTime: string
+  } | null>(null)
   const [focusId, setFocusId] = useState<number | null>(null)
 
   useOpenParam('new', () => setCreating({ day: anchor, startTime: '09:00', endTime: '10:00' }))
+
+  const { data: settings = FALLBACK_SETTINGS } = useQuery({
+    queryKey: keys.calendarSettings,
+    queryFn: () => window.solo.invoke('calendar:settings', undefined),
+    staleTime: 60_000
+  })
 
   const days = daysInView(view, anchor)
   const from = days[0] ?? anchor
   const to = days.at(-1) ?? anchor
 
-  const { data: events = [] } = useQuery({
+  const { data: blocks = [] } = useQuery({
     queryKey: keys.blocks(from, to, projectId),
     queryFn: () =>
       window.solo.invoke('calendar:blocks', {
@@ -117,7 +145,16 @@ export function Calendar(): React.JSX.Element {
     onSuccess: () => invalidate(['calendar'])
   })
 
-  // A clicked reminder should land on the event it was reminding you about.
+  // Zoom is stored rather than kept in component state: the height of an hour
+  // is a preference about how you read a week, not something to re-choose
+  // every time you open the tab.
+  const zoom = useMutation({
+    mutationFn: (hourHeight: number) =>
+      window.solo.invoke('calendar:updateSettings', { hourHeight }),
+    onSuccess: () => invalidate(['calendar'])
+  })
+
+  // A clicked reminder should land on the block it was reminding you about.
   useEffect(() => {
     return window.solo.on('calendar:focusEvent', ({ id }) => {
       setView('day')
@@ -128,15 +165,18 @@ export function Calendar(): React.JSX.Element {
 
   useEffect(() => {
     if (focusId === null) return
-    const match = events.find((event) => event.id === focusId)
+    const match = blocks.find((block) => block.id === focusId)
     if (match) {
       setEditing(match)
       setFocusId(null)
     }
-  }, [focusId, events])
+  }, [focusId, blocks])
 
   const openNew = (day: string, startTime = '09:00', endTime = '10:00'): void =>
     setCreating({ day, startTime, endTime })
+
+  const currentZoom = nearestZoom(settings.hourHeight)
+  const showZoom = view === 'week' || view === 'day'
 
   return (
     <Page
@@ -154,7 +194,7 @@ export function Calendar(): React.JSX.Element {
           />
           <Button variant="primary" onClick={() => openNew(anchor)}>
             <CalendarPlus size={14} strokeWidth={1.75} />
-            New event
+            New block
           </Button>
         </>
       }
@@ -182,29 +222,54 @@ export function Calendar(): React.JSX.Element {
           </Button>
         </div>
 
-        {/* Segmented control. The active pill is one element that slides between
-            positions, rather than four that fade — it reads as a single state. */}
-        <div className="flex items-center gap-0.5 rounded-control bg-raised p-0.5">
-          {VIEWS.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setView(option.value)}
-              className={cn(
-                'relative rounded-[6px] px-3 py-1 text-[12px] transition-colors',
-                view === option.value ? 'text-ink' : 'text-muted hover:text-ink'
-              )}
-            >
-              {view === option.value && (
-                <motion.span
-                  layoutId="calendar-view-pill"
-                  transition={transition.layout}
-                  className="absolute inset-0 rounded-[6px] bg-overlay"
-                />
-              )}
-              <span className="relative">{option.label}</span>
-            </button>
-          ))}
+        <div className="flex items-center gap-2">
+          {showZoom && (
+            <div className="flex items-center gap-0.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Shorter hours"
+                disabled={currentZoom === ZOOM_LEVELS[0]}
+                onClick={() => zoom.mutate(stepZoom(currentZoom, -1))}
+              >
+                <Minus size={13} strokeWidth={2} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Taller hours"
+                disabled={currentZoom === ZOOM_LEVELS.at(-1)}
+                onClick={() => zoom.mutate(stepZoom(currentZoom, 1))}
+              >
+                <Plus size={13} strokeWidth={2} />
+              </Button>
+            </div>
+          )}
+
+          {/* Segmented control. The active pill is one element that slides between
+              positions, rather than four that fade — it reads as a single state. */}
+          <div className="flex items-center gap-0.5 rounded-control bg-raised p-0.5">
+            {VIEWS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => setView(option.value)}
+                className={cn(
+                  'relative rounded-[6px] px-3 py-1 text-[12px] transition-colors',
+                  view === option.value ? 'text-ink' : 'text-muted hover:text-ink'
+                )}
+              >
+                {view === option.value && (
+                  <motion.span
+                    layoutId="calendar-view-pill"
+                    transition={transition.layout}
+                    className="absolute inset-0 rounded-[6px] bg-overlay"
+                  />
+                )}
+                <span className="relative">{option.label}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -221,14 +286,15 @@ export function Calendar(): React.JSX.Element {
             <MonthView
               month={anchor}
               today={today}
-              events={events}
-              onOpenEvent={setEditing}
+              blocks={blocks}
+              settings={settings}
+              onOpenBlock={setEditing}
               onCreateAt={(day) => openNew(day)}
-              onMoveEvent={(event, dayDelta) =>
+              onMoveBlock={(block, dayDelta) =>
                 reschedule.mutate({
-                  id: event.id,
-                  startsAt: shiftDays(event.startsAt, dayDelta),
-                  endsAt: shiftDays(event.endsAt, dayDelta)
+                  id: block.id,
+                  startsAt: shiftDays(block.startsAt, dayDelta),
+                  endsAt: shiftDays(block.endsAt, dayDelta)
                 })
               }
             />
@@ -238,23 +304,19 @@ export function Calendar(): React.JSX.Element {
             <TimeGrid
               days={view === 'day' ? [anchor] : weekDays(anchor)}
               today={today}
-              events={events}
-              onOpenEvent={setEditing}
+              blocks={blocks}
+              settings={settings}
+              onOpenBlock={setEditing}
               onCreateSlot={(startsAt, endsAt) =>
                 openNew(startsAt.slice(0, 10), startsAt.slice(11, 16), endsAt.slice(11, 16))
               }
-              onReschedule={(event, span) => reschedule.mutate({ id: event.id, ...span })}
+              onReschedule={(block, span) => reschedule.mutate({ id: block.id, ...span })}
             />
           )}
 
           {view === 'agenda' && (
             <div className="min-h-0 flex-1 overflow-y-auto">
-              <AgendaView
-                days={days}
-                today={today}
-                events={events}
-                onOpenEvent={setEditing}
-              />
+              <AgendaView days={days} today={today} blocks={blocks} onOpenBlock={setEditing} />
             </div>
           )}
         </motion.div>

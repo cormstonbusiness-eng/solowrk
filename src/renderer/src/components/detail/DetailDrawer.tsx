@@ -11,6 +11,7 @@ import { keys } from '@/lib/api'
 import { ENTITY_META } from '@/lib/entities'
 import { useEntityActions } from '@/hooks/useEntityActions'
 import { Activity } from './Activity'
+import { BlockDetails } from './BlockDetails'
 import { Related } from './Related'
 import { Tags } from './Tags'
 
@@ -115,6 +116,10 @@ function Body({
           </p>
         ) : (
           <>
+            {/* One type gets a summary panel. A block's name says the least of
+                any of the nine — when it is and how long it runs are the
+                substance, and neither is in the title. */}
+            {type === 'block' && <BlockDetails id={id} />}
             <Tags subject={{ type, id }} />
             <Related subject={{ type, id }} />
             <Activity subject={{ type, id }} />
