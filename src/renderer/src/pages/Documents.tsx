@@ -17,6 +17,9 @@ import { keys, useInvalidate } from '@/lib/api'
 import { daysUntil, formatDate, toDateInput } from '@/lib/format'
 import { listItemVariants, listVariants } from '@/lib/motion'
 import { Inspect } from '@/components/detail/Inspect'
+import { Toolbar } from '@/components/list/Toolbar'
+import { SavedViews } from '@/components/list/SavedViews'
+import { useListState } from '@/hooks/useListState'
 import { cn } from '@/lib/utils'
 
 /**
@@ -37,20 +40,25 @@ function expiryState(expiryAt: string | null): { label: string; colour: string }
 
 export function Documents(): React.JSX.Element {
   const invalidate = useInvalidate()
-  const [search, setSearch] = useState('')
-  const [category, setCategory] = useState<string | null>(null)
+  const list = useListState()
   const [editing, setEditing] = useState<(DocumentInput & { id?: number }) | null>(null)
   const [pendingFile, setPendingFile] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<DocumentRecord | null>(null)
 
-  const { data: documents = [] } = useQuery({
-    queryKey: ['documents', { search, category }],
-    queryFn: () =>
-      window.solo.invoke('documents:list', {
-        search: search || undefined,
-        category: category ?? undefined
-      })
+  const search = list.one('q') ?? ''
+  const categories = list.values('category')
+
+  // Searched in the database, because it looks inside the notes field too.
+  // Categories are filtered here instead, so the chips can hold more than one
+  // at a time — the channel takes a single category and there is no reason to
+  // widen it for a check this cheap.
+  const { data: found = [] } = useQuery({
+    queryKey: ['documents', { search }],
+    queryFn: () => window.solo.invoke('documents:list', { search: search || undefined })
   })
+
+  const documents =
+    categories.length === 0 ? found : found.filter((doc) => categories.includes(doc.category))
 
   const add = useMutation({
     mutationFn: (draft: DocumentInput & { sourcePath: string }) =>
@@ -104,21 +112,22 @@ export function Documents(): React.JSX.Element {
         </Button>
       }
     >
-      <div className="mb-3 flex gap-2">
-        <TextInput
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search titles, tags and notes"
-          className="max-w-[280px]"
-        />
-        <Select
-          value={category}
-          onChange={setCategory}
-          placeholder="All categories"
-          options={DOCUMENT_CATEGORIES.map((name) => ({ value: name, label: name }))}
-          className="w-[180px]"
-        />
-      </div>
+      <Toolbar
+        search={{ placeholder: 'Search titles, tags and notes' }}
+        state={list}
+        facets={[
+          {
+            key: 'category',
+            options: DOCUMENT_CATEGORIES.map((name) => ({
+              value: name,
+              label: name,
+              count: found.filter((doc) => doc.category === name).length
+            }))
+          }
+        ]}
+      >
+        <SavedViews page="documents" state={list} />
+      </Toolbar>
 
       <AnimatePresence>
         {expiring.length > 0 && (
@@ -145,14 +154,14 @@ export function Documents(): React.JSX.Element {
         fallback={
           <Empty
             icon={FileText}
-            title={search || category ? 'Nothing matches' : 'No documents yet'}
+            title={list.active > 0 ? 'Nothing matches' : 'No documents yet'}
             body={
-              search || category
+              list.active > 0
                 ? 'Try a different search or category.'
                 : 'Add your insurance, contracts and certificates. Give them an expiry date and SoloWrk will warn you before they lapse.'
             }
             action={
-              !search && !category ? (
+              list.active === 0 ? (
                 <Button variant="primary" onClick={() => void startAdd()}>
                   <Plus size={14} strokeWidth={1.75} />
                   Add a document

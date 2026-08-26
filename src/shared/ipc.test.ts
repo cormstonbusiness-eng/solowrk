@@ -42,7 +42,11 @@ describe('what read-only allows', () => {
       // rather than `unlink` for exactly this reason — the classifier would
       // have let `unlink` straight through.
       'links:create',
-      'links:remove'
+      'links:remove',
+      // A saved view is the user's own arrangement of a screen, but it is
+      // still a write, and `save` and `delete` are both writing verbs.
+      'views:save',
+      'views:delete'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(false)
     }
@@ -81,7 +85,10 @@ describe('what read-only allows', () => {
       'activity:recent',
       // Looking a row up by name is reading, and `find` is not a writing verb.
       'entity:label',
-      'entity:find'
+      'entity:find',
+      // Reading the views, and asking whether a name is taken.
+      'views:list',
+      'views:taken'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(true)
     }

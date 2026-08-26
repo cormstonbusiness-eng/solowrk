@@ -28,6 +28,9 @@ import { keys, useInvalidate } from '@/lib/api'
 import { formatDate, formatMoney } from '@/lib/format'
 import { listItemVariants, listVariants, transition } from '@/lib/motion'
 import { Inspect } from '@/components/detail/Inspect'
+import { Toolbar } from '@/components/list/Toolbar'
+import { SavedViews } from '@/components/list/SavedViews'
+import { useListState } from '@/hooks/useListState'
 import { cn } from '@/lib/utils'
 
 const PERIODS: { value: Period; label: string }[] = [
@@ -328,10 +331,26 @@ function Expenses({ period }: { period: Period }): React.JSX.Element {
   const range = rangeFor(period)
   const [adding, setAdding] = useState(false)
 
-  const { data: expenses = [] } = useQuery({
+  const list = useListState()
+
+  const { data: found = [] } = useQuery({
     queryKey: ['expenses', range.from, range.to],
     queryFn: () => window.solo.invoke('expenses:list', { from: range.from, to: range.to })
   })
+
+  const chosen = list.values('category')
+  const search = (list.one('q') ?? '').trim().toLowerCase()
+
+  const expenses = found.filter((expense) => {
+    if (chosen.length > 0 && !chosen.includes(expense.category)) return false
+    if (!search) return true
+    return `${expense.vendor} ${expense.description}`.toLowerCase().includes(search)
+  })
+
+  // Built from what is actually here rather than from a fixed list: expense
+  // categories are free text, so the only honest set of chips is the one the
+  // period's own rows use.
+  const categories = [...new Set(found.map((expense) => expense.category))].sort()
 
   const remove = useMutation({
     mutationFn: (id: number) => window.solo.invoke('expenses:delete', { id }),
@@ -342,16 +361,30 @@ function Expenses({ period }: { period: Period }): React.JSX.Element {
 
   return (
     <>
-      <div className="mb-3 flex items-center justify-between">
+      <Toolbar
+        search={{ placeholder: 'Search vendor or description' }}
+        state={list}
+        facets={[
+          {
+            key: 'category',
+            options: categories.map((name) => ({
+              value: name,
+              label: name,
+              count: found.filter((expense) => expense.category === name).length
+            }))
+          }
+        ]}
+      >
         <p className="text-[12px] text-muted">
           {expenses.length} expense{expenses.length === 1 ? '' : 's'} ·{' '}
           <span className="numeric text-ink">{formatMoney(total)}</span>
         </p>
-        <Button variant="primary" onClick={() => setAdding(true)}>
+        <SavedViews page="expenses" state={list} />
+        <Button variant="primary" size="sm" onClick={() => setAdding(true)}>
           <Plus size={14} strokeWidth={1.75} />
           Add expense
         </Button>
-      </div>
+      </Toolbar>
 
       <Swap
         empty={expenses.length === 0}

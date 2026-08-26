@@ -12,26 +12,39 @@ import {
   type DragStartEvent
 } from '@dnd-kit/core'
 import { useDraggable } from '@dnd-kit/core'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence } from 'motion/react'
 import { Archive, CircleCheckBig, Columns3, List, Plus, Tag } from 'lucide-react'
 import type { TaskStatus, TaskWithContext } from '@shared/types'
 import { COLOUR_CHOICES, TASK_STATUSES } from '@shared/types'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
 import { TextInput } from '@/components/ui/Field'
+import { Toolbar, ViewSwitcher } from '@/components/list/Toolbar'
+import { SavedViews } from '@/components/list/SavedViews'
+import { useListState } from '@/hooks/useListState'
 import { ColourPicker, Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
 import { Dot, Empty } from '@/components/ui/Empty'
 import { Field } from '@/components/ui/Field'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
-import { TICK_SETTLE_MS, transition } from '@/lib/motion'
+import { TICK_SETTLE_MS } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { TaskRow } from './tasks/TaskRow'
 import { TaskModal } from './tasks/TaskModal'
 import { DEFAULT_ENTITY_COLOUR } from '@shared/types'
 
 type View = 'board' | 'list'
+
+/**
+ * The single id a filter has narrowed to, or null.
+ *
+ * Filters hold several values now, and "which project should this new task go
+ * in" only has an answer when there is one of them.
+ */
+function onlyOne(values: string[]): number | null {
+  return values.length === 1 ? Number(values[0]) : null
+}
 
 /**
  * A compact colour swatch for the add row. The full picker is eight swatches
@@ -105,10 +118,11 @@ function ColourDot({
 export function Tasks(): React.JSX.Element {
   const invalidate = useInvalidate()
   const navigate = useNavigate()
-  const [view, setView] = useState<View>('board')
-  const [projectFilter, setProjectFilter] = useState<number | null>(null)
-  const [categoryFilter, setCategoryFilter] = useState<number | null>(null)
-  const [search, setSearch] = useState('')
+  const list = useListState()
+  // Which shape the list is drawn in travels with the filters, so a saved view
+  // remembers "the board, only this project" rather than half of it.
+  const view: View = list.one('view') === 'list' ? 'list' : 'board'
+  const setView = (next: View): void => list.set('view', next === 'board' ? null : next)
   const [open, setOpen] = useState<TaskWithContext | null>(null)
   const [managingCategories, setManagingCategories] = useState(false)
   const [dragging, setDragging] = useState<TaskWithContext | null>(null)
@@ -146,8 +160,11 @@ export function Tasks(): React.JSX.Element {
         title: newTitle.trim(),
         // The row's own project wins; the filter is only a fallback, so
         // filtering to a project and typing still does the obvious thing.
-        projectId: newProjectId ?? projectFilter,
-        categoryId: categoryFilter,
+        // Only when exactly one is chosen — filtered to three projects, there
+        // is no obvious answer, and guessing one of them would be worse than
+        // leaving it unset.
+        projectId: newProjectId ?? onlyOne(projectFilter),
+        categoryId: onlyOne(categoryFilter),
         dueAt: newDueAt || null,
         colour: newColour
       }),
@@ -205,10 +222,14 @@ export function Tasks(): React.JSX.Element {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   )
 
+  const projectFilter = list.values('project')
+  const categoryFilter = list.values('category')
+  const search = (list.one('q') ?? '').trim().toLowerCase()
+
   const visible = tasks.filter((task) => {
-    if (projectFilter !== null && task.projectId !== projectFilter) return false
-    if (categoryFilter !== null && task.categoryId !== categoryFilter) return false
-    if (search && !task.title.toLowerCase().includes(search.toLowerCase())) return false
+    if (projectFilter.length > 0 && !projectFilter.includes(String(task.projectId))) return false
+    if (categoryFilter.length > 0 && !categoryFilter.includes(String(task.categoryId))) return false
+    if (search && !task.title.toLowerCase().includes(search)) return false
     return true
   })
 
@@ -243,28 +264,14 @@ export function Tasks(): React.JSX.Element {
             <Tag size={14} strokeWidth={1.75} />
             Categories
           </Button>
-          <div className="flex rounded-control border border-line p-0.5">
-            {(['board', 'list'] as View[]).map((name) => (
-              <button
-                key={name}
-                type="button"
-                onClick={() => setView(name)}
-                aria-label={`${name} view`}
-                className="relative grid h-7 w-8 place-items-center rounded-[6px]"
-              >
-                {view === name && (
-                  <motion.span
-                    layoutId="task-view"
-                    transition={transition.layout}
-                    className="absolute inset-0 rounded-[6px] bg-raised"
-                  />
-                )}
-                <span className={cn('relative z-10', view === name ? 'text-ink' : 'text-faint')}>
-                  {name === 'board' ? <Columns3 size={14} /> : <List size={14} />}
-                </span>
-              </button>
-            ))}
-          </div>
+          <ViewSwitcher
+            value={view}
+            onChange={setView}
+            options={[
+              { value: 'board', label: 'Board', icon: Columns3 },
+              { value: 'list', label: 'List', icon: List }
+            ]}
+          />
         </>
       }
     >
@@ -306,28 +313,34 @@ export function Tasks(): React.JSX.Element {
         </Button>
       </div>
 
-      <div className="mb-3 flex gap-2">
-        <TextInput
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search tasks"
-          className="max-w-[240px]"
-        />
-        <Select
-          value={projectFilter}
-          onChange={setProjectFilter}
-          placeholder="All projects"
-          options={projects.map((p) => ({ value: p.id, label: p.name }))}
-          className="w-[190px]"
-        />
-        <Select
-          value={categoryFilter}
-          onChange={setCategoryFilter}
-          placeholder="All categories"
-          options={categories.map((c) => ({ value: c.id, label: c.name }))}
-          className="w-[180px]"
-        />
-      </div>
+      <Toolbar
+        search={{ placeholder: 'Search tasks' }}
+        state={list}
+        facets={[
+          {
+            key: 'project',
+            label: 'Project',
+            options: projects.map((project) => ({
+              value: String(project.id),
+              label: project.name,
+              colour: project.colour,
+              count: tasks.filter((task) => task.projectId === project.id).length
+            }))
+          },
+          {
+            key: 'category',
+            label: 'Category',
+            options: categories.map((category) => ({
+              value: String(category.id),
+              label: category.name,
+              colour: category.colour,
+              count: tasks.filter((task) => task.categoryId === category.id).length
+            }))
+          }
+        ]}
+      >
+        <SavedViews page="tasks" state={list} />
+      </Toolbar>
 
       {tasks.length === 0 ? (
         <Empty

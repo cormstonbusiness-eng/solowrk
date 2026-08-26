@@ -13,7 +13,6 @@ import {
   Mail,
   Phone,
   Plus,
-  Search,
   Send,
   Trash2,
   Users
@@ -29,6 +28,9 @@ import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Dot, Empty } from '@/components/ui/Empty'
 import { Swap } from '@/components/ui/Swap'
 import { Inspect } from '@/components/detail/Inspect'
+import { Toolbar } from '@/components/list/Toolbar'
+import { SavedViews } from '@/components/list/SavedViews'
+import { useListState } from '@/hooks/useListState'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { formatMoney, formatRate } from '@/lib/format'
@@ -90,7 +92,7 @@ export function Clients(): React.JSX.Element {
   const invalidate = useInvalidate()
   const navigate = useNavigate()
   const [editing, setEditing] = useState<ClientInput & { id?: number } | null>(null)
-  const [search, setSearch] = useState('')
+  const list = useListState()
   const [sort, setSort] = useState<{ key: SortKey; descending: boolean }>({
     key: 'name',
     descending: false
@@ -103,18 +105,21 @@ export function Clients(): React.JSX.Element {
     queryFn: () => window.solo.invoke('clients:list', {})
   })
 
+  const search = list.one('q') ?? ''
+  const statuses = list.values('status')
+
   const rows = useMemo(() => {
     const needle = search.trim().toLowerCase()
 
-    const matched = clients.filter((client) =>
-      needle === ''
-        ? true
-        : // Every column is searchable, plus the phone number, which people
-          // reach for far more often than they sort by it.
-          [client.name, client.contactName, client.email, client.phone, client.address]
-            .filter(Boolean)
-            .some((field) => field!.toLowerCase().includes(needle))
-    )
+    const matched = clients.filter((client) => {
+      if (statuses.length > 0 && !statuses.includes(client.status)) return false
+      if (needle === '') return true
+      // Every column is searchable, plus the phone number, which people
+      // reach for far more often than they sort by it.
+      return [client.name, client.contactName, client.email, client.phone, client.address]
+        .filter(Boolean)
+        .some((field) => field!.toLowerCase().includes(needle))
+    })
 
     const direction = sort.descending ? -1 : 1
 
@@ -137,7 +142,7 @@ export function Clients(): React.JSX.Element {
 
       return String(left).localeCompare(String(right), 'en-GB') * direction
     })
-  }, [clients, search, sort])
+  }, [clients, search, statuses.join(','), sort])
 
   const toggleSort = (key: SortKey): void =>
     setSort((current) =>
@@ -183,19 +188,23 @@ export function Clients(): React.JSX.Element {
         }
       >
         <div className="flex min-h-0 flex-col gap-3">
-          <div className="relative w-[280px] shrink-0">
-            <Search
-              size={13}
-              strokeWidth={1.75}
-              className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-faint"
-            />
-            <TextInput
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search name, contact, email, phone"
-              className="pl-8"
-            />
-          </div>
+          <Toolbar
+            search={{ placeholder: 'Search name, contact, email, phone' }}
+            state={list}
+            facets={[
+              {
+                key: 'status',
+                options: CLIENT_STATUSES.map((entry) => ({
+                  value: entry.value,
+                  label: entry.label,
+                  colour: entry.colour,
+                  count: clients.filter((client) => client.status === entry.value).length
+                }))
+              }
+            ]}
+          >
+            <SavedViews page="clients" state={list} />
+          </Toolbar>
 
           <div className="overflow-hidden rounded-card border border-line">
             <table className="w-full border-collapse text-left">

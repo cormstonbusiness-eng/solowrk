@@ -1520,3 +1520,19 @@ export interface ActivityEntry {
   detail: string
   at: string
 }
+
+/**
+ * A named set of filters for one list.
+ *
+ * `query` is the page's own URL query string without its leading '?'. Every
+ * list keeps its filter state in the address bar, so a saved view is that
+ * string and applying one is setting it — see migration 19 for why this is
+ * stored opaquely rather than as a column per filter.
+ */
+export interface SavedView {
+  id: number
+  page: string
+  name: string
+  query: string
+  sortOrder: number
+}

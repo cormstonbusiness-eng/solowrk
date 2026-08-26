@@ -19,6 +19,7 @@ import type {
   EntityRef,
   EntityType,
   LinkedEntity,
+  SavedView,
   AppNotification,
   AssistantEvent,
   AssistantStatus,
@@ -438,6 +439,20 @@ export interface IpcContract {
    * it knows anything else — including when the URL names something deleted
    * since the link to it was made.
    */
+  /**
+   * Named sets of filters, one list at a time.
+   *
+   * The filters travel as the page's own query string, so nothing on this side
+   * of the wire knows what an invoice filter is. `views:save` replaces a view
+   * of the same name rather than refusing — the UI asks first, because "I have
+   * adjusted this, save it again" is what people actually do.
+   */
+  'views:list': { req: { page: string }; res: SavedView[] }
+  'views:save': { req: { page: string; name: string; query: string }; res: SavedView }
+  'views:delete': { req: { id: number }; res: void }
+  /** Whether saving under this name would replace something. */
+  'views:taken': { req: { page: string; name: string }; res: boolean }
+
   'entity:label': { req: EntityRef; res: string | null }
   /**
    * Rows to offer in the link picker. Not global search: one type at a time,
@@ -753,6 +768,10 @@ export const IPC_CHANNELS = [
   'chasing:send',
   'chasing:discard',
   'chasing:sendQueued',
+  'views:list',
+  'views:save',
+  'views:delete',
+  'views:taken',
   'entity:label',
   'entity:find',
   'links:related',

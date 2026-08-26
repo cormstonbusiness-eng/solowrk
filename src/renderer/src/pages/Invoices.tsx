@@ -6,11 +6,13 @@ import type { InvoiceDisplayStatus, InvoiceWithContext, QuoteWithContext } from 
 import { Page } from '@/components/Page'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
-import { Select } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Empty, Pill } from '@/components/ui/Empty'
 import { Outbox } from './invoices/Outbox'
 import { Inspect } from '@/components/detail/Inspect'
+import { Toolbar } from '@/components/list/Toolbar'
+import { SavedViews } from '@/components/list/SavedViews'
+import { useListState } from '@/hooks/useListState'
 import { Swap } from '@/components/ui/Swap'
 import { useInvalidate } from '@/lib/api'
 import { useFeature } from '@/lib/features'
@@ -120,7 +122,7 @@ function InvoiceList({
   onEdit: (invoice: InvoiceWithContext) => void
 }): React.JSX.Element {
   const invalidate = useInvalidate()
-  const [statusFilter, setStatusFilter] = useState<string | null>(null)
+  const list = useListState()
   const [chaser, setChaser] = useState<ChaserDraft | null>(null)
   const [deleting, setDeleting] = useState<InvoiceWithContext | null>(null)
 
@@ -161,9 +163,18 @@ function InvoiceList({
     onSuccess: () => invalidate(['invoices', 'time', 'finance'])
   })
 
-  const visible = statusFilter
-    ? invoices.filter((invoice) => invoice.displayStatus === statusFilter)
-    : invoices
+  const statuses = list.values('status')
+  const search = (list.one('q') ?? '').trim().toLowerCase()
+
+  const visible = invoices.filter((invoice) => {
+    if (statuses.length > 0 && !statuses.includes(invoice.displayStatus)) return false
+    if (!search) return true
+    // Number and client, because those are the two things anybody has in front
+    // of them when they come looking for one invoice.
+    return `${invoice.number} ${invoice.clientName ?? ''} ${invoice.projectName ?? ''}`
+      .toLowerCase()
+      .includes(search)
+  })
 
   const outstanding = invoices
     .filter((invoice) => invoice.status === 'sent')
@@ -177,18 +188,21 @@ function InvoiceList({
     <>
       <ChaseQueue onRead={setChaser} />
 
-      <div className="mb-3 flex items-center gap-3">
-        <Select
-          value={statusFilter}
-          onChange={setStatusFilter}
-          placeholder="All statuses"
-          options={(Object.keys(STATUS_LABELS) as InvoiceDisplayStatus[]).map((status) => ({
-            value: status,
-            label: STATUS_LABELS[status]
-          }))}
-          className="w-[170px]"
-        />
-        <div className="flex-1" />
+      <Toolbar
+        search={{ placeholder: 'Search number, client, project' }}
+        state={list}
+        facets={[
+          {
+            key: 'status',
+            options: (Object.keys(STATUS_LABELS) as InvoiceDisplayStatus[]).map((status) => ({
+              value: status,
+              label: STATUS_LABELS[status],
+              colour: STATUS_COLOURS[status],
+              count: invoices.filter((invoice) => invoice.displayStatus === status).length
+            }))
+          }
+        ]}
+      >
         <span className="text-[12px] text-muted">
           Awaiting payment <span className="numeric text-ink">{formatMoney(outstanding)}</span>
         </span>
@@ -197,7 +211,8 @@ function InvoiceList({
             Overdue <span className="numeric">{formatMoney(overdue)}</span>
           </span>
         )}
-      </div>
+        <SavedViews page="invoices" state={list} />
+      </Toolbar>
 
       {/* Above the list, because a note waiting to go to a client is more
           urgent than the list of invoices it came from — and because it

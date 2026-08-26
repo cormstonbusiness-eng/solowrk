@@ -1124,5 +1124,44 @@ export const migrations: Migration[] = [
         VALUES ('expense', NEW.id, 'edited', '', datetime('now'));
       END;
     `
+  },
+  {
+    id: 19,
+    name: 'saved_views',
+    sql: `
+      -- A named set of filters for one list.
+      --
+      -- The filters themselves are stored as the page's own URL query string,
+      -- not as columns. Every list keeps its state in the address bar — which
+      -- is what makes a filtered list something you can link to, and what makes
+      -- the back button undo a filter — so a saved view is literally that
+      -- string, and applying one is setting it.
+      --
+      -- The alternative was a column per filter, and it fails the first time a
+      -- page grows one: a migration to add 'rebillable' to expenses, and
+      -- another for whatever tasks needs. This way a page that gains a filter
+      -- gains it in saved views for free, and a page that loses one ignores a
+      -- parameter it no longer reads. That is the right failure — an old view
+      -- filters by a little less rather than refusing to open.
+      CREATE TABLE saved_views (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        -- 'invoices', 'tasks' — the list this belongs to, not a route, so
+        -- moving a page does not orphan its views.
+        page       TEXT    NOT NULL,
+        name       TEXT    NOT NULL,
+        -- The query string without its leading '?'.
+        query      TEXT    NOT NULL,
+        -- REAL so a view can be dropped between two others by averaging their
+        -- orders, the same trick tasks use.
+        sort_order REAL    NOT NULL DEFAULT 0,
+        created_at TEXT    NOT NULL,
+        updated_at TEXT    NOT NULL
+      );
+
+      -- One name per list. Saving over a view somebody already made is a thing
+      -- they should be asked about, not something the database allows twice.
+      CREATE UNIQUE INDEX idx_saved_views_name ON saved_views(page, name);
+      CREATE INDEX idx_saved_views_page ON saved_views(page, sort_order);
+    `
   }
 ]

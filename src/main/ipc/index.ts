@@ -22,6 +22,7 @@ import { readWindowState } from './window'
 import { session } from '../services/session'
 import { activityFor, recentActivity } from '../services/activity'
 import { findAcrossTypes, findEntities, labelFor } from '../services/entities'
+import { deleteView, listViews, saveView, viewExists } from '../services/views'
 import { link, relatedTo, unlink } from '../services/links'
 import { approveMail, cancelMail, getMail, listMail } from '../services/mailQueue'
 import { drainOutbox } from '../services/chaseRun'
@@ -499,6 +500,16 @@ const handlers: Handlers = {
   'chasing:discard': (_g, { id }) => cancelMail(session.requireDb(), id),
 
   'chasing:sendQueued': () => drainOutbox(session.requireDb()),
+
+  'views:list': (_g, { page }) => listViews(session.requireDb(), page),
+
+  'views:save': (_g, { page, name, query }) => saveView(session.requireDb(), page, name, query),
+
+  'views:delete': (_g, { id }) => {
+    deleteView(session.requireDb(), id)
+  },
+
+  'views:taken': (_g, { page, name }) => viewExists(session.requireDb(), page, name),
 
   'entity:label': (_g, ref) => labelFor(session.requireDb(), ref),
 
