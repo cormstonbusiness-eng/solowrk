@@ -9,13 +9,20 @@ import {
   FileText,
   FolderKanban,
   Megaphone,
+  NotebookPen,
   Play,
   Plus,
   ReceiptText,
+  ScrollText,
   Square,
+  Wallet,
   type LucideIcon
 } from 'lucide-react'
 import { dayFromDate } from '@shared/calendar'
+import { rangeFor } from '@shared/taxYear'
+import type { EntityType } from '@shared/types'
+import { DRAWER_PARAM } from '@/hooks/useDrawer'
+import { refToParam } from '@/lib/entities'
 import { describeSeconds, parseLoggedTime } from '@shared/logEntry'
 import { invalidate, keys } from '@/lib/api'
 import { useFeature } from '@/lib/features'
@@ -89,6 +96,34 @@ export function useCommands({
     ...options
   })
 
+  const { data: notes = [] } = useQuery({
+    queryKey: keys.standaloneNotes(),
+    queryFn: () => window.solo.invoke('notes:standalone', {}),
+    ...options
+  })
+
+  const { data: quotes = [] } = useQuery({
+    queryKey: ['quotes'],
+    queryFn: () => window.solo.invoke('quotes:list', {}),
+    ...options
+  })
+
+  /**
+   * This tax year's expenses, not every one ever recorded.
+   *
+   * `rangeFor('year')` is the tax year, so this resets each April rather than
+   * growing without limit. Anything older is found on the Finance page, where
+   * the period is a control rather than a guess.
+   */
+  const { data: expenses = [] } = useQuery({
+    queryKey: ['expenses', 'palette'],
+    queryFn: () => {
+      const range = rangeFor('year')
+      return window.solo.invoke('expenses:list', { from: range.from, to: range.to })
+    },
+    ...options
+  })
+
   const { data: documents = [] } = useQuery({
     queryKey: ['documents'],
     queryFn: () => window.solo.invoke('documents:list', {}),
@@ -117,6 +152,16 @@ export function useCommands({
       navigate(path)
       close()
     }
+
+    /**
+     * Open the record, not the list it lives on.
+     *
+     * Searching for INV-042 and landing on the invoices page with nothing
+     * selected is barely a search result. The drawer takes a ref out of the
+     * URL, so naming it here is the whole of it.
+     */
+    const open = (path: string, ref: { type: EntityType; id: number }) =>
+      go(`${path}?${DRAWER_PARAM}=${refToParam(ref)}`)
 
     const commands: Command[] = []
 
@@ -287,7 +332,7 @@ export function useCommands({
         icon: CircleCheckBig,
         colour: task.categoryColour ?? undefined,
         searchText: `${task.title} ${task.projectName ?? ''} ${task.categoryName ?? ''} task`,
-        run: go('/tasks')
+        run: open('/tasks', { type: 'task', id: task.id })
       })
     }
 
@@ -299,7 +344,7 @@ export function useCommands({
         group: 'Invoice',
         icon: ReceiptText,
         searchText: `${invoice.number} ${invoice.clientName ?? ''} invoice ${invoice.displayStatus}`,
-        run: go('/invoices')
+        run: open('/invoices', { type: 'invoice', id: invoice.id })
       })
     }
 
@@ -311,7 +356,44 @@ export function useCommands({
         group: 'Document',
         icon: FileText,
         searchText: `${document.title} ${document.category} ${document.tags.join(' ')} document`,
-        run: go('/documents')
+        run: open('/documents', { type: 'document', id: document.id })
+      })
+    }
+
+    for (const note of notes) {
+      commands.push({
+        id: `note-${note.id}`,
+        label: note.title,
+        subtitle: note.projectName ?? undefined,
+        group: 'Note',
+        icon: NotebookPen,
+        searchText: `${note.title} ${note.projectName ?? ''} note`,
+        run: open('/notes', { type: 'note', id: note.id })
+      })
+    }
+
+    for (const quote of quotes) {
+      commands.push({
+        id: `quote-${quote.id}`,
+        label: `${quote.number} — ${quote.clientName ?? 'No client'}`,
+        subtitle: formatMoney(quote.gross),
+        group: 'Quote',
+        icon: ScrollText,
+        searchText: `${quote.number} ${quote.clientName ?? ''} quote ${quote.status}`,
+        run: open('/invoices', { type: 'quote', id: quote.id })
+      })
+    }
+
+    for (const expense of expenses) {
+      const label = expense.vendor || expense.description || 'Expense'
+      commands.push({
+        id: `expense-${expense.id}`,
+        label,
+        subtitle: formatMoney(expense.total),
+        group: 'Expense',
+        icon: Wallet,
+        searchText: `${expense.vendor} ${expense.description} ${expense.category} expense`,
+        run: open('/finance', { type: 'expense', id: expense.id })
       })
     }
 

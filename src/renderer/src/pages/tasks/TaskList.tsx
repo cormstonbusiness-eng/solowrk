@@ -9,6 +9,7 @@ import { Empty } from '@/components/ui/Empty'
 import { Swap } from '@/components/ui/Swap'
 import { keys, useInvalidate } from '@/lib/api'
 import { TICK_SETTLE_MS, transition } from '@/lib/motion'
+import { QuickAddHint, useQuickAdd } from '@/components/list/QuickAdd'
 import { useEntityActions } from '@/hooks/useEntityActions'
 import { TaskRow } from './TaskRow'
 import { TaskModal } from './TaskModal'
@@ -28,8 +29,19 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
     queryFn: () => window.solo.invoke('tasks:list', filter)
   })
 
+  const quick = useQuickAdd(title)
+
   const create = useMutation({
-    mutationFn: (value: string) => window.solo.invoke('tasks:create', { title: value, projectId }),
+    mutationFn: () =>
+      window.solo.invoke('tasks:create', {
+        title: quick.parsed.title || title.trim(),
+        // The project this list belongs to wins over a typed #tag: you are
+        // looking at one project's tasks, and a task added here belongs to it.
+        projectId,
+        categoryId: quick.categoryId ?? undefined,
+        dueAt: quick.dueAt,
+        priority: quick.parsed.priority ?? undefined
+      }),
     onSuccess: () => {
       invalidate(['tasks'])
       setTitle('')
@@ -70,17 +82,20 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
   return (
     <div className="max-w-[860px]">
       <div className="mb-3 flex gap-2">
-        <TextInput
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && title.trim()) create.mutate(title.trim())
-          }}
-          placeholder="Add a task and press Enter"
-        />
+        <div className="min-w-0 flex-1">
+          <TextInput
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && title.trim()) create.mutate()
+            }}
+            placeholder="Draw the logo friday ~Design"
+          />
+          <QuickAddHint resolved={quick} />
+        </div>
         <Button
           variant="primary"
-          onClick={() => title.trim() && create.mutate(title.trim())}
+          onClick={() => title.trim() && create.mutate()}
           disabled={!title.trim()}
         >
           <Plus size={14} strokeWidth={1.75} />

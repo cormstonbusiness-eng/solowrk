@@ -22,6 +22,7 @@ import { TextInput } from '@/components/ui/Field'
 import { Toolbar, ViewSwitcher } from '@/components/list/Toolbar'
 import { SavedViews } from '@/components/list/SavedViews'
 import { useListState } from '@/hooks/useListState'
+import { QuickAddHint, useQuickAdd } from '@/components/list/QuickAdd'
 import { useEntityActions } from '@/hooks/useEntityActions'
 import { ColourPicker, Select } from '@/components/ui/Select'
 import { Modal } from '@/components/ui/Modal'
@@ -120,6 +121,8 @@ export function Tasks(): React.JSX.Element {
   const invalidate = useInvalidate()
   const navigate = useNavigate()
   const list = useListState()
+  const [newTitle, setNewTitle] = useState('')
+  const quick = useQuickAdd(newTitle)
   // Which shape the list is drawn in travels with the filters, so a saved view
   // remembers "the board, only this project" rather than half of it.
   const view: View = list.one('view') === 'list' ? 'list' : 'board'
@@ -127,7 +130,6 @@ export function Tasks(): React.JSX.Element {
   const [open, setOpen] = useState<TaskWithContext | null>(null)
   const [managingCategories, setManagingCategories] = useState(false)
   const [dragging, setDragging] = useState<TaskWithContext | null>(null)
-  const [newTitle, setNewTitle] = useState('')
   const [newProjectId, setNewProjectId] = useState<number | null>(null)
   const [newDueAt, setNewDueAt] = useState('')
   const [newColour, setNewColour] = useState('')
@@ -158,15 +160,17 @@ export function Tasks(): React.JSX.Element {
   const add = useMutation({
     mutationFn: () =>
       window.solo.invoke('tasks:create', {
-        title: newTitle.trim(),
-        // The row's own project wins; the filter is only a fallback, so
-        // filtering to a project and typing still does the obvious thing.
-        // Only when exactly one is chosen — filtered to three projects, there
-        // is no obvious answer, and guessing one of them would be worse than
-        // leaving it unset.
-        projectId: newProjectId ?? onlyOne(projectFilter),
-        categoryId: onlyOne(categoryFilter),
-        dueAt: newDueAt || null,
+        title: quick.parsed.title || newTitle.trim(),
+        // Three sources, most explicit first. What was typed beats what the
+        // row's controls say, because somebody who wrote #Rebrand meant it;
+        // the controls beat the filter; and the filter only counts when it has
+        // narrowed to exactly one — filtered to three projects there is no
+        // obvious answer, and guessing would be worse than leaving it unset.
+        projectId: quick.projectId ?? newProjectId ?? onlyOne(projectFilter),
+        categoryId: quick.categoryId ?? onlyOne(categoryFilter),
+        // `newDueAt` is '' when the date box is empty, and ?? would keep it.
+        dueAt: quick.dueAt ?? (newDueAt || null),
+        priority: quick.parsed.priority ?? undefined,
         colour: newColour
       }),
     onSuccess: () => {
@@ -282,15 +286,18 @@ export function Tasks(): React.JSX.Element {
           almost every task has both, and going back in to set them afterwards
           was the single most repeated action in the app. */}
       <div className="mb-2 flex gap-2">
-        <TextInput
-          ref={quickAdd}
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && newTitle.trim()) add.mutate()
-          }}
-          placeholder="Add a task and press Enter"
-        />
+        <div className="min-w-0 flex-1">
+          <TextInput
+            ref={quickAdd}
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && newTitle.trim()) add.mutate()
+            }}
+            placeholder="Call Dana tomorrow 2pm #Rebrand"
+          />
+          <QuickAddHint resolved={quick} />
+        </div>
         <Select
           value={newProjectId}
           onChange={setNewProjectId}
