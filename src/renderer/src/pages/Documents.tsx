@@ -16,6 +16,7 @@ import { Expand } from '@/components/ui/Expand'
 import { keys, useInvalidate } from '@/lib/api'
 import { daysUntil, formatDate, toDateInput } from '@/lib/format'
 import { listItemVariants, listVariants } from '@/lib/motion'
+import { Inspect } from '@/components/detail/Inspect'
 import { cn } from '@/lib/utils'
 
 /**
@@ -172,7 +173,7 @@ export function Documents(): React.JSX.Element {
 
             return (
               <motion.div key={doc.id} variants={listItemVariants}>
-                <Card className="flex items-center justify-between gap-4 py-3">
+                <Card className="group flex items-center justify-between gap-4 py-3">
                   <button
                     type="button"
                     onClick={() => void window.solo.invoke('files:open', { path: doc.file })}
@@ -221,6 +222,14 @@ export function Documents(): React.JSX.Element {
                     >
                       Remove
                     </button>
+                    <Inspect
+                      subject={{ type: 'document', id: doc.id }}
+                      siblings={documents.map((row) => ({
+                        type: 'document' as const,
+                        id: row.id
+                      }))}
+                      label={doc.title}
+                    />
                   </div>
                 </Card>
               </motion.div>

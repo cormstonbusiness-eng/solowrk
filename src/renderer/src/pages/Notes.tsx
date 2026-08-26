@@ -13,6 +13,7 @@ import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { formatDate } from '@/lib/format'
 import { transition } from '@/lib/motion'
+import { Inspect } from '@/components/detail/Inspect'
 import { cn } from '@/lib/utils'
 
 /** How long after you stop typing before the file is written. */
@@ -173,7 +174,7 @@ export function Notes(): React.JSX.Element {
                     type="button"
                     onClick={() => setSelectedId(note.id)}
                     className={cn(
-                      'w-full rounded-control px-2.5 py-2 pr-14 text-left transition-colors',
+                      'w-full rounded-control px-2.5 py-2 pr-20 text-left transition-colors',
                       note.id === selectedId ? 'bg-raised' : 'hover:bg-raised/60'
                     )}
                   >
@@ -212,6 +213,11 @@ export function Notes(): React.JSX.Element {
                     >
                       <Trash2 size={11} strokeWidth={1.75} />
                     </button>
+                    <Inspect
+                      subject={{ type: 'note', id: note.id }}
+                      siblings={notes.map((row) => ({ type: 'note' as const, id: row.id }))}
+                      label={note.title}
+                    />
                   </div>
                 </div>
               ))}

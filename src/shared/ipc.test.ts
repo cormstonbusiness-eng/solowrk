@@ -78,7 +78,10 @@ describe('what read-only allows', () => {
       // user's own record of their own work.
       'links:related',
       'activity:for',
-      'activity:recent'
+      'activity:recent',
+      // Looking a row up by name is reading, and `find` is not a writing verb.
+      'entity:label',
+      'entity:find'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(true)
     }

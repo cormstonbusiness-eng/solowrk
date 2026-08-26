@@ -27,6 +27,7 @@ import { Swap } from '@/components/ui/Swap'
 import { keys, useInvalidate } from '@/lib/api'
 import { formatDate, formatMoney } from '@/lib/format'
 import { listItemVariants, listVariants, transition } from '@/lib/motion'
+import { Inspect } from '@/components/detail/Inspect'
 import { cn } from '@/lib/utils'
 
 const PERIODS: { value: Period; label: string }[] = [
@@ -376,7 +377,7 @@ function Expenses({ period }: { period: Period }): React.JSX.Element {
         >
           {expenses.map((expense) => (
             <motion.div key={expense.id} variants={listItemVariants}>
-              <Card className="flex items-center justify-between gap-4 py-2.5">
+              <Card className="group flex items-center justify-between gap-4 py-2.5">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-[13px] text-ink">
                     {expense.vendor || expense.description || 'Expense'}
@@ -413,6 +414,11 @@ function Expenses({ period }: { period: Period }): React.JSX.Element {
                   >
                     <Trash2 size={13} strokeWidth={1.75} />
                   </button>
+                  <Inspect
+                    subject={{ type: 'expense', id: expense.id }}
+                    siblings={expenses.map((row) => ({ type: 'expense' as const, id: row.id }))}
+                    label={expense.vendor || expense.description || 'expense'}
+                  />
                 </div>
               </Card>
             </motion.div>

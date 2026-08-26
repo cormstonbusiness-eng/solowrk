@@ -28,6 +28,7 @@ import { ColourPicker } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Dot, Empty } from '@/components/ui/Empty'
 import { Swap } from '@/components/ui/Swap'
+import { Inspect } from '@/components/detail/Inspect'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { formatMoney, formatRate } from '@/lib/format'
@@ -233,7 +234,7 @@ export function Clients(): React.JSX.Element {
                     variants={listItemVariants}
                     onClick={() => navigate(`/clients/${client.id}`)}
                     className={cn(
-                      'cursor-pointer border-b border-line/60 transition-colors last:border-b-0',
+                      'group cursor-pointer border-b border-line/60 transition-colors last:border-b-0',
                       'hover:bg-raised',
                       client.status === 'not_interested' && 'opacity-60'
                     )}
@@ -281,7 +282,14 @@ export function Clients(): React.JSX.Element {
                     </td>
 
                     <td className="px-3 py-2.5 text-right">
-                      <StatusPill status={client.status} />
+                      <div className="flex items-center justify-end gap-1.5">
+                        <StatusPill status={client.status} />
+                        <Inspect
+                          subject={{ type: 'client', id: client.id }}
+                          siblings={rows.map((row) => ({ type: 'client' as const, id: row.id }))}
+                          label={client.name}
+                        />
+                      </div>
                     </td>
                   </motion.tr>
                 ))}

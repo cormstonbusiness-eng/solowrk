@@ -17,6 +17,8 @@ import type {
   ActivityEntry,
   BacklinkGroup,
   EntityRef,
+  EntityType,
+  LinkedEntity,
   AppNotification,
   AssistantEvent,
   AssistantStatus,
@@ -429,6 +431,20 @@ export interface IpcContract {
    * Ungated, and it stays that way: this is how the app answers "what is this
    * thing", not a feature on top of it.
    */
+  /**
+   * What one row is called, or null when it has gone.
+   *
+   * The drawer opens on a ref out of the URL and has to draw a heading before
+   * it knows anything else — including when the URL names something deleted
+   * since the link to it was made.
+   */
+  'entity:label': { req: EntityRef; res: string | null }
+  /**
+   * Rows to offer in the link picker. Not global search: one type at a time,
+   * matching the label the app already shows, with no ranking.
+   */
+  'entity:find': { req: { type?: EntityType; query: string }; res: LinkedEntity[] }
+
   'links:related': { req: EntityRef; res: BacklinkGroup[] }
   /** Connect two things. Idempotent, and the same fact from either end. */
   'links:create': { req: { a: EntityRef; b: EntityRef }; res: void }
@@ -737,6 +753,8 @@ export const IPC_CHANNELS = [
   'chasing:send',
   'chasing:discard',
   'chasing:sendQueued',
+  'entity:label',
+  'entity:find',
   'links:related',
   'links:create',
   'links:remove',

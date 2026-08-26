@@ -60,6 +60,10 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
   const open_ = tasks.filter((t) => t.status !== 'done')
   const done = tasks.filter((t) => t.status === 'done')
 
+  // Open first, then done — the order they are drawn in, so the drawer's
+  // arrows walk the list the way the eye does.
+  const siblings = [...open_, ...done].map((task) => ({ type: 'task' as const, id: task.id }))
+
   return (
     <div className="max-w-[860px]">
       <div className="mb-3 flex gap-2">
@@ -97,6 +101,7 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
               <TaskRow
                 key={task.id}
                 task={task}
+                siblings={siblings}
                 onToggle={() => toggle.mutate(task)}
                 onOpen={() => setOpen(task)}
                 onArchive={() => archive.mutate(task.id)}
@@ -119,6 +124,7 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
                   <TaskRow
                     key={task.id}
                     task={task}
+                    siblings={siblings}
                     onToggle={() => toggle.mutate(task)}
                     onOpen={() => setOpen(task)}
                   />

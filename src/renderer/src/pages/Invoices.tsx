@@ -10,6 +10,7 @@ import { Select } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Empty, Pill } from '@/components/ui/Empty'
 import { Outbox } from './invoices/Outbox'
+import { Inspect } from '@/components/detail/Inspect'
 import { Swap } from '@/components/ui/Swap'
 import { useInvalidate } from '@/lib/api'
 import { useFeature } from '@/lib/features'
@@ -228,7 +229,7 @@ function InvoiceList({
 
             return (
               <motion.div key={invoice.id} variants={listItemVariants}>
-                <Card className="flex items-center justify-between gap-4 py-3">
+                <Card className="group flex items-center justify-between gap-4 py-3">
                   <button
                     type="button"
                     onClick={() => onEdit(invoice)}
@@ -323,6 +324,11 @@ function InvoiceList({
                       >
                         Delete
                       </button>
+                      <Inspect
+                        subject={{ type: 'invoice', id: invoice.id }}
+                        siblings={visible.map((row) => ({ type: 'invoice' as const, id: row.id }))}
+                        label={invoice.number}
+                      />
                     </div>
                   </div>
                 </Card>
@@ -621,7 +627,7 @@ function QuoteList({
       >
         {quotes.map((quote) => (
           <motion.div key={quote.id} variants={listItemVariants}>
-            <Card className="flex items-center justify-between gap-4 py-3">
+            <Card className="group flex items-center justify-between gap-4 py-3">
               <button
                 type="button"
                 onClick={() => onEdit(quote)}
@@ -684,6 +690,11 @@ function QuoteList({
                 >
                   <Trash2 size={13} strokeWidth={1.75} />
                 </button>
+                <Inspect
+                  subject={{ type: 'quote', id: quote.id }}
+                  siblings={quotes.map((row) => ({ type: 'quote' as const, id: row.id }))}
+                  label={quote.number}
+                />
               </div>
             </Card>
           </motion.div>

@@ -1,4 +1,5 @@
 import { useQueryClient, type QueryClient } from '@tanstack/react-query'
+import type { EntityType } from '@shared/types'
 
 /**
  * Query keys in one place. Scattered key literals are the usual reason a
@@ -26,7 +27,12 @@ export const keys = {
   accounts: ['social', 'accounts'] as const,
   goals: ['goals'] as const,
   standaloneNotes: (search?: string) =>
-    search ? (['notes', 'standalone', search] as const) : (['notes', 'standalone'] as const)
+    search ? (['notes', 'standalone', search] as const) : (['notes', 'standalone'] as const),
+  related: (type: EntityType, id: number) => ['links', type, id] as const,
+  activity: (type: EntityType, id: number) => ['activity', type, id] as const,
+  entityLabel: (type: EntityType, id: number) => ['entity', 'label', type, id] as const,
+  entityFind: (type: EntityType | undefined, query: string) =>
+    ['entity', 'find', type ?? 'all', query] as const
 }
 
 /**
@@ -53,6 +59,7 @@ export type Domain =
   | 'social'
   | 'goals'
   | 'notifications'
+  | 'links'
 
 export function invalidate(queryClient: QueryClient, domains: Domain[]): void {
   for (const domain of domains) {
@@ -63,6 +70,12 @@ export function invalidate(queryClient: QueryClient, domains: Domain[]): void {
     void queryClient.invalidateQueries({ queryKey: ['projects'] })
     void queryClient.invalidateQueries({ queryKey: ['project'] })
   }
+
+  // Every write is recorded in the activity table by a trigger, so the drawer's
+  // timeline is stale after any mutation whatsoever. Named here rather than by
+  // every caller because "did this change history?" is always yes, and the
+  // queries only exist while a drawer is open.
+  void queryClient.invalidateQueries({ queryKey: ['activity'] })
 
   // Every money movement feeds the finance page, so callers never have to
   // remember to name it alongside the domain they actually touched.

@@ -3,6 +3,8 @@ import { motion } from 'motion/react'
 import { Archive } from 'lucide-react'
 import type { ProjectStatus, ProjectSummary } from '@shared/types'
 import { PROJECT_STATUSES } from '@shared/types'
+import type { EntityRef } from '@shared/types'
+import { Inspect } from '@/components/detail/Inspect'
 import { Dot } from '@/components/ui/Empty'
 import { describeDue } from '@/lib/format'
 import { listItemVariants, listVariants, transition } from '@/lib/motion'
@@ -78,6 +80,9 @@ export function ProjectBoard({
                 <ProjectCard
                   key={project.id}
                   project={project}
+                  // The arrows walk the column that was clicked in, which is
+                  // the only ordering on a board that means anything.
+                  siblings={cards.map((card) => ({ type: 'project' as const, id: card.id }))}
                   onMove={onMove}
                   onArchive={() => onArchive(project)}
                 />
@@ -92,10 +97,12 @@ export function ProjectBoard({
 
 function ProjectCard({
   project,
+  siblings,
   onMove,
   onArchive
 }: {
   project: ProjectSummary
+  siblings: EntityRef[]
   onMove: (project: ProjectSummary, status: ProjectStatus) => void
   onArchive: () => void
 }): React.JSX.Element {
@@ -188,6 +195,20 @@ function ProjectCard({
             </span>
           </div>
         </Link>
+
+        {/* Both of these sit over a card that starts a drag on pointer down,
+            so both have to stop that before it begins. */}
+        <span
+          onPointerDown={(event) => event.stopPropagation()}
+          className="absolute top-1.5 right-7"
+        >
+          <Inspect
+            subject={{ type: 'project', id: project.id }}
+            siblings={siblings}
+            label={project.name}
+            className="bg-surface"
+          />
+        </span>
 
         <button
           type="button"

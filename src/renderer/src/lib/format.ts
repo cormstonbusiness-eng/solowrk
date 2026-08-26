@@ -22,6 +22,41 @@ export function formatDate(iso: string | null): string {
   })
 }
 
+/**
+ * When something happened, from a SQLite timestamp.
+ *
+ * `datetime('now')` writes UTC with no zone marker — '2026-08-25 09:12:00' —
+ * and passing that straight to `new Date()` makes most engines read it as
+ * *local* time. On a British summer afternoon that is an hour out, and every
+ * entry in a timeline would say it happened an hour before it did. So the
+ * space becomes a T and a Z is appended before parsing.
+ *
+ * Recent times are relative, because "12 minutes ago" is what a person wants
+ * from a timeline; anything older than a week gets a date, because "23 days
+ * ago" is not.
+ */
+export function formatWhen(stamp: string): string {
+  const at = new Date(`${stamp.replace(' ', 'T')}Z`)
+  if (Number.isNaN(at.getTime())) return stamp
+
+  const seconds = Math.round((Date.now() - at.getTime()) / 1000)
+  if (seconds < 60) return 'Just now'
+  if (seconds < 3600) {
+    const minutes = Math.floor(seconds / 60)
+    return `${minutes} minute${minutes === 1 ? '' : 's'} ago`
+  }
+  if (seconds < 86_400) {
+    const hours = Math.floor(seconds / 3600)
+    return `${hours} hour${hours === 1 ? '' : 's'} ago`
+  }
+  if (seconds < 604_800) {
+    const days = Math.floor(seconds / 86_400)
+    return `${days} day${days === 1 ? '' : 's'} ago`
+  }
+
+  return at.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+}
+
 /** Midnight today, as the reference point for "overdue". */
 function startOfToday(): Date {
   const now = new Date()

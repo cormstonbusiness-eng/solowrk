@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
 import { Archive, ChevronRight, GripVertical, Trash2 } from 'lucide-react'
-import type { TaskWithContext } from '@shared/types'
+import type { EntityRef, TaskWithContext } from '@shared/types'
 import { PRIORITIES } from '@shared/types'
 import { Dot } from '@/components/ui/Empty'
+import { Inspect } from '@/components/detail/Inspect'
 import { StruckText, Tickbox } from '@/components/ui/Tickbox'
 import { describeDue } from '@/lib/format'
 import { transition } from '@/lib/motion'
@@ -27,11 +28,14 @@ export function TaskRow({
   onArchive,
   showProject,
   dragHandle,
-  dragging
+  dragging,
+  siblings
 }: {
   task: TaskWithContext
   onToggle: () => void
   onOpen: () => void
+  /** The rows the drawer's arrows walk. Omit and there are simply no arrows. */
+  siblings?: EntityRef[]
   /** Omit to hide the hover delete. */
   onDelete?: () => void
   /** Omit to hide the hover archive. */
@@ -163,6 +167,14 @@ export function TaskRow({
             <Trash2 size={13} strokeWidth={1.75} />
           </button>
         )}
+
+        <span onPointerDown={(event) => event.stopPropagation()}>
+          <Inspect
+            subject={{ type: 'task', id: task.id }}
+            siblings={siblings}
+            label={task.title}
+          />
+        </span>
 
         <ChevronRight
           size={14}

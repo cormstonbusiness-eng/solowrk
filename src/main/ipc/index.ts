@@ -21,6 +21,7 @@ import {
 import { readWindowState } from './window'
 import { session } from '../services/session'
 import { activityFor, recentActivity } from '../services/activity'
+import { findAcrossTypes, findEntities, labelFor } from '../services/entities'
 import { link, relatedTo, unlink } from '../services/links'
 import { approveMail, cancelMail, getMail, listMail } from '../services/mailQueue'
 import { drainOutbox } from '../services/chaseRun'
@@ -498,6 +499,13 @@ const handlers: Handlers = {
   'chasing:discard': (_g, { id }) => cancelMail(session.requireDb(), id),
 
   'chasing:sendQueued': () => drainOutbox(session.requireDb()),
+
+  'entity:label': (_g, ref) => labelFor(session.requireDb(), ref),
+
+  'entity:find': (_g, { type, query }) =>
+    type
+      ? findEntities(session.requireDb(), type, query)
+      : findAcrossTypes(session.requireDb(), query),
 
   'links:related': (_g, ref) => relatedTo(session.requireDb(), ref),
 

@@ -12,6 +12,8 @@ import { WorkspaceContext } from '@/hooks/useWorkspace'
 import { ThemeContext, useThemeState } from '@/hooks/useTheme'
 import { TourProvider } from '@/tour/TourProvider'
 import { Palette } from '@/palette/Palette'
+import { DetailDrawer } from '@/components/detail/DetailDrawer'
+import { DrawerProvider } from '@/hooks/useDrawer'
 import { Toasts } from '@/components/Toasts'
 import { SeasonalLayer } from '@/components/seasonal/SeasonalLayer'
 import { transition } from '@/lib/motion'
@@ -87,22 +89,29 @@ function AnimatedRoutes(): React.JSX.Element {
 function Shell(): React.JSX.Element {
   return (
     <HashRouter>
-      {/* Inside the router: the tour navigates between routes as it goes. */}
-      <TourProvider>
-        <div className="flex min-h-0 flex-1">
-          <Sidebar />
-          {/* `relative` so the decoration can sit inside it, `overflow-hidden`
-              so nothing drifts out into the sidebar or the titlebar. */}
-          <main className="page-light relative min-w-0 flex-1 overflow-hidden">
-            <SeasonalLayer />
-            <AnimatedRoutes />
-          </main>
-        </div>
-        {/* Inside the router too: every command it runs is a navigation. */}
-        <Palette />
-        {/* Same reason — a toast is a shortcut to the page it is about. */}
-        <Toasts />
-      </TourProvider>
+      {/* Inside the router: the drawer keeps which record it is showing in the
+          URL, so a notification or the palette can open one, and the back
+          button closes it. */}
+      <DrawerProvider>
+        {/* Also inside: the tour navigates between routes as it goes. */}
+        <TourProvider>
+          <div className="flex min-h-0 flex-1">
+            <Sidebar />
+            {/* `relative` so the decoration can sit inside it, `overflow-hidden`
+                so nothing drifts out into the sidebar or the titlebar. */}
+            <main className="page-light relative min-w-0 flex-1 overflow-hidden">
+              <SeasonalLayer />
+              <AnimatedRoutes />
+            </main>
+          </div>
+          {/* Inside the router too: every command it runs is a navigation. */}
+          <Palette />
+          {/* Same reason — a toast is a shortcut to the page it is about. */}
+          <Toasts />
+          {/* Mounted once for the whole app: every list opens this one. */}
+          <DetailDrawer />
+        </TourProvider>
+      </DrawerProvider>
     </HashRouter>
   )
 }

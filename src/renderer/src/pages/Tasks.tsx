@@ -372,6 +372,7 @@ export function Tasks(): React.JSX.Element {
               <TaskRow
                 key={task.id}
                 task={task}
+                siblings={visible.map((row) => ({ type: 'task' as const, id: row.id }))}
                 showProject
                 onToggle={() => toggle.mutate(task)}
                 onOpen={() => setOpen(task)}
