@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { isAbsolute, relative, resolve, sep } from 'node:path'
 import { query, type PermissionResult, type Query, type SDKMessage } from '@anthropic-ai/claude-agent-sdk'
 import type { BrowserWindow } from 'electron'
 import type {
@@ -22,8 +23,25 @@ import { systemPrompt } from './prompt'
 
 type WindowGetter = () => BrowserWindow | null
 
-/** Only our own tools, plus the read-only search primitives, are on the table. */
-const ALLOWED_BUILTINS = ['Glob', 'Grep', 'TodoWrite']
+/**
+ * Only our own tools, plus the read-only search primitives, are on the table.
+ *
+ * `Glob` and `Grep` are deliberately *not* here. A bare name in `allowedTools`
+ * auto-approves the tool before `canUseTool` is consulted at all, and both of
+ * them take an absolute path — `Grep` with `output_mode: 'content'` returns
+ * file contents. Allow-listing them would have left a way to read anything the
+ * user can read, which is precisely the boundary `resolveInWorkspace` exists
+ * to hold on our own tools, and precisely what a prompt-injected instruction
+ * would reach for. They still run without a prompt; they run through
+ * `requestPermission`, which checks where they are pointed first.
+ */
+const ALLOWED_BUILTINS = ['TodoWrite']
+
+/** Read-only tools that are fine anywhere inside the workspace and nowhere else. */
+const PATH_BOUNDED = new Set(['Glob', 'Grep', 'Read', 'NotebookRead'])
+
+/** The arguments those tools use to say where to look. */
+const PATH_KEYS = ['path', 'file_path', 'notebook_path']
 
 /**
  * Hosts the Claude Agent SDK for one workspace.
@@ -80,6 +98,23 @@ class Assistant {
   ): Promise<PermissionResult> {
     // Tool names arrive namespaced by the MCP server, e.g. mcp__solowrk__write_file.
     const bare = toolName.split('__').at(-1) ?? toolName
+
+    // Where a borrowed tool is pointed, before anything else. Our own tools
+    // resolve their paths inside the workspace; the SDK's built-ins do not
+    // know the workspace exists, so the check has to happen here or not at
+    // all. Silent when it passes — searching your own files should not cost a
+    // dialog every time.
+    if (PATH_BOUNDED.has(bare)) {
+      const outside = escapingPath(input)
+      if (outside !== null) {
+        return {
+          behavior: 'deny',
+          message:
+            `${outside} is outside this workspace. Everything you can read lives under ` +
+            'the workspace folder; ask the user if you need something from elsewhere.'
+        }
+      }
+    }
 
     if (!MUTATING.has(bare)) return { behavior: 'allow', updatedInput: input }
     if (this.trusted.has(bare)) return { behavior: 'allow', updatedInput: input }
@@ -335,3 +370,28 @@ function friendlyError(message: string): string {
 }
 
 export const assistant = new Assistant()
+/**
+ * The first path in a tool's input that leaves the workspace, or null.
+ *
+ * A relative path is resolved against the workspace and checked; an absolute
+ * one is checked directly, because a built-in tool is perfectly entitled to
+ * send one and `resolveInWorkspace` refuses those outright. Missing paths mean
+ * "the working directory", which is already the workspace.
+ */
+function escapingPath(input: Record<string, unknown>): string | null {
+  for (const key of PATH_KEYS) {
+    const value = input[key]
+    if (typeof value !== 'string' || value === '') continue
+
+    const root = resolve(session.requirePath())
+    const target = isAbsolute(value) ? resolve(value) : resolve(root, value)
+    const rel = relative(root, target)
+
+    // The prefix check catches a sibling that merely shares a name, e.g.
+    // C:\SoloWrk-backup against C:\SoloWrk.
+    const inside =
+      target === root || (!rel.startsWith('..') && !isAbsolute(rel) && target.startsWith(root + sep))
+    if (!inside) return value
+  }
+  return null
+}
