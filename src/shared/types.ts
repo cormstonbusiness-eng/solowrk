@@ -1179,6 +1179,28 @@ export const BLOCK_TYPES: BlockTypeMeta[] = [
 ]
 
 /**
+ * A calendar somebody else owns, pulled in read-only.
+ *
+ * The URL is the whole of what leaves the machine. There is no account
+ * connected, nothing is written back, and the blocks it produces are locked.
+ */
+export interface CalendarSubscription {
+  id: number
+  name: string
+  url: string
+  colour: string
+  visible: boolean
+  lastSyncedAt: string | null
+  /** '', 'ok' or 'error'. Empty means it has never been tried. */
+  lastStatus: string
+  /** What went wrong last time, shown on a dot in settings and nowhere else. */
+  syncError: string
+  refreshMinutes: number
+  createdAt: string
+  updatedAt: string
+}
+
+/**
  * Which occurrences of a series an edit applies to.
  *
  * Asked every time, never assumed. "Move the Tuesday stand-up to Wednesday"

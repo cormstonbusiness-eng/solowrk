@@ -31,6 +31,14 @@ describe('what read-only allows', () => {
       'calendar:deleteOccurrence',
       'calendar:scheduleTask',
       'calendar:adoptEstimate',
+      // Subscribing reaches the network and writes rows; unsubscribing takes
+      // them away; copying makes one. `unsubscribe` and `copy` both had to be
+      // added to the verb list for the same fail-open reason as the rest.
+      'calendar:subscribe',
+      'calendar:unsubscribe',
+      'calendar:copyToMine',
+      'calendar:syncSubscription',
+      'calendar:importIcs',
       'ai:send',
       'ai:writeBusinessPlan',
       // Both advance the chase schedule, which is a write on the invoice. The

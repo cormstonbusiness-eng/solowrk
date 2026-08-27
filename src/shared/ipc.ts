@@ -32,6 +32,7 @@ import type {
   BusinessSettings,
   CalendarBlockWithContext,
   CalendarSettings,
+  CalendarSubscription,
   DerivedMarker,
   EditScope,
   Campaign,
@@ -666,6 +667,35 @@ export interface IpcContract {
     res: void
   }
 
+  /**
+   * Subscribed calendars. The only outward-facing thing in the module, and
+   * the whole of what it does is an HTTP GET of the feed URL.
+   */
+  'calendar:subscriptions': { req: void; res: CalendarSubscription[] }
+  'calendar:subscribe': {
+    req: { name: string; url: string; colour?: string; refreshMinutes?: number }
+    res: CalendarSubscription
+  }
+  'calendar:updateSubscription': {
+    req: { id: number; patch: Partial<CalendarSubscription> }
+    res: CalendarSubscription
+  }
+  'calendar:unsubscribe': { req: { id: number }; res: void }
+  /** Refresh now. Failure comes back in the result, never as a thrown error. */
+  'calendar:syncSubscription': {
+    req: { id: number }
+    res: { added: number; updated: number; removed: number; error: string | null }
+  }
+  /** Take a locked block into the user's own calendar, editable. */
+  'calendar:copyToMine': { req: { id: number }; res: void }
+  /** Read an .ics file the user picked. Returns how many blocks it made. */
+  'calendar:importIcs': { req: void; res: number }
+  /** Write the user's own blocks out. Returns the path written. */
+  'calendar:exportIcs': {
+    req: { from: string; to: string; blockTypes?: string[] }
+    res: string | null
+  }
+
   'marketing:campaigns': { req: { includeArchived?: boolean } | void; res: CampaignWithCounts[] }
   'marketing:createCampaign': { req: Partial<Campaign> & { name: string }; res: Campaign }
   'marketing:updateCampaign': { req: { id: number; patch: Partial<Campaign> }; res: Campaign }
@@ -922,6 +952,14 @@ export const IPC_CHANNELS = [
   'calendar:adoptEstimate',
   'calendar:editOccurrence',
   'calendar:deleteOccurrence',
+  'calendar:subscriptions',
+  'calendar:subscribe',
+  'calendar:updateSubscription',
+  'calendar:unsubscribe',
+  'calendar:syncSubscription',
+  'calendar:copyToMine',
+  'calendar:importIcs',
+  'calendar:exportIcs',
   'marketing:campaigns',
   'marketing:createCampaign',
   'marketing:updateCampaign',
@@ -995,7 +1033,7 @@ const WRITABLE_WHEN_READ_ONLY = new Set<string>([
 const BLOCKED_WHEN_READ_ONLY = new Set<string>(['templates:fromProject', 'quotes:convert'])
 
 const WRITE_VERBS =
-  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync|archive|restore|purge|empty|recolour|edit|schedule|adopt|subscribe|expand)/
+  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync|archive|restore|purge|empty|recolour|edit|schedule|adopt|subscribe|unsubscribe|copy|expand)/
 
 /**
  * Whether a channel is allowed while the app is read-only.

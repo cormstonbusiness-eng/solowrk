@@ -131,6 +131,20 @@ const SELECT_WITH_CONTEXT = `
 `
 
 /**
+ * Hide a subscribed calendar without unsubscribing from it.
+ *
+ * The blocks stay in the database, so turning it back on is instant and no
+ * feed has to be fetched again. Written as a NOT EXISTS rather than a join so
+ * a block belonging to no subscription — which is most of them — is untouched.
+ */
+const VISIBLE_SUBSCRIPTION = `
+  AND NOT EXISTS (
+    SELECT 1 FROM calendar_subscriptions cs
+     WHERE cs.id = b.source_calendar_id AND cs.visible = 0
+  )
+`
+
+/**
  * Blocks overlapping the day range `from`..`to`, both inclusive.
  *
  * The comparison is on the date half of each stamp, so a block that starts at
@@ -151,7 +165,8 @@ export function listBlocks(
       `${SELECT_WITH_CONTEXT}
         WHERE substr(b.ends_at, 1, 10) >= ?
           AND substr(b.starts_at, 1, 10) <= ?
-          AND b.archived = 0${project}
+          AND b.archived = 0
+          ${VISIBLE_SUBSCRIPTION}${project}
         ORDER BY b.starts_at, b.id`,
       [range.from, range.to, ...projectParam]
     )
@@ -165,7 +180,8 @@ export function listBlocks(
       `${SELECT_WITH_CONTEXT}
         WHERE b.recurrence_rule IS NOT NULL
           AND b.archived = 0
-          AND substr(b.starts_at, 1, 10) <= ?${project}
+          AND substr(b.starts_at, 1, 10) <= ?
+          ${VISIBLE_SUBSCRIPTION}${project}
         ORDER BY b.starts_at, b.id`,
       [range.to, ...projectParam]
     )

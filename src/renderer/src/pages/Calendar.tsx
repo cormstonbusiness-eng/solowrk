@@ -1,7 +1,15 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { CalendarPlus, ChevronLeft, ChevronRight, Minus, PanelRightClose, Plus } from 'lucide-react'
+import {
+  CalendarPlus,
+  ChevronLeft,
+  ChevronRight,
+  Link2,
+  Minus,
+  PanelRightClose,
+  Plus
+} from 'lucide-react'
 import type {
   CalendarBlockWithContext,
   CalendarSettings,
@@ -21,6 +29,7 @@ import { AgendaView } from './calendar/AgendaView'
 import { BlockModal } from './calendar/BlockModal'
 import { MonthView } from './calendar/MonthView'
 import { ScopePrompt } from './calendar/ScopePrompt'
+import { Subscriptions } from './calendar/Subscriptions'
 import { TimeGrid } from './calendar/TimeGrid'
 import { UnscheduledRail } from './calendar/UnscheduledRail'
 import { ZOOM_LEVELS, dayLabel, monthLabel, nearestZoom, stepZoom } from './calendar/grid'
@@ -113,6 +122,7 @@ export function Calendar(): React.JSX.Element {
   } | null>(null)
   const [focusId, setFocusId] = useState<number | null>(null)
   const [railOpen, setRailOpen] = useState(true)
+  const [calendarsOpen, setCalendarsOpen] = useState(false)
 
   useOpenParam('new', () => setCreating({ day: anchor, startTime: '09:00', endTime: '10:00' }))
 
@@ -366,6 +376,14 @@ export function Calendar(): React.JSX.Element {
             className="w-[170px]"
             options={projects.map((project) => ({ value: project.id, label: project.name }))}
           />
+          <Button
+            variant="ghost"
+            onClick={() => setCalendarsOpen(true)}
+            title="Subscribed calendars, import and export"
+          >
+            <Link2 size={14} strokeWidth={1.75} />
+            Calendars
+          </Button>
           <Button variant="primary" onClick={() => openNew(anchor)}>
             <CalendarPlus size={14} strokeWidth={1.75} />
             New block
@@ -520,6 +538,12 @@ export function Calendar(): React.JSX.Element {
           )}
         </motion.div>
       </AnimatePresence>
+
+      <Subscriptions
+        open={calendarsOpen}
+        range={{ from, to }}
+        onClose={() => setCalendarsOpen(false)}
+      />
 
       <ScopePrompt
         open={pendingMove !== null}

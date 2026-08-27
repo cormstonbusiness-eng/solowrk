@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { ListChecks, PanelRight, Trash2 } from 'lucide-react'
+import { CopyPlus, ListChecks, PanelRight, Trash2 } from 'lucide-react'
 import type { BlockInput, BlockType, CalendarBlockWithContext, EditScope } from '@shared/types'
 import { BLOCK_TYPES, REMINDER_CHOICES, blockTypeMeta } from '@shared/types'
 import { dayOf, minutesBetween, stampAt, timeOf } from '@shared/calendar'
@@ -222,6 +222,14 @@ export function BlockModal({
 
   const rule = parseRule(draft.recurrenceRule)
 
+  const copyOut = useMutation({
+    mutationFn: () => window.solo.invoke('calendar:copyToMine', { id: block?.id ?? 0 }),
+    onSuccess: () => {
+      invalidate(['calendar'])
+      onClose()
+    }
+  })
+
   const adopt = useMutation({
     mutationFn: () => window.solo.invoke('calendar:adoptEstimate', { blockId: block?.id ?? 0 }),
     onSuccess: () => invalidate(['tasks', 'calendar'])
@@ -281,6 +289,20 @@ export function BlockModal({
             >
               <PanelRight size={13} strokeWidth={1.75} />
               Links &amp; history
+            </Button>
+          )}
+          {/* The right answer to "a client sent me an invite and I need to
+              plan around it": the original stays as the record of what they
+              said, and the copy is yours to move and bill against. */}
+          {block && locked && (
+            <Button
+              variant="outline"
+              className="mr-auto"
+              disabled={copyOut.isPending}
+              onClick={() => copyOut.mutate()}
+            >
+              <CopyPlus size={13} strokeWidth={1.75} />
+              Copy to my calendar
             </Button>
           )}
           <Button variant="ghost" onClick={onClose}>

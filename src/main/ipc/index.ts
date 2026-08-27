@@ -1,4 +1,4 @@
-import { mkdir, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import {
   app,
@@ -140,6 +140,16 @@ import {
   unscheduledTasks
 } from '../services/scheduling'
 import { deleteOccurrence, editOccurrence } from '../services/recurrence'
+import {
+  copyToMyCalendar,
+  createSubscription,
+  deleteSubscription,
+  exportIcs,
+  importIcs,
+  listSubscriptions,
+  syncSubscription,
+  updateSubscription as updateCalendarSubscription
+} from '../services/subscriptions'
 import { nowStamp } from '@shared/calendar'
 import {
   createCampaign,
@@ -773,6 +783,58 @@ const handlers: Handlers = {
 
   'calendar:deleteOccurrence': (_g, { id, day, scope }) => {
     deleteOccurrence(session.requireDb(), { id, day }, scope)
+  },
+
+  'calendar:subscriptions': () => listSubscriptions(session.requireDb()),
+
+  'calendar:subscribe': (_g, input) => createSubscription(session.requireDb(), input),
+
+  'calendar:updateSubscription': (_g, { id, patch }) =>
+    updateCalendarSubscription(session.requireDb(), id, patch),
+
+  'calendar:unsubscribe': (_g, { id }) => {
+    deleteSubscription(session.requireDb(), id)
+  },
+
+  'calendar:syncSubscription': (_g, { id }) => syncSubscription(session.requireDb(), id),
+
+  'calendar:copyToMine': (_g, { id }) => {
+    copyToMyCalendar(session.requireDb(), id)
+  },
+
+  'calendar:importIcs': async (getWindow) => {
+    const window = getWindow()
+    const options: OpenDialogOptions = {
+      title: 'Import a calendar file',
+      buttonLabel: 'Import',
+      filters: [{ name: 'Calendar', extensions: ['ics'] }],
+      properties: ['openFile']
+    }
+    const result = window
+      ? await dialog.showOpenDialog(window, options)
+      : await dialog.showOpenDialog(options)
+
+    const chosen = result.canceled ? null : (result.filePaths[0] ?? null)
+    if (!chosen) return 0
+
+    return importIcs(session.requireDb(), await readFile(chosen, 'utf8'))
+  },
+
+  'calendar:exportIcs': async (getWindow, range) => {
+    const text = exportIcs(session.requireDb(), range)
+    const window = getWindow()
+    const options = {
+      title: 'Export your calendar',
+      defaultPath: `solowrk-calendar-${range.from}.ics`,
+      filters: [{ name: 'Calendar', extensions: ['ics'] }]
+    }
+    const result = window
+      ? await dialog.showSaveDialog(window, options)
+      : await dialog.showSaveDialog(options)
+
+    if (result.canceled || !result.filePath) return null
+    await writeFile(result.filePath, text, 'utf8')
+    return result.filePath
   },
 
   'app:version': () => app.getVersion(),

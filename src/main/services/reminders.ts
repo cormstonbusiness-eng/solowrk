@@ -6,6 +6,7 @@ import { chaseDedupeKey, dueChasers } from './chasers'
 import { runChasers } from './chaseRun'
 import { runAutomations } from './automations'
 import { dueReminders, markReminded } from './blocks'
+import { dueSubscriptions, syncSubscription } from './subscriptions'
 import { listDueTasks } from './tasks'
 import { pruneActivity } from './activity'
 import { expireTrash } from './trash'
@@ -60,7 +61,30 @@ function tick(getWindow: () => BrowserWindow | null): void {
 
   markReminded(db, [...due, ...stale].map((event) => event.id), now)
 
+  refreshSubscriptions(db)
   runDigest(getWindow, new Date())
+}
+
+/**
+ * Pull any subscribed calendar whose interval has come round.
+ *
+ * On the same tick as the reminders rather than a timer of its own, so there
+ * is one clock in the app rather than two. Nothing here is awaited and nothing
+ * here reports: a feed that will not load is a dot in Settings, never a
+ * notification and never a modal. Somebody working must not be interrupted
+ * because a shared calendar is down.
+ */
+let syncing = false
+
+function refreshSubscriptions(db: ReturnType<typeof session.requireDb>): void {
+  if (syncing) return
+  const due = dueSubscriptions(db)
+  if (due.length === 0) return
+
+  syncing = true
+  void Promise.allSettled(due.map((one) => syncSubscription(db, one.id))).finally(() => {
+    syncing = false
+  })
 }
 
 /**
