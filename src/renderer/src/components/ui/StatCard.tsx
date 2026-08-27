@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+import { useReducedMotion } from 'motion/react'
 import type { LucideIcon } from 'lucide-react'
 import { ArrowRight } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
@@ -49,8 +51,38 @@ function delta(history: number[]): number | null {
   return Math.round(((current - previous) / Math.abs(previous)) * 100)
 }
 
-export function StatCard({ stat, onOpen }: { stat: Stat; onOpen: () => void }): React.JSX.Element {
+/**
+ * How long the success border sits before fading.
+ *
+ * Longer than the 250ms interaction cap on purpose: this is a celebration, not
+ * a response to a click, and at 250ms it reads as a rendering glitch rather
+ * than as the app noticing something good.
+ */
+const FLASH_MS = 400
+
+export function StatCard({
+  stat,
+  onOpen,
+  flash
+}: {
+  stat: Stat
+  onOpen: () => void
+  /** Set once when something worth marking landed in this figure. */
+  flash?: boolean
+}): React.JSX.Element {
   const tokens = useTokens()
+
+  const reduced = useReducedMotion()
+  const [flashing, setFlashing] = useState(false)
+
+  useEffect(() => {
+    // Under reduced motion the border would snap green and snap back, which is
+    // a flicker rather than a celebration. The count-up still lands the news.
+    if (!flash || reduced) return
+    setFlashing(true)
+    const timer = setTimeout(() => setFlashing(false), FLASH_MS)
+    return () => clearTimeout(timer)
+  }, [flash, reduced])
   const change = delta(stat.history)
   const blank = stat.value === 0 && stat.history.every((value) => value === 0)
 
@@ -68,6 +100,13 @@ export function StatCard({ stat, onOpen }: { stat: Stat; onOpen: () => void }): 
       }}
       aria-label={`${stat.label}: ${stat.format(stat.value)}`}
       className="group flex flex-col overflow-hidden p-5"
+      // Border only, and it fades out rather than snapping: the card is
+      // acknowledging something, not demanding attention.
+      style={
+        flashing
+          ? { borderColor: tokens.success, transition: 'border-color 120ms ease-out' }
+          : { transition: `border-color ${FLASH_MS}ms ease-out` }
+      }
     >
       <span
         aria-hidden

@@ -33,6 +33,7 @@ import { StatCard, type Stat } from '@/components/ui/StatCard'
 import { FileChip } from '@/components/ui/FileChip'
 import { SkeletonStat } from '@/components/ui/Skeleton'
 import { keys } from '@/lib/api'
+import { takePayment } from '@/lib/celebrate'
 import { useFeature } from '@/lib/features'
 import { daysUntil, describeDue, formatDate, formatMoney } from '@/lib/format'
 import { listItemVariants, listVariants, transition } from '@/lib/motion'
@@ -101,6 +102,15 @@ export function Dashboard(): React.JSX.Element {
    * clearing it for ever is not something the app should help with.
    */
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
+
+  /**
+   * A payment that arrived while the user was somewhere else.
+   *
+   * Taken on mount and cleared, so the border flashes on the visit after the
+   * invoice was marked paid and never again. A celebration fired to an empty
+   * room spends the moment; one repeated on every visit is a glitch.
+   */
+  const [celebrating] = useState(() => takePayment() !== null)
 
   const { data: summary } = useQuery({
     queryKey: ['finance', 'summary', 'month'],
@@ -340,7 +350,11 @@ export function Dashboard(): React.JSX.Element {
           ? stats.map((stat) => <SkeletonStat key={stat.label} />)
           : stats.map((stat) => (
               <motion.div key={stat.label} variants={listItemVariants}>
-                <StatCard stat={stat} onOpen={() => navigate(stat.to)} />
+                <StatCard
+                  stat={stat}
+                  onOpen={() => navigate(stat.to)}
+                  flash={celebrating && stat.label === 'Paid this month'}
+                />
               </motion.div>
             ))}
       </motion.div>

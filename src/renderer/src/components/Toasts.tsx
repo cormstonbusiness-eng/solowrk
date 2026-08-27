@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { Bell, Clock, PoundSterling, Sparkles, TriangleAlert, X } from 'lucide-react'
 import type { AppNotification, NotificationKind } from '@shared/types'
+import { dismissToast, useLocalToasts } from '@/lib/celebrate'
 import { EASE, transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
@@ -49,6 +50,15 @@ export function Toasts(): React.JSX.Element {
   const queryClient = useQueryClient()
   const [visible, setVisible] = useState<AppNotification[]>([])
 
+  /**
+   * Toasts the renderer raised itself — an invoice paid, a licence unlocked.
+   *
+   * One stack, not two. Two systems in the same corner of the window overlap
+   * the moment both fire, and the moment both fire is exactly the moment
+   * something worth reading has happened.
+   */
+  const local = useLocalToasts()
+
   useEffect(() => {
     return window.solo.on('notifications:new', (notification) => {
       // Newest at the end: they stack upward, so the latest belongs closest to
@@ -58,20 +68,25 @@ export function Toasts(): React.JSX.Element {
     })
   }, [queryClient])
 
-  const dismiss = (id: number): void =>
-    setVisible((current) => current.filter((entry) => entry.id !== id))
+  const dismiss = (id: number): void => {
+    if (id < 0) dismissToast(id)
+    else setVisible((current) => current.filter((entry) => entry.id !== id))
+  }
 
   return (
     <div className="pointer-events-none fixed right-4 bottom-4 z-40 flex w-[320px] flex-col gap-2">
       <AnimatePresence initial={false}>
-        {visible.map((notification) => (
+        {[...local, ...visible].map((notification) => (
           <Toast
             key={notification.id}
             notification={notification}
             onDismiss={() => dismiss(notification.id)}
             onOpen={() => {
-              void window.solo.invoke('notifications:read', { id: notification.id })
-              void queryClient.invalidateQueries({ queryKey: ['notifications'] })
+              // Local toasts carry negative ids and have no row to mark read.
+              if (notification.id > 0) {
+                void window.solo.invoke('notifications:read', { id: notification.id })
+                void queryClient.invalidateQueries({ queryKey: ['notifications'] })
+              }
               if (notification.link) navigate(notification.link)
               dismiss(notification.id)
             }}

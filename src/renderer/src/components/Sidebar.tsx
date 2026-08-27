@@ -1,9 +1,9 @@
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell, ChevronUp, Lock, Sparkles } from 'lucide-react'
-import { transition } from '@/lib/motion'
+import { EASE, transition } from '@/lib/motion'
 import { useAuthState, useFeature } from '@/lib/features'
 import { useUpdates } from '@/hooks/useUpdates'
 import { footerNav, navGroups, type NavItem } from '@/lib/nav'
@@ -113,7 +113,22 @@ function AssistantButton(): React.JSX.Element {
   )
 }
 
-function NavRow({ item }: { item: NavItem }): React.JSX.Element {
+/**
+ * A padlock leaving.
+ *
+ * 300ms with a 60ms stagger down the sidebar, so the locks come off in the
+ * order the eye reads them rather than all at once — which looks like a
+ * rendering fault rather than like something being given.
+ *
+ * The row it leaves behind fades from `disabled` to full colour on its own
+ * transition, which is why the lock rotates and fades rather than simply
+ * vanishing: something has to visibly *go* for the colour change to read as a
+ * consequence.
+ */
+const UNLOCK_MS = 0.3
+const UNLOCK_STAGGER = 0.06
+
+function NavRow({ item, unlockIndex }: { item: NavItem; unlockIndex: number }): React.JSX.Element {
   const { pathname } = useLocation()
   const isActive = pathname === item.path
   const Icon = item.icon
@@ -149,14 +164,26 @@ function NavRow({ item }: { item: NavItem }): React.JSX.Element {
         className={cn('relative z-10 shrink-0', isActive && 'text-accent')}
       />
       <span className="relative z-10 truncate">{item.label}</span>
-      {locked && (
-        <Lock
-          size={11}
-          strokeWidth={2}
-          className="relative z-10 ml-auto shrink-0"
-          aria-label="Part of SoloWrk Pro"
-        />
-      )}
+      <AnimatePresence>
+        {locked && (
+          <motion.span
+            key="lock"
+            className="relative z-10 ml-auto shrink-0"
+            initial={false}
+            exit={{ opacity: 0, rotate: -90, scale: 0.6 }}
+            transition={{
+              duration: UNLOCK_MS,
+              ease: EASE,
+              // Only the rows that were actually locked are staggered, so a
+              // sidebar with two locks in it does not pause on the eleven
+              // rows between them.
+              delay: unlockIndex * UNLOCK_STAGGER
+            }}
+          >
+            <Lock size={11} strokeWidth={2} aria-label="Part of SoloWrk Pro" />
+          </motion.span>
+        )}
+      </AnimatePresence>
     </NavLink>
   )
 }
@@ -378,6 +405,31 @@ function MenuLink({ href, children }: { href: string; children: React.ReactNode 
 }
 
 export function Sidebar(): React.JSX.Element {
+  const auth = useAuthState()
+
+  /**
+   * Where each locked row sits among the locked rows, top to bottom.
+   *
+   * Worked out here rather than inside the row, because the stagger has to
+   * count only the rows that actually carry a padlock. A sidebar with a lock
+   * at the top and another at the bottom should take them off 60ms apart, not
+   * pause through the eleven unlocked rows in between.
+   */
+  const unlockOrder = useMemo(() => {
+    const held = new Set(auth?.account?.features ?? [])
+    const unlicensed = auth !== undefined && auth.configured
+
+    const order = new Map<string, number>()
+    let index = 0
+
+    for (const item of [...navGroups.flatMap((group) => group.items), ...footerNav]) {
+      if (item.feature === undefined) continue
+      if (unlicensed && !held.has(item.feature)) order.set(item.path, index++)
+    }
+
+    return order
+  }, [auth])
+
   return (
     <nav
       data-tour="sidebar"
@@ -393,7 +445,11 @@ export function Sidebar(): React.JSX.Element {
             </p>
             <div className="flex flex-col gap-0.5">
               {group.items.map((item) => (
-                <NavRow key={item.path} item={item} />
+                <NavRow
+                  key={item.path}
+                  item={item}
+                  unlockIndex={unlockOrder.get(item.path) ?? 0}
+                />
               ))}
             </div>
           </div>
@@ -415,7 +471,11 @@ export function Sidebar(): React.JSX.Element {
         {footerNav
           .filter((item) => item.path !== '/assistant')
           .map((item) => (
-            <NavRow key={item.path} item={item} />
+            <NavRow
+              key={item.path}
+              item={item}
+              unlockIndex={unlockOrder.get(item.path) ?? 0}
+            />
           ))}
         <AccountChip />
       </div>

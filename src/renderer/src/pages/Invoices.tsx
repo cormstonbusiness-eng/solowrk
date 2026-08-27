@@ -17,6 +17,7 @@ import { useTagFilter } from '@/hooks/useTagFilter'
 import { useEntityActions } from '@/hooks/useEntityActions'
 import { Swap } from '@/components/ui/Swap'
 import { useInvalidate } from '@/lib/api'
+import { celebratePayment } from '@/lib/celebrate'
 import { useFeature } from '@/lib/features'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { describeDue, formatDate, formatMoney } from '@/lib/format'
@@ -138,7 +139,21 @@ function InvoiceList({
   const setStatus = useMutation({
     mutationFn: (args: { id: number; status: 'draft' | 'sent' | 'paid' | 'cancelled' }) =>
       window.solo.invoke('invoices:update', { id: args.id, patch: { status: args.status } }),
-    onSuccess: () => invalidate(['invoices', 'finance'])
+    onSuccess: (updated, args) => {
+      invalidate(['invoices', 'finance'])
+
+      /**
+       * The one moment in this app worth marking.
+       *
+       * Getting paid is why any of the rest of it exists, and marking an
+       * invoice paid currently produces a row quietly changing colour. The
+       * toast lands here, where the user is; the figure on the dashboard
+       * counts up when they next look at it.
+       */
+      if (args.status === 'paid') {
+        celebratePayment(updated.gross, updated.clientName)
+      }
+    }
   })
 
   const makePdf = useMutation({

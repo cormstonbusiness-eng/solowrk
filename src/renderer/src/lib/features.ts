@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import type { AuthState } from '@shared/types'
+import { celebrateUnlock } from './celebrate'
 
 /**
  * What this licence unlocks, in the renderer.
@@ -29,7 +30,21 @@ export function useAuthState(): AuthState | undefined {
 
   useEffect(() => {
     return window.solo.on('auth:changed', (next) => {
+      /**
+       * An upgrade is a *difference*, never a whole feature set.
+       *
+       * The previous state is read out of the cache rather than tracked in a
+       * ref, so the first load — where there is no previous state — raises
+       * nothing. Throwing confetti at somebody who has been paying for a year
+       * every time the app starts would be worse than never celebrating.
+       */
+      const before = queryClient.getQueryData<AuthState>(KEY)
       queryClient.setQueryData(KEY, next)
+
+      if (!before) return
+
+      const had = new Set(before.account?.features ?? [])
+      celebrateUnlock((next.account?.features ?? []).filter((one) => !had.has(one)))
     })
   }, [queryClient])
 

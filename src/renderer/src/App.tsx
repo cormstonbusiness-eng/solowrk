@@ -16,6 +16,7 @@ import { Trash } from '@/pages/Trash'
 import { DetailDrawer } from '@/components/detail/DetailDrawer'
 import { UndoProvider } from '@/hooks/useUndo'
 import { DrawerProvider } from '@/hooks/useDrawer'
+import { WhatsNew } from '@/components/WhatsNew'
 import { Toasts } from '@/components/Toasts'
 import { SeasonalLayer } from '@/components/seasonal/SeasonalLayer'
 import { transition } from '@/lib/motion'
@@ -113,6 +114,7 @@ function Shell(): React.JSX.Element {
             <Palette />
             {/* Same reason — a toast is a shortcut to the page it is about. */}
             <Toasts />
+            <WhatsNew />
             {/* Mounted once for the whole app: every list opens this one. */}
             <DetailDrawer />
           </TourProvider>
