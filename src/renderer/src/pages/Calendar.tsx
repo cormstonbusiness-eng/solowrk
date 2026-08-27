@@ -16,13 +16,22 @@ import type {
   EditScope,
   TaskWithContext
 } from '@shared/types'
-import { addDays, addMonths, dayFromDate, dayOf, monthGrid, weekDays } from '@shared/calendar'
+import {
+  addDays,
+  addMinutes,
+  addMonths,
+  dayFromDate,
+  dayOf,
+  monthGrid,
+  weekDays
+} from '@shared/calendar'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { useUndo } from '@/hooks/useUndo'
+import { useEntityActions } from '@/hooks/useEntityActions'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { AgendaView } from './calendar/AgendaView'
@@ -33,6 +42,8 @@ import { Subscriptions } from './calendar/Subscriptions'
 import { TimeGrid } from './calendar/TimeGrid'
 import { UnscheduledRail } from './calendar/UnscheduledRail'
 import { ZOOM_LEVELS, dayLabel, monthLabel, nearestZoom, stepZoom } from './calendar/grid'
+import { LENSES } from './calendar/lens'
+import { claimsKey, interpret, type Lens } from './calendar/keys'
 
 type View = 'month' | 'week' | 'day' | 'agenda'
 
@@ -109,6 +120,7 @@ function headingFor(view: View, anchor: string, days: string[]): string {
 export function Calendar(): React.JSX.Element {
   const invalidate = useInvalidate()
   const { offer } = useUndo()
+  const { remove } = useEntityActions()
   const today = dayFromDate(new Date())
 
   const [view, setView] = useState<View>('week')
@@ -123,6 +135,9 @@ export function Calendar(): React.JSX.Element {
   const [focusId, setFocusId] = useState<number | null>(null)
   const [railOpen, setRailOpen] = useState(true)
   const [calendarsOpen, setCalendarsOpen] = useState(false)
+  const [lens, setLens] = useState<Lens>('time')
+  const [focusClientId, setFocusClientId] = useState<number | null>(null)
+  const [focusedKey, setFocusedKey] = useState<string | null>(null)
 
   useOpenParam('new', () => setCreating({ day: anchor, startTime: '09:00', endTime: '10:00' }))
 
@@ -149,6 +164,12 @@ export function Calendar(): React.JSX.Element {
   const { data: projects = [] } = useQuery({
     queryKey: keys.projects(),
     queryFn: () => window.solo.invoke('projects:list', {})
+  })
+
+  const { data: clients = [] } = useQuery({
+    queryKey: keys.clients,
+    queryFn: () => window.solo.invoke('clients:list', undefined),
+    enabled: lens === 'client'
   })
 
   /**
@@ -296,6 +317,22 @@ export function Calendar(): React.JSX.Element {
     })
   }
 
+  /**
+   * Delete what has keyboard focus.
+   *
+   * A repeat asks which ones first, exactly as the modal does — the keyboard
+   * is not a back door around the question that stops a year of somebody's
+   * diary disappearing.
+   */
+  const removeBlock = async (block: CalendarBlockWithContext): Promise<void> => {
+    if (repeats(block)) {
+      setEditing(block)
+      return
+    }
+    await remove({ type: 'block', id: block.id }, block.title)
+    invalidate(['calendar'])
+  }
+
   const create = async (
     span: { startsAt: string; endsAt: string },
     title: string
@@ -319,24 +356,88 @@ export function Calendar(): React.JSX.Element {
   })
 
   /**
-   * `U` shows and hides the rail.
+   * The keyboard model.
    *
-   * Guarded on the event target rather than on a modal flag: the calendar has
-   * a title input on the grid itself now, and a shortcut that fired while
-   * somebody was typing "Update the deck" would hide the rail three times.
+   * What a key *means* lives in `keys.ts` and is tested there; this only acts
+   * on the answer. Splitting it that way is what makes "fully operable
+   * without a mouse" checkable — forty combinations and their interactions
+   * are a table, and a table is worth testing rather than clicking.
    */
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
-      if (event.key !== 'u' && event.key !== 'U') return
-      if (event.metaKey || event.ctrlKey || event.altKey) return
-      const target = event.target as HTMLElement | null
-      if (target?.isContentEditable) return
-      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
-      setRailOpen((open) => !open)
+      const action = interpret(event, { hasFocus: focusedKey !== null })
+      if (!action) return
+      if (claimsKey(action)) event.preventDefault()
+
+      const focused = focusedKey ? blocks.find((one) => one.key === focusedKey) : null
+
+      switch (action.kind) {
+        case 'step':
+          setAnchor(step(view, anchor, action.direction))
+          break
+        case 'today':
+          setAnchor(today)
+          break
+        case 'view':
+          setView(action.view)
+          break
+        case 'lens':
+          setLens(action.lens)
+          break
+        case 'new':
+          openNew(anchor)
+          break
+        case 'toggleRail':
+          setRailOpen((open) => !open)
+          break
+        case 'zoom':
+          zoom.mutate(stepZoom(settings.hourHeight, action.direction))
+          break
+        case 'open':
+          if (focused) setEditing(focused)
+          break
+        case 'nudge':
+          if (focused) {
+            void reschedule(focused, {
+              startsAt: shiftMinutes(focused.startsAt, action.minutes * settings.snapMinutes),
+              endsAt: shiftMinutes(focused.endsAt, action.minutes * settings.snapMinutes)
+            })
+          }
+          break
+        case 'resize':
+          if (focused) {
+            void reschedule(focused, {
+              startsAt: focused.startsAt,
+              endsAt: shiftMinutes(focused.endsAt, action.minutes * settings.snapMinutes)
+            })
+          }
+          break
+        case 'shiftDays':
+          if (focused) {
+            void reschedule(focused, {
+              startsAt: shiftDays(focused.startsAt, action.days),
+              endsAt: shiftDays(focused.endsAt, action.days)
+            })
+          }
+          break
+        case 'duplicate':
+          if (focused) void duplicate(focused, { startsAt: focused.startsAt, endsAt: focused.endsAt })
+          break
+        case 'delete':
+          if (focused) void removeBlock(focused)
+          break
+        case 'escape':
+          setFocusedKey(null)
+          setPendingTask(null)
+          break
+        default:
+          break
+      }
     }
+
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  })
 
   // A clicked reminder should land on the block it was reminding you about.
   useEffect(() => {
@@ -415,6 +516,32 @@ export function Calendar(): React.JSX.Element {
         </div>
 
         <div className="flex items-center gap-2">
+          {/* §17.1: the active lens is one small word, and that word is the
+              entire permanent cost of the whole feature. The grid stays
+              minimal at rest — power through disclosure, not density. */}
+          {showZoom && lens !== 'time' && (
+            <button
+              type="button"
+              onClick={() => setLens('time')}
+              title="Back to the Time lens (1)"
+              className="text-[11.5px] tracking-[0.04em] text-accent lowercase transition-opacity hover:opacity-70"
+            >
+              {LENSES.find((one) => one.value === lens)?.label}
+            </button>
+          )}
+
+          {/* The Client lens needs to know whose week it is, and there is
+              nowhere else to ask. Shown only while that lens is on. */}
+          {showZoom && lens === 'client' && (
+            <Select
+              value={focusClientId}
+              onChange={setFocusClientId}
+              placeholder="Which client"
+              className="w-[150px]"
+              options={clients.map((one) => ({ value: one.id, label: one.name }))}
+            />
+          )}
+
           {showZoom && (
             <Button
               variant={railOpen ? 'outline' : 'ghost'}
@@ -513,8 +640,12 @@ export function Calendar(): React.JSX.Element {
                 blocks={blocks}
                 markers={markers}
                 settings={settings}
+                lens={lens}
+                focusClientId={focusClientId}
+                focusedKey={focusedKey}
                 pendingTask={pendingTask}
                 running={running}
+                onFocusBlock={setFocusedKey}
                 onOpenBlock={setEditing}
                 onCreate={(span, title) => void create(span, title)}
                 onReschedule={(block, span) => void reschedule(block, span)}
@@ -573,4 +704,9 @@ export function Calendar(): React.JSX.Element {
 /** Shift the day half of a stamp, leaving the time untouched. */
 function shiftDays(stamp: string, days: number): string {
   return `${addDays(stamp.slice(0, 10), days)}${stamp.slice(10)}`
+}
+
+/** Shift a stamp by minutes, rolling into the next day if it has to. */
+function shiftMinutes(stamp: string, minutes: number): string {
+  return addMinutes(stamp, minutes)
 }

@@ -1304,6 +1304,15 @@ export interface CalendarBlockWithContext extends CalendarBlock {
    */
   trackedMinutes: number
   /**
+   * Integer pence an hour of this is worth, resolved project → client →
+   * Settings. Zero when nothing anywhere has a rate.
+   *
+   * Resolved in the query rather than in the renderer, so the Money lens and
+   * an invoice built from the same work cannot disagree about what a Tuesday
+   * was worth.
+   */
+  rate: Pence
+  /**
    * The series this was generated from, when it is not a row at all.
    *
    * A repeating block is stored once and expanded for whatever range is on

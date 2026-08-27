@@ -56,6 +56,7 @@ type ContextRow = BlockRow & {
   client_name: string | null
   task_title: string | null
   tracked_seconds: number
+  rate: number
 }
 
 function toBlock(row: BlockRow): CalendarBlock {
@@ -103,6 +104,7 @@ function toBlockWithContext(row: ContextRow): CalendarBlockWithContext {
     // measured in minutes and "90m planned, 89.4m tracked" is not a fact
     // anybody needs.
     trackedMinutes: Math.round(row.tracked_seconds / 60),
+    rate: row.rate,
     // Resolved here rather than in the renderer so the month, week, day and
     // agenda views cannot disagree about what colour a block is. The type is
     // the last resort, which is what gives an unassigned holiday its green.
@@ -124,11 +126,20 @@ const SELECT_WITH_CONTEXT = `
          (SELECT COALESCE(SUM(te.duration), 0)
             FROM time_entries te
            WHERE b.task_id IS NOT NULL AND te.task_id = b.task_id
-             AND te.ended_at IS NOT NULL) AS tracked_seconds
+             AND te.ended_at IS NOT NULL) AS tracked_seconds,
+         -- What an hour of this is worth, resolved the same way an invoice
+         -- resolves it: the project's rate, then the client's, then the one
+         -- in Settings. Done here so the Money lens and a future invoice
+         -- cannot disagree about what Tuesday was worth.
+         COALESCE(p.rate, c.default_rate, cl.default_rate,
+                  (SELECT default_hourly_rate FROM settings WHERE id = 1), 0) AS rate
     FROM calendar_blocks b
     LEFT JOIN projects p ON p.id = b.project_id
     LEFT JOIN clients  c ON c.id = b.client_id
     LEFT JOIN tasks    t ON t.id = b.task_id
+    -- The project's client, for a block attached to a project but to no
+    -- client directly — which is most of them.
+    LEFT JOIN clients  cl ON cl.id = p.client_id
 `
 
 /**

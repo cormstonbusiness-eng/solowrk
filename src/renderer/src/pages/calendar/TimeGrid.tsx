@@ -31,6 +31,7 @@ import {
   hourLabel,
   pxPerMinute
 } from './grid'
+import { alpha, peakRateOf, readoutFor, surfaceFor, type Lens } from './lens'
 import {
   MIN_BLOCK_MINUTES,
   cancel,
@@ -83,8 +84,12 @@ export function TimeGrid({
   blocks,
   markers,
   settings,
+  lens,
+  focusClientId,
+  focusedKey,
   pendingTask,
   running,
+  onFocusBlock,
   onOpenBlock,
   onCreate,
   onReschedule,
@@ -101,6 +106,13 @@ export function TimeGrid({
   /** Dates the calendar shows but does not own. Drawn as marks, never moved. */
   markers: DerivedMarker[]
   settings: CalendarSettings
+  /** How the week is being looked at. Changes paint, never layout. */
+  lens: Lens
+  /** Whose week it is, under the Client lens. */
+  focusClientId: number | null
+  /** The block with keyboard focus, by key. */
+  focusedKey: string | null
+  onFocusBlock: (key: string | null) => void
   /** A task picked up from the rail, waiting for somewhere to land. */
   pendingTask: TaskWithContext | null
   /** The timer, if one is going. Drawn as a block that grows. */
@@ -539,6 +551,14 @@ export function TimeGrid({
   const nowMinutes = now.getHours() * 60 + now.getMinutes()
   const dayCapacity = settings.dailyCapacityMinutes
 
+  // The Money lens scales against the best hour actually in view, so the
+  // context is recomputed whenever the week changes rather than being a
+  // constant somebody would have to remember to update.
+  const lensContext = useMemo(
+    () => ({ settings, focusClientId, peakRate: peakRateOf(timed) }),
+    [settings, focusClientId, timed]
+  )
+
   const weekTotal = days.reduce((total, day) => total + (committed.get(day) ?? 0), 0)
   // Capacity is per working day, so a week with a bank holiday in it has less
   // of it. Counting all seven would quietly say there was a day spare.
@@ -558,8 +578,7 @@ export function TimeGrid({
         <div className="w-[52px] shrink-0 border-r border-line" />
         {days.map((day) => {
           const { weekday, date } = columnLabel(day)
-          const minutes = committed.get(day) ?? 0
-          const over = dayCapacity > 0 && minutes > dayCapacity
+          const readout = readoutFor(timed, day, lens, lensContext)
           return (
             <div
               key={day}
@@ -582,14 +601,21 @@ export function TimeGrid({
                   {date}
                 </span>
               </div>
-              {/* What the day already costs, said before you add to it. */}
+              {/* What the day says under this lens. The header is the only
+                  other thing a lens changes, and under Money it is where
+                  most of the value is: £480 against £90 changes behaviour in
+                  a way no report does. */}
               <span
                 className={cn(
                   'numeric text-[10px] tabular-nums',
-                  minutes === 0 ? 'text-faint/40' : over ? 'text-danger' : 'text-faint'
+                  readout.text === ''
+                    ? 'text-faint/40'
+                    : readout.over
+                      ? 'text-danger'
+                      : 'text-faint'
                 )}
               >
-                {minutes === 0 ? '·' : durationLabel(minutes)}
+                {readout.text === '' ? '·' : readout.text}
               </span>
             </div>
           )
@@ -833,10 +859,19 @@ export function TimeGrid({
                   const meta = blockTypeMeta(block.blockType)
                   const dragging = state.phase === 'dragging' && state.subject?.key === block.key
                   const variance = varianceFor(block, segment)
+                  const surface = surfaceFor(block, lens, lensContext)
 
                   return (
                     <div
                       key={block.key}
+                      // Focusable in DOM order, which is chronological here:
+                      // columns run left to right and blocks within a column
+                      // are placed by start. Tab therefore walks the week in
+                      // the order it happens, for nothing.
+                      tabIndex={0}
+                      data-block-key={block.key}
+                      onFocus={() => onFocusBlock(block.key)}
+                      onBlur={() => onFocusBlock(null)}
                       // The grid never wraps, so a long title is an
                       // ellipsis and this is the only way to read it.
                       title={block.title}
@@ -846,10 +881,15 @@ export function TimeGrid({
                         height: Math.max(height - 2, 6),
                         left: `calc(${(column / columns) * 100}% + 2px)`,
                         width: `calc(${(width / columns) * 100}% - 4px)`,
-                        // 18% fill, so the colour reads as identity rather than
-                        // as a filled shape competing with the text on it.
-                        backgroundColor: `${block.displayColour}2e`,
-                        borderColor: block.displayColour
+                        // Every one of these comes from the lens, and none of
+                        // them is a position: a lens paints, it never moves
+                        // anything, which is what makes switching read as the
+                        // same week rather than a new screen.
+                        backgroundColor: surface.outlined
+                          ? 'transparent'
+                          : `${surface.colour}${alpha(surface.fill)}`,
+                        borderColor: surface.colour,
+                        opacity: surface.opacity
                       }}
                       className={cn(
                         'group absolute z-10 overflow-hidden rounded-[5px] border-l-[3px] px-1.5',
@@ -862,9 +902,40 @@ export function TimeGrid({
                         // and `height` are set directly and never transitioned,
                         // or the block would lag the pointer.
                         !dragging && 'transition-shadow hover:shadow-lg',
-                        dragging && 'z-30 opacity-90 shadow-xl'
+                        dragging && 'z-30 shadow-xl',
+                        // 2px at 2px offset, on every block, per the design
+                        // system. A keyboard-only calendar with no visible
+                        // focus is a calendar nobody can use that way.
+                        'focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2',
+                        'focus-visible:ring-offset-ground focus-visible:outline-none',
+                        focusedKey === block.key && 'z-20'
                       )}
                     >
+                      {/* The Actual lens: logged time filling the plan from
+                          the top like a liquid level, and an over-run bleeding
+                          past the edge. Readable at a glance with no numbers
+                          at all, which is the point. */}
+                      {surface.level !== null && surface.level > 0 && (
+                        <span
+                          aria-hidden
+                          style={{
+                            height: `${surface.level * 100}%`,
+                            backgroundColor: `${surface.colour}${alpha(surface.fill)}`
+                          }}
+                          className="pointer-events-none absolute inset-x-0 top-0"
+                        />
+                      )}
+                      {surface.overrun > 0 && (
+                        <span
+                          aria-hidden
+                          style={{
+                            height: `${Math.min(60, surface.overrun * 100)}%`,
+                            background: `linear-gradient(to bottom, ${surface.colour}66, transparent)`
+                          }}
+                          className="pointer-events-none absolute inset-x-0 top-full"
+                        />
+                      )}
+
                       {/* Somebody else's calendar. Hatched rather than greyed:
                           grey reads as "past" or "done", and this is neither. */}
                       {block.locked && (
