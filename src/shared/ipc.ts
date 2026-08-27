@@ -35,6 +35,9 @@ import type {
   CalendarSubscription,
   AgedDebtors,
   CapacityDefaults,
+  ProjectStructure,
+  ProjectUsage,
+  RenamePreview,
   Review,
   BankImportResult,
   DocumentTemplate,
@@ -682,6 +685,33 @@ export interface IpcContract {
    */
   'capacity:defaults': { req: void; res: CapacityDefaults }
 
+  /**
+   * Folder structure, checked against the template a project was built to.
+   *
+   * In 3D and design work a folder structure is file paths, not tidiness — a
+   * missing `02-Assets` breaks every texture reference in a scene.
+   */
+  'structure:check': {
+    req: { projectId: number; templateId?: number }
+    res: ProjectStructure
+  }
+  'structure:checkAll': { req: void; res: ProjectStructure[] }
+  /** Creates what is missing. Never deletes, moves or renames anything. */
+  'structure:repair': {
+    req: { projectId: number; templateId?: number }
+    res: { created: string[]; failed: string[]; report: ProjectStructure }
+  }
+  'structure:usage': { req: void; res: ProjectUsage[] }
+  /** What a bulk rename would do, without doing any of it. */
+  'structure:planRename': {
+    req: { folder: string; pattern: string; projectId?: number }
+    res: RenamePreview[]
+  }
+  'structure:applyRename': {
+    req: { folder: string; pattern: string; projectId?: number }
+    res: { renamed: number; skipped: RenamePreview[] }
+  }
+
   'review:week': { req: { asOf?: string } | void; res: Review }
   /** Write it into the notebook, once per week. Returns the note it wrote. */
   'review:file': {
@@ -1104,6 +1134,12 @@ export const IPC_CHANNELS = [
   'expenses:delete',
   'debtors:aged',
   'capacity:defaults',
+  'structure:check',
+  'structure:checkAll',
+  'structure:repair',
+  'structure:usage',
+  'structure:planRename',
+  'structure:applyRename',
   'review:week',
   'review:file',
   'bank:import',
@@ -1235,7 +1271,7 @@ const BLOCKED_WHEN_READ_ONLY = new Set<string>(['templates:fromProject', 'quotes
  * prefix would have locked it on a lapsed licence.
  */
 const WRITE_VERBS =
-  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync|archive|restore|purge|empty|recolour|edit|schedule|adopt|subscribe|unsubscribe|copy|expand|reached|fill|ignore|forget|file|match(?![a-z])|unmatch(?![a-z]))/
+  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync|archive|restore|purge|empty|recolour|edit|schedule|adopt|subscribe|unsubscribe|copy|expand|reached|fill|ignore|forget|file|repair|match(?![a-z])|unmatch(?![a-z]))/
 
 /**
  * Whether a channel is allowed while the app is read-only.

@@ -112,7 +112,10 @@ describe('what read-only allows', () => {
       'documents:setStatus',
       // Filing the review writes a note. `file` is not a write verb the
       // classifier knows, so it is pinned here and added to WRITE_VERBS.
-      'review:file'
+      'review:file',
+      // Repair creates folders; applyRename moves files.
+      'structure:repair',
+      'structure:applyRename'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(false)
     }
@@ -183,7 +186,12 @@ describe('what read-only allows', () => {
       'documents:versions',
       // Reading the review changes nothing.
       'review:week',
-      'capacity:defaults'
+      'capacity:defaults',
+      // Checking a structure and previewing a rename both only look.
+      'structure:check',
+      'structure:checkAll',
+      'structure:usage',
+      'structure:planRename'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(true)
     }

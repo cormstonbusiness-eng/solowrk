@@ -51,6 +51,7 @@ export type Domain =
   | 'documents'
   | 'docTemplates'
   | 'review'
+  | 'structure'
   | 'files'
   | 'time'
   | 'invoices'

@@ -13,6 +13,7 @@ import type { DebtBucket, DebtHeat } from './debtors'
 import type { Match } from './bankMatch'
 import type { Review } from './review'
 import type { CapacityInput } from './capacity'
+import type { RenamePreview, StructureReport } from './structure'
 import type { ReceiptReading } from './receipts'
 
 export type { Platform }
@@ -21,6 +22,29 @@ export type { DebtBucket, DebtHeat }
 export type { Match as BankMatch }
 export type { Review }
 export type { CapacityInput }
+export type { RenamePreview, StructureReport }
+
+/** One project's folders, measured against the template it was built to. */
+export interface ProjectStructure extends StructureReport {
+  projectId: number
+  projectName: string
+  /** Workspace-relative. */
+  folder: string
+  templateName: string
+  /** False when the project folder is not on disk at all. */
+  exists: boolean
+}
+
+export interface ProjectUsage {
+  projectId: number
+  projectName: string
+  folder: string
+  bytes: number
+  files: number
+  /** The five biggest, since those are the ones worth doing something about. */
+  largest: { path: string; bytes: number }[]
+  lastTouched: string | null
+}
 
 /** The calculator's starting figures, and where they came from. */
 export interface CapacityDefaults extends CapacityInput {

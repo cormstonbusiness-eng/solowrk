@@ -146,6 +146,14 @@ import { agedDebtors } from '../services/debtors'
 import { fileWeeklyReview, weeklyReview } from '../services/review'
 import { capacityDefaults } from '../services/capacity'
 import {
+  applyRename,
+  checkAllProjects,
+  checkProject,
+  planRename,
+  projectUsage,
+  repairProject
+} from '../services/structure'
+import {
   createDocTemplate,
   deleteDocTemplate,
   documentVersions,
@@ -839,6 +847,17 @@ const handlers: Handlers = {
   'debtors:aged': (_g, request) => agedDebtors(session.requireDb(), request?.asOf),
 
   'capacity:defaults': () => capacityDefaults(session.requireDb()),
+
+  'structure:check': (_g, { projectId, templateId }) =>
+    checkProject(session.requireDb(), session.requirePath(), projectId, templateId),
+  'structure:checkAll': () => checkAllProjects(session.requireDb(), session.requirePath()),
+  'structure:repair': (_g, { projectId, templateId }) =>
+    repairProject(session.requireDb(), session.requirePath(), projectId, templateId),
+  'structure:usage': () => projectUsage(session.requireDb(), session.requirePath()),
+  'structure:planRename': (_g, { folder, pattern, projectId }) =>
+    planRename(session.requireDb(), session.requirePath(), folder, pattern, projectId),
+  'structure:applyRename': (_g, { folder, pattern, projectId }) =>
+    applyRename(session.requireDb(), session.requirePath(), folder, pattern, projectId),
 
   'review:week': (_g, request) => weeklyReview(session.requireDb(), request?.asOf),
   'review:file': (_g, request) =>
