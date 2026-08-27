@@ -52,7 +52,7 @@ export async function buildYearEndPack(
   // than on Clients.csv.
   files.push(await writePdf(workspacePath, buildSummary(db, taxYear.label, range), settings, folder))
 
-  for (const dataset of ['invoices', 'expenses', 'time', 'clients'] as const) {
+  for (const dataset of ['invoices', 'expenses', 'mileage', 'time', 'clients'] as const) {
     // Clients deliberately unfiltered — a contact list is not an event log,
     // and `datasetToCsv` already knows that.
     files.push(await writeDatasetCsv(db, workspacePath, dataset, range, folder))
@@ -131,6 +131,7 @@ export function buildSummary(
     periodTo: range.to,
     income: totals.income,
     expenses: totals.expenses,
+    mileage: totals.mileage,
     profit: totals.profit,
     vatCollected: totals.vatCollected,
     vatRegistered: settings.vatRegistered,

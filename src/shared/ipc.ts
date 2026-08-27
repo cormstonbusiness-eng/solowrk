@@ -33,6 +33,9 @@ import type {
   CalendarBlockWithContext,
   CalendarSettings,
   CalendarSubscription,
+  MileageInput,
+  MileageRateRow,
+  MileageYear,
   ProjectMilestone,
   ReceiptReading,
   DerivedMarker,
@@ -588,6 +591,20 @@ export interface IpcContract {
   'expenses:update': { req: { id: number; patch: ExpenseInput }; res: ExpenseWithContext }
   'expenses:delete': { req: { id: number }; res: void }
 
+  /**
+   * A whole tax year of driving, valued.
+   *
+   * The year rather than a range, because HMRC's 10,000-mile threshold is an
+   * annual one: a journey's rate depends on the miles before it, so there is
+   * no honest way to answer for March alone.
+   */
+  'mileage:year': { req: { date?: string } | void; res: MileageYear }
+  'mileage:create': { req: MileageInput; res: MileageYear }
+  'mileage:update': { req: { id: number; patch: MileageInput }; res: MileageYear }
+  'mileage:delete': { req: { id: number }; res: MileageYear }
+  'mileage:rates': { req: void; res: MileageRateRow[] }
+  'mileage:setRate': { req: MileageRateRow; res: MileageRateRow[] }
+
   'finance:summary': { req: { period: Period; reference?: string }; res: FinanceSummary }
   'finance:series': {
     req: { period: Period; reference?: string }
@@ -956,6 +973,12 @@ export const IPC_CHANNELS = [
   'expenses:create',
   'expenses:update',
   'expenses:delete',
+  'mileage:year',
+  'mileage:create',
+  'mileage:update',
+  'mileage:delete',
+  'mileage:rates',
+  'mileage:setRate',
   'finance:summary',
   'finance:series',
   'finance:topClients',

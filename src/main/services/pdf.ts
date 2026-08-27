@@ -383,6 +383,12 @@ function summaryBody(doc: YearSummaryForPdf): string {
     ['Profit', money(doc.profit), true]
   ]
 
+  // Only when there is some. A mileage line reading nil on an accountant's
+  // one page invites a question about a claim nobody made.
+  if (doc.mileage > 0) {
+    rows.splice(2, 0, ['Mileage allowance', `−${money(doc.mileage)}`])
+  }
+
   return `
   <div class="meta">
     <div>

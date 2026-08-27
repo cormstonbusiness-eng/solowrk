@@ -31,6 +31,7 @@ import { Inspect } from '@/components/detail/Inspect'
 import { Toolbar } from '@/components/list/Toolbar'
 import { SavedViews } from '@/components/list/SavedViews'
 import { useListState } from '@/hooks/useListState'
+import { Mileage } from './finance/Mileage'
 import { useTagFilter } from '@/hooks/useTagFilter'
 import { useEntityActions } from '@/hooks/useEntityActions'
 import { cn } from '@/lib/utils'
@@ -42,7 +43,7 @@ const PERIODS: { value: Period; label: string }[] = [
   { value: 'year', label: 'Tax year' }
 ]
 
-type Tab = 'overview' | 'expenses'
+type Tab = 'overview' | 'expenses' | 'mileage'
 
 export function Finance(): React.JSX.Element {
   const [period, setPeriod] = useState<Period>('month')
@@ -82,7 +83,7 @@ export function Finance(): React.JSX.Element {
       }
     >
       <div className="mb-4 flex items-center gap-2 border-b border-line">
-        {(['overview', 'expenses'] as Tab[]).map((name) => (
+        {(['overview', 'expenses', 'mileage'] as Tab[]).map((name) => (
           <button
             key={name}
             type="button"
@@ -101,7 +102,10 @@ export function Finance(): React.JSX.Element {
         ))}
       </div>
 
-      {tab === 'overview' ? <Overview period={period} /> : <Expenses period={period} />}
+      {tab === 'overview' && <Overview period={period} />}
+      {tab === 'expenses' && <Expenses period={period} />}
+      {/* Mileage takes no period: it is valued a tax year at a time. */}
+      {tab === 'mileage' && <Mileage />}
     </Page>
   )
 }
@@ -153,10 +157,11 @@ function Overview({ period }: { period: Period }): React.JSX.Element {
         <Stat label="Set aside for tax" value={summary.setAside} tone="text-warning" />
       </motion.div>
 
-      <div className="mt-3 grid grid-cols-4 gap-3">
+      <div className="mt-3 grid grid-cols-5 gap-3">
         <Stat label="Awaiting payment" value={summary.outstanding} tone="text-ink" small />
         <Stat label="Overdue" value={summary.overdue} tone="text-danger" small />
         <Stat label="Unbilled time" value={summary.unbilledValue} tone="text-warning" small />
+        <Stat label="Mileage" value={summary.mileage} tone="text-ink" small />
         <Card className="p-3.5">
           <p className="mb-1.5 text-[11px] text-muted">Hours tracked</p>
           <p className="numeric text-[17px] font-medium text-ink">{summary.hoursTracked}h</p>

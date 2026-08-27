@@ -54,6 +54,7 @@ export type Domain =
   | 'invoices'
   | 'quotes'
   | 'expenses'
+  | 'mileage'
   | 'finance'
   | 'calendar'
   | 'marketing'

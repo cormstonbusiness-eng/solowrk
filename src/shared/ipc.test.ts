@@ -83,7 +83,14 @@ describe('what read-only allows', () => {
       'tags:remove',
       'tags:rename',
       'tags:recolour',
-      'tags:delete'
+      'tags:delete',
+      // Mileage. `setRate` is a write because it re-values every journey in
+      // the log — a lapsed licence must not be able to change what past years
+      // are worth.
+      'mileage:create',
+      'mileage:update',
+      'mileage:delete',
+      'mileage:setRate'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(false)
     }
@@ -134,7 +141,10 @@ describe('what read-only allows', () => {
       'trash:restore',
       'tags:list',
       'tags:for',
-      'tags:matching'
+      'tags:matching',
+      // The mileage log itself, and the rates it is valued at.
+      'mileage:year',
+      'mileage:rates'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(true)
     }

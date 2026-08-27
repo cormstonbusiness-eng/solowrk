@@ -2,6 +2,7 @@ import type { Database, Row } from '../db'
 import type { ClientTotal, FinancePoint, FinanceSummary, Pence } from '@shared/types'
 import { secondsToHours, taxSetAside, timeValue } from '@shared/money'
 import { UK_BANDS_2025_26, estimateTax, setAsideShortfall } from '@shared/tax'
+import { mileageValueIn } from './mileage'
 import { currentTaxYear } from '@shared/taxYear'
 import type { ClientProfitability, TaxPosition } from '@shared/types'
 import { today } from '@shared/taxYear'
@@ -67,7 +68,12 @@ export function summary(
       WHERE ended_at IS NOT NULL AND billable = 1 AND invoice_line_id IS NULL`
   )
 
-  const profit = income - expenses
+  // Mileage is an allowable expense like any other. Leaving it out overstates
+  // profit, and therefore overstates the tax somebody is told to set aside —
+  // which is the one number on this page people act on directly.
+  const mileage = mileageValueIn(db, range.from, range.to)
+
+  const profit = income - expenses - mileage
 
   return {
     range,
@@ -75,6 +81,7 @@ export function summary(
     outstanding,
     overdue,
     expenses,
+    mileage,
     profit,
     // Only ever set aside from a profit, never from a loss.
     setAside: profit > 0 ? taxSetAside(profit, settings.taxSetAsidePercent) : 0,

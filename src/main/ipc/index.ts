@@ -142,6 +142,14 @@ import {
 import { deleteOccurrence, editOccurrence } from '../services/recurrence'
 import { readReceiptImage } from '../services/ocr'
 import {
+  createMileage,
+  deleteMileage,
+  listRates,
+  mileageYear,
+  setRate,
+  updateMileage
+} from '../services/mileage'
+import {
   createMilestone,
   deleteMilestone,
   listMilestones,
@@ -794,6 +802,13 @@ const handlers: Handlers = {
   },
 
   'expenses:readReceipt': (_g, { path }) => readReceiptImage(path),
+
+  'mileage:year': (_g, request) => mileageYear(session.requireDb(), request?.date),
+  'mileage:create': (_g, input) => createMileage(session.requireDb(), input),
+  'mileage:update': (_g, { id, patch }) => updateMileage(session.requireDb(), id, patch),
+  'mileage:delete': (_g, { id }) => deleteMileage(session.requireDb(), id),
+  'mileage:rates': () => listRates(session.requireDb()),
+  'mileage:setRate': (_g, patch) => setRate(session.requireDb(), patch),
 
   'milestones:list': (_g, { projectId }) => listMilestones(session.requireDb(), projectId),
 

@@ -1574,5 +1574,65 @@ export const migrations: Migration[] = [
       ALTER TABLE calendar_settings ADD COLUMN pin_timezone INTEGER NOT NULL
         DEFAULT 0 CHECK (pin_timezone IN (0, 1));
     `
+  },
+  {
+    id: 26,
+    name: 'mileage',
+    sql: `
+      -- Approved mileage rates, one row per kind of vehicle.
+      --
+      -- A table rather than a constant because HMRC moves these, and a rate
+      -- change should be something somebody edits rather than a release they
+      -- wait for. Rates are pence per mile; distances are tenths of a mile,
+      -- as integers, for the same reason money is pence.
+      CREATE TABLE mileage_rates (
+        vehicle          TEXT    PRIMARY KEY
+                         CHECK (vehicle IN ('car','motorcycle','bicycle')),
+        first_rate       INTEGER NOT NULL,
+        second_rate      INTEGER NOT NULL,
+        -- Where the rate drops, in tenths. 0 means flat-rate: a motorcycle is
+        -- 24p for ever, and expressing that as a threshold of nothing keeps
+        -- one code path instead of two.
+        threshold_tenths INTEGER NOT NULL DEFAULT 0,
+        updated_at       TEXT    NOT NULL
+      );
+
+      INSERT INTO mileage_rates (vehicle, first_rate, second_rate, threshold_tenths, updated_at)
+      VALUES ('car',        45, 25, 100000, datetime('now')),
+             ('motorcycle', 24, 24, 0,      datetime('now')),
+             ('bicycle',    20, 20, 0,      datetime('now'));
+
+      -- The log itself.
+      --
+      -- Note what is *not* here: no rate, and no amount. What a journey is
+      -- worth depends on how many miles came before it in the tax year, and
+      -- that changes whenever an earlier journey is added, edited or deleted.
+      -- Both are computed on the way out, so no stored copy can drift out of
+      -- step with the log.
+      CREATE TABLE mileage (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        date            TEXT    NOT NULL,
+        from_place      TEXT    NOT NULL DEFAULT '',
+        to_place        TEXT    NOT NULL DEFAULT '',
+        -- HMRC wants to know why, not just how far.
+        purpose         TEXT    NOT NULL DEFAULT '',
+        tenths          INTEGER NOT NULL DEFAULT 0 CHECK (tenths >= 0),
+        vehicle         TEXT    NOT NULL DEFAULT 'car'
+                        REFERENCES mileage_rates(vehicle),
+        client_id       INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+        project_id      INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+        rebillable      INTEGER NOT NULL DEFAULT 0 CHECK (rebillable IN (0, 1)),
+        invoice_line_id INTEGER REFERENCES invoice_lines(id) ON DELETE SET NULL,
+        archived        INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
+        archived_at     TEXT,
+        created_at      TEXT    NOT NULL,
+        updated_at      TEXT    NOT NULL
+      );
+
+      -- The log is read a tax year at a time, in date order, because that is
+      -- the order the threshold is reached in.
+      CREATE INDEX idx_mileage_date    ON mileage(date);
+      CREATE INDEX idx_mileage_project ON mileage(project_id);
+    `
   }
 ]

@@ -4,14 +4,17 @@ import type { Database } from '../db'
 import type {
   Client,
   Dataset,
+  MileageWithValue,
   ExpenseWithContext,
   InvoiceWithContext,
   QuoteWithContext,
   TimeEntryWithContext
 } from '@shared/types'
 import { type Column, hours, pounds, toCsv, yesNo } from '@shared/csv'
+import { milesLabel, rateLabel } from '@shared/mileage'
 import { listClients } from './clients'
 import { listExpenses } from './expenses'
+import { mileageEntriesIn } from './mileage'
 import { listInvoices } from './invoices'
 import { listQuotes } from './quotes'
 import { listEntries } from './time'
@@ -87,6 +90,27 @@ const EXPENSES: Column<ExpenseWithContext>[] = [
   { header: 'Receipt file', value: (row) => row.receiptFile }
 ]
 
+/**
+ * The mileage claim, as an accountant wants to check it.
+ *
+ * The rate is on every row because it is the figure that gets queried: a
+ * column of 45p with a 25p halfway down is the 10,000-mile threshold doing its
+ * job, and without the column it looks like an error.
+ */
+const MILEAGE: Column<MileageWithValue>[] = [
+  { header: 'Date', value: (row) => row.date },
+  { header: 'From', value: (row) => row.fromPlace },
+  { header: 'To', value: (row) => row.toPlace },
+  { header: 'Purpose', value: (row) => row.purpose },
+  { header: 'Vehicle', value: (row) => row.vehicle },
+  { header: 'Miles', value: (row) => milesLabel(row.tenths) },
+  { header: 'Rate', value: (row) => rateLabel(row.rate) },
+  { header: 'Amount', value: (row) => pounds(row.amount) },
+  { header: 'Client', value: (row) => row.clientName },
+  { header: 'Project', value: (row) => row.projectName },
+  { header: 'Rebillable', value: (row) => yesNo(row.rebillable) }
+]
+
 const TIME: Column<TimeEntryWithContext>[] = [
   { header: 'Started', value: (row) => row.startedAt },
   { header: 'Ended', value: (row) => row.endedAt },
@@ -131,6 +155,18 @@ export function datasetToCsv(db: Database, dataset: Dataset, range: Range = {}):
 
     case 'expenses':
       return toCsv(EXPENSES, listExpenses(db, range))
+
+    case 'mileage': {
+      // Valued a tax year at a time and then filtered, never queried by the
+      // range directly: a journey's rate depends on the miles before it, so a
+      // narrowed query would report the wrong one.
+      const from = range.from ?? '0000-01-01'
+      const to = range.to ?? '9999-12-31'
+      return toCsv(
+        MILEAGE,
+        mileageEntriesIn(db, from, to)
+      )
+    }
 
     case 'time':
       return toCsv(

@@ -8,9 +8,11 @@
  */
 
 import type { Platform } from './social'
+import type { Vehicle } from './mileage'
 import type { ReceiptReading } from './receipts'
 
 export type { Platform }
+export type { Vehicle }
 // Re-exported so the IPC contract can name it without a second import
 // path for the same thing.
 export type { ReceiptReading }
@@ -696,7 +698,14 @@ export type LineKind = 'fixed' | 'time' | 'expense'
  * a lapsed licence, and the whole argument for a local-first app is that the
  * work belongs to the person who did it.
  */
-export const DATASETS = ['clients', 'invoices', 'quotes', 'expenses', 'time'] as const
+export const DATASETS = [
+  'clients',
+  'invoices',
+  'quotes',
+  'expenses',
+  'mileage',
+  'time'
+] as const
 
 export type Dataset = (typeof DATASETS)[number]
 
@@ -804,6 +813,12 @@ export interface YearSummaryForPdf extends DocumentBase {
   periodTo: string
   income: Pence
   expenses: Pence
+  /**
+   * Mileage allowance earned in the range, kept separate from expenses so it
+   * is visible rather than buried — but subtracted from profit just the same,
+   * because it is an allowable deduction.
+   */
+  mileage: Pence
   profit: Pence
   vatCollected: Pence
   vatRegistered: boolean
@@ -977,6 +992,64 @@ export type ExpenseInput = Partial<Omit<Expense, 'id' | 'createdAt' | 'updatedAt
   receiptSourcePath?: string | null
 }
 
+/* Mileage */
+
+/**
+ * One business journey.
+ *
+ * `tenths` is the distance in tenths of a mile. There is deliberately no rate
+ * and no amount: both depend on how many miles came before this journey in the
+ * tax year, so both are computed on read — see `@shared/mileage`.
+ */
+export interface MileageEntry {
+  id: number
+  date: string
+  fromPlace: string
+  toPlace: string
+  purpose: string
+  tenths: number
+  vehicle: Vehicle
+  clientId: number | null
+  projectId: number | null
+  rebillable: boolean
+  invoiceLineId: number | null
+  createdAt: string
+  updatedAt: string
+}
+
+/** A journey with what it is worth, and who it was for. */
+export interface MileageWithValue extends MileageEntry {
+  /** Integer pence. */
+  amount: Pence
+  atFirstRate: number
+  atSecondRate: number
+  /** Null when the journey straddles the threshold and there isn't one. */
+  rate: number | null
+  projectName: string | null
+  clientName: string | null
+}
+
+export type MileageInput = Partial<Omit<MileageEntry, 'id' | 'createdAt' | 'updatedAt'>>
+
+/** A tax year of driving, with the totals that go on a return. */
+export interface MileageYear {
+  taxYear: { start: string; end: string; label: string }
+  entries: MileageWithValue[]
+  /** Tenths driven, per vehicle, across the whole year. */
+  drivenTenths: Record<Vehicle, number>
+  /** What the whole year is worth, in pence. */
+  total: Pence
+  /** Tenths still to run before the car rate drops. Null once it has. */
+  untilThresholdTenths: number | null
+}
+
+export interface MileageRateRow {
+  vehicle: Vehicle
+  firstRate: number
+  secondRate: number
+  thresholdTenths: number
+}
+
 /* Finance reporting */
 
 export interface FinanceSummary {
@@ -987,6 +1060,12 @@ export interface FinanceSummary {
   outstanding: Pence
   overdue: Pence
   expenses: Pence
+  /**
+   * Mileage allowance earned in the range, kept separate from expenses so it
+   * is visible rather than buried — but subtracted from profit just the same,
+   * because it is an allowable deduction.
+   */
+  mileage: Pence
   profit: Pence
   /** Suggested amount to hold back from profit for tax. */
   setAside: Pence
