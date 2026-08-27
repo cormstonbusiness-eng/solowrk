@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import {
@@ -23,6 +23,7 @@ import {
   dayFromDate,
   dayOf,
   monthGrid,
+  stampFromDate,
   weekDays
 } from '@shared/calendar'
 import { Page } from '@/components/Page'
@@ -36,14 +37,30 @@ import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { AgendaView } from './calendar/AgendaView'
 import { BlockModal } from './calendar/BlockModal'
+import { Availability } from './calendar/Availability'
+import { FocusMode } from './calendar/FocusMode'
 import { Horizon } from './calendar/Horizon'
 import { MonthView } from './calendar/MonthView'
 import { ScopePrompt } from './calendar/ScopePrompt'
 import { Subscriptions } from './calendar/Subscriptions'
 import { TimeGrid } from './calendar/TimeGrid'
 import { UnscheduledRail } from './calendar/UnscheduledRail'
-import { ZOOM_LEVELS, dayLabel, monthLabel, nearestZoom, stepZoom } from './calendar/grid'
+import {
+  ZOOM_LEVELS,
+  dayLabel,
+  durationLabel,
+  monthLabel,
+  nearestZoom,
+  stepZoom
+} from './calendar/grid'
 import { LENSES } from './calendar/lens'
+import {
+  applyScenario,
+  emptyScenario,
+  scenarioDelta,
+  type Scenario,
+  type ScenarioEdit
+} from './calendar/scenario'
 import { claimsKey, interpret, type Lens } from './calendar/keys'
 
 type View = 'month' | 'week' | 'day' | 'agenda'
@@ -139,6 +156,11 @@ export function Calendar(): React.JSX.Element {
   const [lens, setLens] = useState<Lens>('time')
   const [focusClientId, setFocusClientId] = useState<number | null>(null)
   const [focusedKey, setFocusedKey] = useState<string | null>(null)
+  const [ghostWeek, setGhostWeek] = useState(false)
+  const [availabilityOpen, setAvailabilityOpen] = useState(false)
+  const [focusBlock, setFocusBlock] = useState<CalendarBlockWithContext | null>(null)
+  /** Null when the calendar is showing reality, which is almost always. */
+  const [scenario, setScenario] = useState<Scenario | null>(null)
 
   useOpenParam('new', () => setCreating({ day: anchor, startTime: '09:00', endTime: '10:00' }))
 
@@ -161,6 +183,34 @@ export function Calendar(): React.JSX.Element {
         ...(projectId === null ? {} : { projectId })
       })
   })
+
+  /**
+   * What the grid draws.
+   *
+   * Reality, unless a scenario is open — in which case it is reality plus a
+   * pile of edits held in memory. Nothing about a scenario is written, which
+   * is not a shortcut but the feature: one that wrote as it went would be
+   * indistinguishable from editing your calendar badly, and the reason to
+   * trust it is precisely that it cannot.
+   */
+  const shown = useMemo(
+    () => (scenario ? applyScenario(blocks, scenario) : blocks),
+    [blocks, scenario]
+  )
+
+  const delta = useMemo(
+    () =>
+      scenario
+        ? scenarioDelta(blocks, shown, days, settings.dailyCapacityMinutes)
+        : null,
+    [scenario, blocks, shown, days, settings.dailyCapacityMinutes]
+  )
+
+  /** An edit while a scenario is open goes to the scenario, never to the row. */
+  const stage = (edit: ScenarioEdit): void =>
+    setScenario((current) =>
+      current ? { ...current, edits: [...current.edits, edit] } : current
+    )
 
   const { data: projects = [] } = useQuery({
     queryKey: keys.projects(),
@@ -186,6 +236,10 @@ export function Calendar(): React.JSX.Element {
   })
 
   const startTimer = async (block: CalendarBlockWithContext): Promise<void> => {
+    // Focus mode starts a session on whatever is already going, rather than
+    // stacking a second one — two running timers is not a state anybody means
+    // to be in.
+    if (running) return
     await window.solo.invoke('time:start', {
       projectId: block.projectId,
       taskId: block.taskId,
@@ -193,6 +247,38 @@ export function Calendar(): React.JSX.Element {
     })
     invalidate(['time'])
   }
+
+  const stopTimer = async (): Promise<void> => {
+    if (!running) return
+    await window.solo.invoke('time:stop', { id: running.entry.id })
+    invalidate(['time'])
+  }
+
+  /**
+   * Last week, for the ghost overlay.
+   *
+   * Fetched only while it is on. A permanently loaded second week would be a
+   * query nobody asked for on every navigation, for a feature most people use
+   * occasionally.
+   */
+  const { data: lastWeek = [] } = useQuery({
+    queryKey: ['calendar', 'ghost', from, to],
+    queryFn: () =>
+      window.solo.invoke('calendar:blocks', { from: addDays(from, -7), to: addDays(to, -7) }),
+    enabled: ghostWeek && (view === 'week' || view === 'day')
+  })
+
+  // Shifted forward so they sit under this week rather than beside it.
+  const ghosts = useMemo(
+    () =>
+      lastWeek.map((block) => ({
+        ...block,
+        key: `ghost-${block.key}`,
+        startsAt: shiftDays(block.startsAt, 7),
+        endsAt: shiftDays(block.endsAt, 7)
+      })),
+    [lastWeek]
+  )
 
   // Deadlines, read from where they actually live. Nothing here is a block,
   // so nothing here can drift from the record or be dragged by accident.
@@ -232,6 +318,10 @@ export function Calendar(): React.JSX.Element {
     block: CalendarBlockWithContext,
     span: { startsAt: string; endsAt: string }
   ): Promise<void> => {
+    if (scenario) {
+      stage({ kind: 'move', key: block.key, ...span })
+      return
+    }
     if (repeats(block)) {
       setPendingMove({ block, span })
       return
@@ -326,12 +416,80 @@ export function Calendar(): React.JSX.Element {
    * diary disappearing.
    */
   const removeBlock = async (block: CalendarBlockWithContext): Promise<void> => {
+    if (scenario) {
+      stage({ kind: 'remove', key: block.key })
+      return
+    }
     if (repeats(block)) {
       setEditing(block)
       return
     }
     await remove({ type: 'block', id: block.id }, block.title)
     invalidate(['calendar'])
+  }
+
+  /**
+   * Commit a scenario.
+   *
+   * Everything in one go, with one undo offer covering the lot — a scenario
+   * is a single decision ("take the Marsh job") however many drags it took to
+   * think through, and offering to undo the drags one at a time would miss
+   * the point of having asked the question.
+   */
+  const applyScenarioForReal = async (): Promise<void> => {
+    if (!scenario) return
+    const edits = scenario.edits
+    setScenario(null)
+
+    // The reverse of each edit, captured before anything is written.
+    const undoSteps: (() => Promise<void>)[] = []
+
+    for (const edit of edits) {
+      if (edit.kind === 'move') {
+        const block = blocks.find((one) => one.key === edit.key)
+        if (!block) continue
+        const before = { startsAt: block.startsAt, endsAt: block.endsAt }
+        await window.solo.invoke('calendar:updateBlock', {
+          id: block.occurrenceOf ?? block.id,
+          patch: { startsAt: edit.startsAt, endsAt: edit.endsAt }
+        })
+        undoSteps.push(async () => {
+          await window.solo.invoke('calendar:updateBlock', {
+            id: block.occurrenceOf ?? block.id,
+            patch: before
+          })
+        })
+      } else if (edit.kind === 'remove') {
+        const block = blocks.find((one) => one.key === edit.key)
+        if (!block) continue
+        await window.solo.invoke('entity:delete', {
+          type: 'block',
+          id: block.occurrenceOf ?? block.id
+        })
+      } else {
+        const made = await window.solo.invoke('calendar:createBlock', {
+          title: edit.block.title,
+          blockType: edit.block.blockType,
+          startsAt: edit.block.startsAt,
+          endsAt: edit.block.endsAt,
+          projectId: edit.block.projectId,
+          clientId: edit.block.clientId,
+          billable: edit.block.billable
+        })
+        undoSteps.push(async () => {
+          await window.solo.invoke('entity:delete', { type: 'block', id: made.id })
+        })
+      }
+    }
+
+    invalidate(['calendar'])
+
+    offer(`Applied ${scenario.name}`, async () => {
+      // In reverse, so a move undone after an add does not look for something
+      // that is no longer there.
+      for (const step of undoSteps.reverse()) await step()
+      invalidate(['calendar'])
+    })
   }
 
   const create = async (
@@ -427,7 +585,27 @@ export function Calendar(): React.JSX.Element {
         case 'delete':
           if (focused) void removeBlock(focused)
           break
+        case 'scenario':
+          setScenario((current) => (current ? null : emptyScenario()))
+          break
+        case 'ghostWeek':
+          setGhostWeek((on) => !on)
+          break
+        case 'availability':
+          setAvailabilityOpen(true)
+          break
+        case 'focusMode':
+          if (focused) {
+            setFocusBlock(focused)
+            void startTimer(focused)
+          }
+          break
         case 'escape':
+          if (focusBlock) {
+            void stopTimer()
+            setFocusBlock(null)
+            break
+          }
           setFocusedKey(null)
           setPendingTask(null)
           break
@@ -520,6 +698,12 @@ export function Calendar(): React.JSX.Element {
           {/* §17.1: the active lens is one small word, and that word is the
               entire permanent cost of the whole feature. The grid stays
               minimal at rest — power through disclosure, not density. */}
+          {scenario && (
+            <span className="rounded-control border border-accent bg-accent-subtle px-2 py-0.5 text-[11px] text-accent">
+              Scenario
+            </span>
+          )}
+
           {showZoom && lens !== 'time' && (
             <button
               type="button"
@@ -611,6 +795,9 @@ export function Calendar(): React.JSX.Element {
           makes you navigate to see the future. */}
       <Horizon today={today} days={days} settings={settings} onJump={setAnchor} />
 
+      {/* §17.4. A 1px border and a chip, and nothing else changes — a
+          scenario is the same calendar with the safety on, not a mode with
+          its own furniture. */}
       <AnimatePresence mode="wait">
         <motion.div
           key={view}
@@ -624,7 +811,7 @@ export function Calendar(): React.JSX.Element {
             <MonthView
               month={anchor}
               today={today}
-              blocks={blocks}
+              blocks={shown}
               markers={markers}
               settings={settings}
               onOpenBlock={setEditing}
@@ -643,7 +830,7 @@ export function Calendar(): React.JSX.Element {
               <TimeGrid
                 days={view === 'day' ? [anchor] : weekDays(anchor)}
                 today={today}
-                blocks={blocks}
+                blocks={shown}
                 markers={markers}
                 settings={settings}
                 lens={lens}
@@ -660,6 +847,7 @@ export function Calendar(): React.JSX.Element {
                 onScheduleTask={(task, startsAt) => void scheduleTask(task, startsAt)}
                 onCancelTaskDrag={() => setPendingTask(null)}
                 onStartTimer={(block) => void startTimer(block)}
+                ghosts={ghostWeek ? ghosts : []}
                 onCrowdedDay={(day) => {
                   setAnchor(day)
                   setView('day')
@@ -674,11 +862,92 @@ export function Calendar(): React.JSX.Element {
 
           {view === 'agenda' && (
             <div className="min-h-0 flex-1 overflow-y-auto">
-              <AgendaView days={days} today={today} blocks={blocks} onOpenBlock={setEditing} />
+              <AgendaView days={days} today={today} blocks={shown} onOpenBlock={setEditing} />
             </div>
           )}
         </motion.div>
       </AnimatePresence>
+
+      {/* The difference, in the three terms that decide the answer. Hours,
+          money, and which day breaks — a sentence somebody can act on, where
+          two grids side by side would be a puzzle to solve first. */}
+      <AnimatePresence>
+        {scenario && delta && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 12 }}
+            transition={transition.page}
+            className="pointer-events-auto fixed bottom-5 left-1/2 z-40 flex -translate-x-1/2 items-center gap-3 rounded-card border border-accent bg-surface px-3 py-2 shadow-xl"
+          >
+            <span className="numeric text-[12.5px] text-ink">
+              {delta.minutes === 0
+                ? 'No change yet'
+                : `${delta.minutes > 0 ? '+' : '−'}${durationLabel(Math.abs(delta.minutes))} committed`}
+            </span>
+
+            {delta.pence !== 0 && (
+              <span className="numeric text-[12.5px] text-muted">
+                {delta.pence > 0 ? '+' : '−'}£
+                {Math.abs(Math.round(delta.pence / 100)).toLocaleString('en-GB')}
+              </span>
+            )}
+
+            {delta.newlyOver.map((one) => (
+              <span key={one.day} className="numeric text-[12.5px] text-danger">
+                {dayLabel(one.day, { weekday: 'short' })} now{' '}
+                {durationLabel(one.overBy)} over
+              </span>
+            ))}
+
+            <span aria-hidden className="h-4 w-px bg-line" />
+
+            <Button variant="ghost" size="sm" onClick={() => setScenario(null)}>
+              Discard
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              disabled={scenario.edits.length === 0}
+              onClick={() => void applyScenarioForReal()}
+            >
+              Apply
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* §17.6. Everything else fades rather than disappearing: the week is
+          still there, and you are looking at one hour of it. */}
+      <AnimatePresence>
+        {focusBlock && (
+          <FocusMode
+            block={focusBlock}
+            startedAt={running ? stampFromDate(new Date(running.entry.startedAt)) : null}
+            onExtend={() => setFocusBlock(null)}
+            onNext={() => {
+              const next = blocks
+                .filter((one) => one.startsAt > focusBlock.startsAt)
+                .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0]
+              void stopTimer()
+              setFocusBlock(next ?? null)
+              if (next) void startTimer(next)
+            }}
+            onStop={() => {
+              void stopTimer()
+              setFocusBlock(null)
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      <Availability
+        open={availabilityOpen}
+        days={days}
+        blocks={blocks}
+        settings={settings}
+        onClose={() => setAvailabilityOpen(false)}
+      />
 
       <Subscriptions
         open={calendarsOpen}

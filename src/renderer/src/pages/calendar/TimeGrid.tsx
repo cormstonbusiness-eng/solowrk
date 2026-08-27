@@ -99,7 +99,8 @@ export function TimeGrid({
   onScheduleTask,
   onCancelTaskDrag,
   onStartTimer,
-  onCrowdedDay
+  onCrowdedDay,
+  ghosts
 }: {
   days: string[]
   today: string
@@ -129,6 +130,8 @@ export function TimeGrid({
   onStartTimer: (block: CalendarBlockWithContext) => void
   /** A day too crowded to draw in full. Opens it on its own. */
   onCrowdedDay: (day: string) => void
+  /** Last week's blocks, drawn behind this one. Empty when off. */
+  ghosts: CalendarBlockWithContext[]
 }): React.JSX.Element {
   const scroller = useRef<HTMLDivElement>(null)
   const body = useRef<HTMLDivElement>(null)
@@ -873,6 +876,31 @@ export function TimeGrid({
                     <span className="absolute -top-[3px] -left-[3px] h-[7px] w-[7px] rounded-full bg-danger" />
                   </div>
                 )}
+
+                {/* §17.7: last week, outlined, behind this one. For anybody
+                    with a repeating shape to their week this answers "am I
+                    doing what I did last week?" without a comparison screen,
+                    and copying a pattern forward becomes dragging into the
+                    outlines. */}
+                {ghosts
+                  .filter((ghost) => occursOn(ghost, day))
+                  .map((ghost) => {
+                    const ghostSegment = segmentOn(ghost, day)
+                    return (
+                      <div
+                        key={`ghost-${ghost.key}`}
+                        aria-hidden
+                        style={{
+                          top: ghostSegment.start * perMinute,
+                          height: Math.max((ghostSegment.end - ghostSegment.start) * perMinute - 2, 6),
+                          borderColor: ghost.displayColour
+                        }}
+                        className="pointer-events-none absolute inset-x-[2px] z-[4] overflow-hidden rounded-[5px] border border-dashed opacity-[0.12]"
+                      >
+                        <p className="truncate px-1.5 text-[10.5px] text-ink">{ghost.title}</p>
+                      </div>
+                    )
+                  })}
 
                 {/* The radar. Gaps glow, brighter for longer ones, and each
                     says how long it is — the answer to "when can I fit this?"
