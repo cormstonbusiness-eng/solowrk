@@ -291,3 +291,40 @@
     background-position: -200% 0;
   }
 }
+
+/**
+ * The current-time dot, breathing.
+ *
+ * §17.8 allows exactly one continuously animated element on screen at rest,
+ * and this is it — and only while today is in view. Four seconds is slow
+ * enough to read as alive rather than as something demanding attention.
+ */
+@keyframes breathe {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.82);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[breathe_4s_ease-in-out_infinite\] {
+    animation: none;
+  }
+}
+
+/** Blocks arriving on a view change: a 4px rise with a fade. */
+@keyframes arrive {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: inherit;
+    transform: none;
+  }
+}

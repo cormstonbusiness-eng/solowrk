@@ -1361,6 +1361,10 @@ export interface CalendarSettings {
   defaultView: string
   showWeekends: boolean
   hourHeight: number
+  /** The zone the calendar is written in, which is not where it is read. */
+  timezone: string
+  /** Keep showing that zone even on a machine set to another one. */
+  pinTimezone: boolean
 }
 
 export const REMINDER_CHOICES: { value: number; label: string }[] = [

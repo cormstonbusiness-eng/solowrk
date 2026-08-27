@@ -14,7 +14,9 @@ const settings: CalendarSettings = {
   weekStartsOn: 0,
   defaultView: 'week',
   showWeekends: true,
-  hourHeight: 56
+  hourHeight: 56,
+  timezone: 'Europe/London',
+  pinTimezone: false
 }
 
 const block = (over: Partial<CalendarBlockWithContext> = {}): CalendarBlockWithContext =>

@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Link2,
   Minus,
+  Plane,
   PanelRightClose,
   Plus
 } from 'lucide-react'
@@ -92,7 +93,9 @@ const FALLBACK_SETTINGS: CalendarSettings = {
   weekStartsOn: 0,
   defaultView: 'week',
   showWeekends: true,
-  hourHeight: 56
+  hourHeight: 56,
+  timezone: 'Europe/London',
+  pinTimezone: false
 }
 
 /** The days a view covers — which is also exactly what it queries for. */
@@ -161,6 +164,7 @@ export function Calendar(): React.JSX.Element {
   const [focusBlock, setFocusBlock] = useState<CalendarBlockWithContext | null>(null)
   /** Null when the calendar is showing reality, which is almost always. */
   const [scenario, setScenario] = useState<Scenario | null>(null)
+  const [tzDismissed, setTzDismissed] = useState(false)
 
   useOpenParam('new', () => setCreating({ day: anchor, startTime: '09:00', endTime: '10:00' }))
 
@@ -514,6 +518,15 @@ export function Calendar(): React.JSX.Element {
     onSuccess: () => invalidate(['calendar'])
   })
 
+  const zoomSettings = useMutation({
+    mutationFn: (patch: Partial<CalendarSettings>) =>
+      window.solo.invoke('calendar:updateSettings', patch),
+    onSuccess: () => invalidate(['calendar'])
+  })
+
+  /** Where this machine thinks it is, which is not where the calendar was written. */
+  const machineZone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
   /**
    * The keyboard model.
    *
@@ -789,6 +802,30 @@ export function Calendar(): React.JSX.Element {
           </div>
         </div>
       </div>
+
+      {/* §13: the machine has moved and the calendar has not.
+          Blocks are wall time, so a week planned in London is 09:00 London
+          wherever it is read. Saying so is the honest option; silently
+          reinterpreting somebody's diary an hour sideways is not. */}
+      {machineZone !== settings.timezone && !tzDismissed && (
+        <div className="mb-2 flex shrink-0 items-center gap-2 rounded-control border border-line bg-raised px-3 py-1.5">
+          <Plane size={13} strokeWidth={1.75} className="shrink-0 text-faint" />
+          <p className="min-w-0 flex-1 text-[12px] text-muted">
+            This machine is on {machineZone}; your calendar is written in{' '}
+            {settings.timezone}. Times are shown as you wrote them.
+          </p>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => zoomSettings.mutate({ timezone: machineZone })}
+          >
+            Use {machineZone}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setTzDismissed(true)}>
+            Dismiss
+          </Button>
+        </div>
+      )}
 
       {/* §17.2. Twenty-four pixels buys permanent three-month awareness, and
           dragging it scrubs the grid below in real time. Every other calendar

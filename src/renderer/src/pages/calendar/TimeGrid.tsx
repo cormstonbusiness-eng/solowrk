@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils'
 import {
   DEFAULT_SCROLL_HOUR,
   HOURS,
+  dayArcTint,
   columnLabel,
   detailFor,
   durationLabel,
@@ -852,7 +853,13 @@ export function TimeGrid({
                 {HOURS.map((hour) => (
                   <div
                     key={hour}
-                    style={{ height: hourHeight }}
+                    style={{
+                      height: hourHeight,
+                      // §17.8's day arc: warm through the morning, cool toward
+                      // evening. Three per cent, and the point is that nobody
+                      // notices it until it is gone.
+                      backgroundColor: dayArcTint(hour * 60 + 30, day)
+                    }}
                     className="border-b border-line/50"
                   >
                     {/* The half-hour line, and only at a zoom where a
@@ -873,7 +880,9 @@ export function TimeGrid({
                     style={{ top: nowMinutes * perMinute }}
                     className="pointer-events-none absolute right-0 left-0 z-20 h-px bg-danger"
                   >
-                    <span className="absolute -top-[3px] -left-[3px] h-[7px] w-[7px] rounded-full bg-danger" />
+                    {/* §17.8: the only continuously animated thing on the
+                        screen at rest, and only when today is on it. */}
+                    <span className="absolute -top-[3px] -left-[3px] h-[7px] w-[7px] animate-[breathe_4s_ease-in-out_infinite] rounded-full bg-danger" />
                   </div>
                 )}
 
@@ -970,7 +979,7 @@ export function TimeGrid({
                   />
                 )}
 
-                {placed.slice(0, MAX_BLOCKS_PER_DAY).map(({ item: block, column, columns, span: width }) => {
+                {placed.slice(0, MAX_BLOCKS_PER_DAY).map(({ item: block, column, columns, span: width }, index) => {
                   const span = spanOf(block)
                   const segment = segmentOn(span, day)
                   const height = (segment.end - segment.start) * perMinute
@@ -1011,10 +1020,17 @@ export function TimeGrid({
                         // The radar drops everything back to 20% so the empty
                         // space is what reads. 150ms back on release.
                         opacity: radar ? surface.opacity * 0.2 : surface.opacity,
-                        transition: 'opacity 150ms ease-out'
+                        transition: 'opacity 150ms ease-out',
+                        // §17.8's arrival: a 4px rise on view change, staggered
+                        // 30ms in the order the day happens. Keyed on the view
+                        // so it never fires on a scroll or mid-drag — an
+                        // animation that replayed while you were dragging would
+                        // be the opposite of considered.
+                        animationDelay: `${Math.min(index * 30, 300)}ms`
                       }}
                       className={cn(
                         'group absolute z-10 overflow-hidden rounded-[5px] border-l-[3px] px-1.5',
+                        !dragging && 'motion-safe:animate-[arrive_200ms_ease-out_backwards]',
                         detail === 'inline' ? 'py-0' : 'py-0.5',
                         'text-left select-none',
                         block.locked || !meta.draggable
@@ -1023,7 +1039,11 @@ export function TimeGrid({
                         // Only shadow and opacity change during a drag. `top`
                         // and `height` are set directly and never transitioned,
                         // or the block would lag the pointer.
-                        !dragging && 'transition-shadow hover:shadow-lg',
+                        // §17.8: blocks pick up weight as they are grabbed
+                        // and settle it on release, over 150ms. They should
+                        // feel like they have mass.
+                        'transition-shadow duration-150 ease-out',
+                        !dragging && 'hover:shadow-lg',
                         dragging && 'z-30 shadow-xl',
                         // 2px at 2px offset, on every block, per the design
                         // system. A keyboard-only calendar with no visible

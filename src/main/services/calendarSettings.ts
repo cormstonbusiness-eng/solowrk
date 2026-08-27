@@ -22,6 +22,8 @@ interface SettingsRow extends Row {
   default_view: string
   show_weekends: number
   hour_height: number
+  timezone: string
+  pin_timezone: number
 }
 
 function toSettings(row: SettingsRow): CalendarSettings {
@@ -36,7 +38,9 @@ function toSettings(row: SettingsRow): CalendarSettings {
     weekStartsOn: row.week_starts_on,
     defaultView: row.default_view,
     showWeekends: row.show_weekends === 1,
-    hourHeight: row.hour_height
+    hourHeight: row.hour_height,
+    timezone: row.timezone,
+    pinTimezone: row.pin_timezone === 1
   }
 }
 
@@ -57,7 +61,9 @@ const UPDATABLE: Record<string, string> = {
   weekStartsOn: 'week_starts_on',
   defaultView: 'default_view',
   showWeekends: 'show_weekends',
-  hourHeight: 'hour_height'
+  hourHeight: 'hour_height',
+  timezone: 'timezone',
+  pinTimezone: 'pin_timezone'
 }
 
 export function updateCalendarSettings(

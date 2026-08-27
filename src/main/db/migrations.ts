@@ -1555,5 +1555,24 @@ export const migrations: Migration[] = [
          WHERE id = OLD.task_id;
       END;
     `
+  },
+  {
+    id: 25,
+    name: 'calendar_timezone',
+    sql: `
+      -- The zone the calendar is *written* in.
+      --
+      -- Not the machine's zone, which is where it is being read. Blocks are
+      -- wall time, so a week planned in London is 09:00 London whether it is
+      -- read in London or in Lisbon — and the honest thing to do about a
+      -- mismatch is to say so, rather than silently reinterpret somebody's
+      -- diary an hour sideways.
+      ALTER TABLE calendar_settings ADD COLUMN timezone TEXT NOT NULL
+        DEFAULT 'Europe/London';
+      -- Off by default: most people never leave their own zone, and a banner
+      -- nobody needs is worse than no banner.
+      ALTER TABLE calendar_settings ADD COLUMN pin_timezone INTEGER NOT NULL
+        DEFAULT 0 CHECK (pin_timezone IN (0, 1));
+    `
   }
 ]

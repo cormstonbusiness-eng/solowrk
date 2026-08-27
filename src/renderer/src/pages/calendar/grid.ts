@@ -85,6 +85,39 @@ export function durationLabel(minutes: number): string {
  */
 export type BlockDetail = 'full' | 'time' | 'title' | 'inline'
 
+/**
+ * §17.8: the day arc.
+ *
+ * The grid warms almost imperceptibly through the morning and cools toward
+ * evening — a 3% shift, never noticed consciously and felt immediately if
+ * removed. Latitude is fixed at 54°N rather than asked for: this is a UK app,
+ * the effect is three per cent, and prompting somebody for their latitude to
+ * tint a background would be an absurd thing to do to them.
+ */
+const UK_LATITUDE = 54
+
+export function dayArcTint(minutes: number, day: string): string {
+  // Daylight either side of noon, longer in summer. A cosine on the day of
+  // the year is close enough for a tint and costs nothing.
+  const dayOfYear = Math.floor(
+    (Date.parse(`${day}T00:00:00Z`) - Date.parse(`${day.slice(0, 4)}-01-01T00:00:00Z`)) / 86_400_000
+  )
+  const declination = 23.44 * Math.cos(((dayOfYear + 10) / 365) * 2 * Math.PI)
+  const daylight = 12 - (declination * UK_LATITUDE) / 180
+
+  const sunrise = 12 * 60 - (daylight / 2) * 60
+  const sunset = 12 * 60 + (daylight / 2) * 60
+  if (minutes < sunrise || minutes > sunset) return 'transparent'
+
+  // Warm early, neutral at noon, cool late. 3% at the extremes.
+  const through = (minutes - sunrise) / Math.max(1, sunset - sunrise)
+  const warmth = Math.cos(through * Math.PI)
+  const strength = Math.abs(warmth) * 0.03
+  return warmth > 0
+    ? `rgba(255, 170, 90, ${strength.toFixed(3)})`
+    : `rgba(90, 140, 255, ${strength.toFixed(3)})`
+}
+
 export function detailFor(height: number): BlockDetail {
   if (height >= 72) return 'full'
   if (height >= 44) return 'time'
