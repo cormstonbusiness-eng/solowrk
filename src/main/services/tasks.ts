@@ -11,6 +11,8 @@ interface TaskRow extends Row {
   status: string
   priority: number
   due_at: string | null
+  estimate_minutes: number | null
+  scheduled_at: string | null
   colour: string
   sort_order: number
   completed_at: string | null
@@ -40,6 +42,8 @@ function toTask(row: TaskRow): Task {
     status: row.status as TaskStatus,
     priority: row.priority,
     dueAt: row.due_at,
+    estimateMinutes: row.estimate_minutes,
+    scheduledAt: row.scheduled_at,
     colour: row.colour,
     sortOrder: row.sort_order,
     completedAt: row.completed_at,
@@ -155,8 +159,9 @@ export function createTask(db: Database, input: TaskInput): TaskWithContext {
 
   db.run(
     `INSERT INTO tasks (project_id, category_id, parent_id, title, notes, status, priority,
-                        due_at, colour, sort_order, completed_at, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+                        due_at, estimate_minutes, colour, sort_order, completed_at,
+                        created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
     [
       projectId,
       input.categoryId ?? null,
@@ -166,6 +171,7 @@ export function createTask(db: Database, input: TaskInput): TaskWithContext {
       status,
       input.priority ?? 1,
       input.dueAt ?? null,
+      input.estimateMinutes ?? null,
       input.colour ?? '',
       input.sortOrder ?? nextSortOrder(db, projectId, status),
       status === 'done' ? new Date().toISOString() : null
@@ -186,9 +192,15 @@ const UPDATABLE: Record<string, string> = {
   status: 'status',
   priority: 'priority',
   dueAt: 'due_at',
+  estimateMinutes: 'estimate_minutes',
   colour: 'colour',
   sortOrder: 'sort_order',
   archived: 'archived'
+  // `scheduled_at` is deliberately absent. It is a mirror of the block that
+  // schedules the task, and the only thing allowed to write it is the code
+  // that creates or moves that block — see `scheduling.ts`. A task editor
+  // that could set it directly would produce a task claiming a time no block
+  // is at.
 }
 
 export function updateTask(db: Database, id: number, patch: Partial<TaskInput>): TaskWithContext {

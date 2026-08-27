@@ -1469,5 +1469,91 @@ export const migrations: Migration[] = [
         VALUES ('block', NEW.id, 'edited', '', datetime('now'));
       END;
     `
+  },
+  {
+    id: 24,
+    name: 'scheduling',
+    sql: `
+      -- What a task is expected to take, and when it is going to happen.
+      --
+      -- Two separate columns because they are two separate claims. An estimate
+      -- is about the work ("this is about ninety minutes"); scheduled_at is
+      -- about the diary ("I am doing it on Thursday at ten"). A task can have
+      -- either without the other, and conflating them would make scheduling
+      -- something require guessing how long it takes.
+      ALTER TABLE tasks ADD COLUMN estimate_minutes INTEGER;
+      -- Denormalised from the block that schedules it. The block is still the
+      -- record — this is here so the task list can say "Thursday 10:00"
+      -- without a join, and so an unscheduled task is one indexed lookup
+      -- rather than a NOT EXISTS across the calendar.
+      ALTER TABLE tasks ADD COLUMN scheduled_at TEXT;
+
+      CREATE INDEX idx_tasks_scheduled ON tasks(scheduled_at);
+
+      -- The dates inside a project that are not its deadline.
+      --
+      -- projects.due_on is the one date a project ends. A three-month build
+      -- has a design sign-off, a content deadline and a launch, and putting
+      -- those in as tasks makes a board of things nobody does — a milestone
+      -- is a date you are held to, not work you perform.
+      CREATE TABLE project_milestones (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        project_id  INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        title       TEXT    NOT NULL,
+        due_on      TEXT    NOT NULL,
+        notes       TEXT    NOT NULL DEFAULT '',
+        -- Reached, rather than 'done': a milestone is a date, and a date you
+        -- have passed is not a task you completed.
+        reached_at  TEXT,
+        sort_order  REAL    NOT NULL DEFAULT 0,
+        created_at  TEXT    NOT NULL,
+        updated_at  TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_milestones_project ON project_milestones(project_id);
+      CREATE INDEX idx_milestones_due     ON project_milestones(due_on);
+
+      -- Keeping tasks.scheduled_at true, in the schema rather than in code.
+      --
+      -- A task's time is a mirror of the block that schedules it, and mirrors
+      -- go stale: there are five ways a block's start can change — the
+      -- service, a drag, the assistant, a trash restore, a subscription sync —
+      -- and a service-layer copy would need remembering in all five. One of
+      -- them being missed leaves a task claiming a time no block is at, which
+      -- is invisible until somebody misses the work.
+      --
+      -- MIN over the task's blocks rather than the block's own start, so a
+      -- task split across three sittings reports the first, and a task whose
+      -- last block is deleted goes back to NULL — which is what puts it back
+      -- on the unscheduled rail, whole.
+      CREATE TRIGGER blocks_task_scheduled_insert AFTER INSERT ON calendar_blocks
+      WHEN NEW.task_id IS NOT NULL BEGIN
+        UPDATE tasks
+           SET scheduled_at = (SELECT MIN(starts_at) FROM calendar_blocks
+                                WHERE task_id = NEW.task_id AND archived = 0)
+         WHERE id = NEW.task_id;
+      END;
+
+      CREATE TRIGGER blocks_task_scheduled_update
+      AFTER UPDATE OF starts_at, task_id, archived ON calendar_blocks BEGIN
+        -- The task it used to belong to, which may now have nothing.
+        UPDATE tasks
+           SET scheduled_at = (SELECT MIN(starts_at) FROM calendar_blocks
+                                WHERE task_id = OLD.task_id AND archived = 0)
+         WHERE OLD.task_id IS NOT NULL AND id = OLD.task_id;
+        UPDATE tasks
+           SET scheduled_at = (SELECT MIN(starts_at) FROM calendar_blocks
+                                WHERE task_id = NEW.task_id AND archived = 0)
+         WHERE NEW.task_id IS NOT NULL AND id = NEW.task_id;
+      END;
+
+      CREATE TRIGGER blocks_task_scheduled_delete AFTER DELETE ON calendar_blocks
+      WHEN OLD.task_id IS NOT NULL BEGIN
+        UPDATE tasks
+           SET scheduled_at = (SELECT MIN(starts_at) FROM calendar_blocks
+                                WHERE task_id = OLD.task_id AND archived = 0)
+         WHERE id = OLD.task_id;
+      END;
+    `
   }
 ]

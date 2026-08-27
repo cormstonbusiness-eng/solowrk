@@ -54,6 +54,7 @@ type ContextRow = BlockRow & {
   project_colour: string | null
   client_name: string | null
   task_title: string | null
+  tracked_seconds: number
 }
 
 function toBlock(row: BlockRow): CalendarBlock {
@@ -97,6 +98,10 @@ function toBlockWithContext(row: ContextRow): CalendarBlockWithContext {
     projectColour: row.project_colour,
     clientName: row.client_name,
     taskTitle: row.task_title,
+    // Rounded to whole minutes, because the block it is compared against is
+    // measured in minutes and "90m planned, 89.4m tracked" is not a fact
+    // anybody needs.
+    trackedMinutes: Math.round(row.tracked_seconds / 60),
     // Resolved here rather than in the renderer so the month, week, day and
     // agenda views cannot disagree about what colour a block is. The type is
     // the last resort, which is what gives an unassigned holiday its green.
@@ -109,7 +114,14 @@ const SELECT_WITH_CONTEXT = `
          p.name   AS project_name,
          p.colour AS project_colour,
          c.name   AS client_name,
-         t.title  AS task_title
+         t.title  AS task_title,
+         -- A correlated subquery rather than a join: joining time_entries
+         -- would return one row per entry and multiply every block by its
+         -- own history.
+         (SELECT COALESCE(SUM(te.duration), 0)
+            FROM time_entries te
+           WHERE b.task_id IS NOT NULL AND te.task_id = b.task_id
+             AND te.ended_at IS NOT NULL) AS tracked_seconds
     FROM calendar_blocks b
     LEFT JOIN projects p ON p.id = b.project_id
     LEFT JOIN clients  c ON c.id = b.client_id

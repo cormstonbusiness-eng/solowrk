@@ -153,6 +153,23 @@ export function TaskModal({
             </Field>
           </div>
 
+          {/* An estimate is what the calendar reserves when this is dragged
+              into a day, and what its "of 90m" is measured against. Blank
+              means nobody has said — which is a real answer, and different
+              from zero. */}
+          <Field label="Estimate" hint="Minutes. Sets the slot when you schedule it.">
+            <TextInput
+              type="number"
+              min={0}
+              step={15}
+              placeholder="Not estimated"
+              value={draft.estimateMinutes ?? ''}
+              onChange={(e) =>
+                update('estimateMinutes', e.target.value === '' ? null : Number(e.target.value))
+              }
+            />
+          </Field>
+
           <Field label="Colour" hint="Overrides the category's colour for this one task.">
             <div className="flex items-center gap-3">
               <ColourPicker value={draft.colour} onChange={(colour) => update('colour', colour)} />

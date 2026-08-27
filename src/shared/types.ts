@@ -317,6 +317,22 @@ export interface Task {
   status: TaskStatus
   priority: number
   dueAt: string | null
+  /**
+   * How long this is expected to take. Null means nobody has said.
+   *
+   * Separate from `scheduledAt` because they are separate claims: one is
+   * about the work, the other about the diary, and a task can have either
+   * without the other.
+   */
+  estimateMinutes: number | null
+  /**
+   * When it is happening, copied from the block that schedules it.
+   *
+   * The block is still the record. This is here so a task list can say
+   * "Thursday 10:00" without joining the calendar, and so "unscheduled" is
+   * one indexed lookup.
+   */
+  scheduledAt: string | null
   /** Overrides the category's colour. Empty means "inherit". */
   colour: string
   sortOrder: number
@@ -1162,6 +1178,42 @@ export const BLOCK_TYPES: BlockTypeMeta[] = [
   { value: 'external', label: 'External', colour: '#8a8a93', billable: false, counts: true, draggable: false }
 ]
 
+/**
+ * A date the calendar shows but does not own.
+ *
+ * A project deadline, a milestone, a task's due date, an invoice falling due.
+ * None of these is a block: each already lives somewhere, and copying it into
+ * the calendar would mean two places to change it and one of them silently
+ * wrong. They are computed on the way out, drawn as marks rather than blocks,
+ * and cannot be dragged — moving a deadline is a decision, and a decision
+ * made by accident with a mouse is not one.
+ */
+export type MarkerKind = 'project' | 'milestone' | 'task' | 'invoice'
+
+export interface DerivedMarker {
+  kind: MarkerKind
+  /** The id of the thing it derives from, for opening it. */
+  id: number
+  day: string
+  label: string
+  /** The second line: "Project deadline", "£1,200 due". */
+  detail: string
+  /** Empty falls back to the kind's own colour in the renderer. */
+  colour: string
+}
+
+export interface ProjectMilestone {
+  id: number
+  projectId: number
+  title: string
+  dueOn: string
+  notes: string
+  reachedAt: string | null
+  sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
 export function blockTypeMeta(type: BlockType): BlockTypeMeta {
   return BLOCK_TYPES.find((entry) => entry.value === type) ?? BLOCK_TYPES[2]!
 }
@@ -1210,6 +1262,15 @@ export interface CalendarBlockWithContext extends CalendarBlock {
   projectColour: string | null
   clientName: string | null
   taskTitle: string | null
+  /**
+   * Time already recorded against this block's task, in whole minutes.
+   *
+   * Zero for a block scheduling nothing. Compared against the block's own
+   * length, this says whether the plan is holding — the reconciliation the
+   * whole module exists for, and the one number a calendar normally cannot
+   * answer.
+   */
+  trackedMinutes: number
   /** `colour`, then the project's, then the block type's. Resolved once. */
   displayColour: string
 }

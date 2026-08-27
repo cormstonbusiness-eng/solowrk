@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { CalendarPlus, ChevronLeft, ChevronRight, Minus, Plus } from 'lucide-react'
-import type { CalendarBlockWithContext, CalendarSettings } from '@shared/types'
+import { CalendarPlus, ChevronLeft, ChevronRight, Minus, PanelRightClose, Plus } from 'lucide-react'
+import type { CalendarBlockWithContext, CalendarSettings, TaskWithContext } from '@shared/types'
 import { addDays, addMonths, dayFromDate, monthGrid, weekDays } from '@shared/calendar'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
@@ -16,6 +16,7 @@ import { AgendaView } from './calendar/AgendaView'
 import { BlockModal } from './calendar/BlockModal'
 import { MonthView } from './calendar/MonthView'
 import { TimeGrid } from './calendar/TimeGrid'
+import { UnscheduledRail } from './calendar/UnscheduledRail'
 import { ZOOM_LEVELS, dayLabel, monthLabel, nearestZoom, stepZoom } from './calendar/grid'
 
 type View = 'month' | 'week' | 'day' | 'agenda'
@@ -105,6 +106,7 @@ export function Calendar(): React.JSX.Element {
     endTime: string
   } | null>(null)
   const [focusId, setFocusId] = useState<number | null>(null)
+  const [railOpen, setRailOpen] = useState(true)
 
   useOpenParam('new', () => setCreating({ day: anchor, startTime: '09:00', endTime: '10:00' }))
 
@@ -131,6 +133,34 @@ export function Calendar(): React.JSX.Element {
   const { data: projects = [] } = useQuery({
     queryKey: keys.projects(),
     queryFn: () => window.solo.invoke('projects:list', {})
+  })
+
+  /**
+   * The running timer, polled rather than pushed.
+   *
+   * Half a minute is plenty: the block it draws is measured in minutes, and
+   * the grid redraws it on its own clock anyway.
+   */
+  const { data: running = null } = useQuery({
+    queryKey: ['time', 'running'],
+    queryFn: () => window.solo.invoke('time:running', undefined),
+    refetchInterval: 30_000
+  })
+
+  const startTimer = async (block: CalendarBlockWithContext): Promise<void> => {
+    await window.solo.invoke('time:start', {
+      projectId: block.projectId,
+      taskId: block.taskId,
+      notes: block.title
+    })
+    invalidate(['time'])
+  }
+
+  // Deadlines, read from where they actually live. Nothing here is a block,
+  // so nothing here can drift from the record or be dragged by accident.
+  const { data: markers = [] } = useQuery({
+    queryKey: ['calendar', 'markers', from, to],
+    queryFn: () => window.solo.invoke('calendar:markers', { from, to })
   })
 
   // Scheduled posts are deliberately NOT here. Marketing has its own content
@@ -184,6 +214,28 @@ export function Calendar(): React.JSX.Element {
     })
   }
 
+  /**
+   * A task picked up from the rail.
+   *
+   * Held here rather than in either component, because the gesture starts in
+   * the rail and finishes on the grid, and neither can own something the
+   * other half of which belongs to its sibling.
+   */
+  const [pendingTask, setPendingTask] = useState<TaskWithContext | null>(null)
+
+  const scheduleTask = async (task: TaskWithContext, startsAt: string): Promise<void> => {
+    setPendingTask(null)
+    const block = await window.solo.invoke('calendar:scheduleTask', { taskId: task.id, startsAt })
+    invalidate(['calendar', 'tasks'])
+
+    offer(`Scheduled ${task.title}`, async () => {
+      // Deleting the block is all it takes: a trigger puts the task back on
+      // the rail, whole, because the task never lost anything to begin with.
+      await window.solo.invoke('entity:delete', { type: 'block', id: block.id })
+      invalidate(['calendar', 'tasks'])
+    })
+  }
+
   const create = async (
     span: { startsAt: string; endsAt: string },
     title: string
@@ -205,6 +257,26 @@ export function Calendar(): React.JSX.Element {
       window.solo.invoke('calendar:updateSettings', { hourHeight }),
     onSuccess: () => invalidate(['calendar'])
   })
+
+  /**
+   * `U` shows and hides the rail.
+   *
+   * Guarded on the event target rather than on a modal flag: the calendar has
+   * a title input on the grid itself now, and a shortcut that fired while
+   * somebody was typing "Update the deck" would hide the rail three times.
+   */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key !== 'u' && event.key !== 'U') return
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      const target = event.target as HTMLElement | null
+      if (target?.isContentEditable) return
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+      setRailOpen((open) => !open)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   // A clicked reminder should land on the block it was reminding you about.
   useEffect(() => {
@@ -276,6 +348,19 @@ export function Calendar(): React.JSX.Element {
 
         <div className="flex items-center gap-2">
           {showZoom && (
+            <Button
+              variant={railOpen ? 'outline' : 'ghost'}
+              size="sm"
+              aria-pressed={railOpen}
+              onClick={() => setRailOpen((open) => !open)}
+              title="Unscheduled tasks (U)"
+            >
+              <PanelRightClose size={13} strokeWidth={1.75} />
+              Unscheduled
+            </Button>
+          )}
+
+          {showZoom && (
             <div className="flex items-center gap-0.5">
               <Button
                 variant="ghost"
@@ -339,6 +424,7 @@ export function Calendar(): React.JSX.Element {
               month={anchor}
               today={today}
               blocks={blocks}
+              markers={markers}
               settings={settings}
               onOpenBlock={setEditing}
               onCreateAt={(day) => openNew(day)}
@@ -352,17 +438,29 @@ export function Calendar(): React.JSX.Element {
           )}
 
           {(view === 'week' || view === 'day') && (
-            <TimeGrid
-              days={view === 'day' ? [anchor] : weekDays(anchor)}
-              today={today}
-              blocks={blocks}
-              settings={settings}
-              onOpenBlock={setEditing}
-              onCreate={(span, title) => void create(span, title)}
-              onReschedule={(block, span) => void reschedule(block, span)}
-              onDuplicate={(block, span) => void duplicate(block, span)}
-              onAdvance={(direction) => setAnchor(step(view, anchor, direction))}
-            />
+            <div className="flex min-h-0 flex-1 gap-3">
+              <TimeGrid
+                days={view === 'day' ? [anchor] : weekDays(anchor)}
+                today={today}
+                blocks={blocks}
+                markers={markers}
+                settings={settings}
+                pendingTask={pendingTask}
+                running={running}
+                onOpenBlock={setEditing}
+                onCreate={(span, title) => void create(span, title)}
+                onReschedule={(block, span) => void reschedule(block, span)}
+                onDuplicate={(block, span) => void duplicate(block, span)}
+                onAdvance={(direction) => setAnchor(step(view, anchor, direction))}
+                onScheduleTask={(task, startsAt) => void scheduleTask(task, startsAt)}
+                onCancelTaskDrag={() => setPendingTask(null)}
+                onStartTimer={(block) => void startTimer(block)}
+              />
+
+              {railOpen && (
+                <UnscheduledRail today={today} onDragTask={(task) => setPendingTask(task)} />
+              )}
+            </div>
           )}
 
           {view === 'agenda' && (

@@ -32,6 +32,7 @@ import type {
   BusinessSettings,
   CalendarBlockWithContext,
   CalendarSettings,
+  DerivedMarker,
   Campaign,
   CampaignWithCounts,
   Category,
@@ -631,6 +632,22 @@ export interface IpcContract {
   'calendar:settings': { req: void; res: CalendarSettings }
   'calendar:updateSettings': { req: Partial<CalendarSettings>; res: CalendarSettings }
 
+  /** Dates the calendar shows but does not own — never rows, never draggable. */
+  'calendar:markers': { req: { from: string; to: string }; res: DerivedMarker[] }
+  'calendar:unscheduled': {
+    req: { search?: string; projectId?: number } | void
+    res: TaskWithContext[]
+  }
+  'calendar:scheduleTask': {
+    req: { taskId: number; startsAt: string; endsAt?: string }
+    res: CalendarBlockWithContext
+  }
+  /**
+   * Take a block's length as the task's estimate. Explicit, and never a side
+   * effect of resizing — see `scheduling.ts`.
+   */
+  'calendar:adoptEstimate': { req: { blockId: number }; res: TaskWithContext }
+
   'marketing:campaigns': { req: { includeArchived?: boolean } | void; res: CampaignWithCounts[] }
   'marketing:createCampaign': { req: Partial<Campaign> & { name: string }; res: Campaign }
   'marketing:updateCampaign': { req: { id: number; patch: Partial<Campaign> }; res: Campaign }
@@ -881,6 +898,10 @@ export const IPC_CHANNELS = [
   'calendar:upcoming',
   'calendar:settings',
   'calendar:updateSettings',
+  'calendar:markers',
+  'calendar:unscheduled',
+  'calendar:scheduleTask',
+  'calendar:adoptEstimate',
   'marketing:campaigns',
   'marketing:createCampaign',
   'marketing:updateCampaign',

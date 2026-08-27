@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronDown, ChevronRight, Lock } from 'lucide-react'
-import type { CalendarBlockWithContext, CalendarSettings } from '@shared/types'
+import { ChevronDown, ChevronRight, Lock, Play } from 'lucide-react'
+import type {
+  CalendarBlockWithContext,
+  CalendarSettings,
+  DerivedMarker,
+  RunningTimer,
+  TaskWithContext
+} from '@shared/types'
 import { blockTypeMeta } from '@shared/types'
 import {
   dayOf,
@@ -11,6 +17,7 @@ import {
   placeOverlapping,
   segmentOn,
   stampAt,
+  stampFromDate,
   timeOf
 } from '@shared/calendar'
 import { cn } from '@/lib/utils'
@@ -45,27 +52,56 @@ const AUTOSCROLL_SPEED = 10
 const EDGE_HOLD_MS = 600
 const EDGE_ZONE = 24
 
+/**
+ * A glyph per kind of deadline.
+ *
+ * Text rather than icons, because these sit at ten pixels in a crowded strip
+ * where an icon becomes a smudge, and because the shape has to survive being
+ * the only thing distinguishing four dashed chips of the same size.
+ */
+const MARKER_GLYPH: Record<DerivedMarker['kind'], string> = {
+  project: '◆',
+  milestone: '◇',
+  task: '•',
+  invoice: '£'
+}
+
 export function TimeGrid({
   days,
   today,
   blocks,
+  markers,
   settings,
+  pendingTask,
+  running,
   onOpenBlock,
   onCreate,
   onReschedule,
   onDuplicate,
-  onAdvance
+  onAdvance,
+  onScheduleTask,
+  onCancelTaskDrag,
+  onStartTimer
 }: {
   days: string[]
   today: string
   blocks: CalendarBlockWithContext[]
+  /** Dates the calendar shows but does not own. Drawn as marks, never moved. */
+  markers: DerivedMarker[]
   settings: CalendarSettings
+  /** A task picked up from the rail, waiting for somewhere to land. */
+  pendingTask: TaskWithContext | null
+  /** The timer, if one is going. Drawn as a block that grows. */
+  running: RunningTimer | null
   onOpenBlock: (block: CalendarBlockWithContext) => void
   onCreate: (span: Span, title: string) => void
   onReschedule: (block: CalendarBlockWithContext, span: Span) => void
   onDuplicate: (block: CalendarBlockWithContext, span: Span) => void
   /** Turning the page mid-drag, when the pointer holds against an edge. */
   onAdvance: (direction: 1 | -1) => void
+  onScheduleTask: (task: TaskWithContext, startsAt: string) => void
+  onCancelTaskDrag: () => void
+  onStartTimer: (block: CalendarBlockWithContext) => void
 }): React.JSX.Element {
   const scroller = useRef<HTMLDivElement>(null)
   const body = useRef<HTMLDivElement>(null)
@@ -84,11 +120,30 @@ export function TimeGrid({
     scroller.current?.scrollTo({ top: DEFAULT_SCROLL_HOUR * hourHeight })
   }, [hourHeight])
 
-  // The current-time line only needs to be minute-accurate.
+  // The current-time line only needs to be minute-accurate. So does the
+  // running timer's block: it is minutes tall, and a block that redrew every
+  // second would be a repaint a second for a change nobody can see.
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60_000)
     return () => clearInterval(id)
   }, [])
+
+  /**
+   * The timer, as a block that grows.
+   *
+   * Drawn from the live `time_entries` row rather than written into the
+   * calendar, for the same reason the deadlines are not blocks: it is already
+   * a record, and a copy would be a second one to keep true. It disappears
+   * when the timer stops, and what is left behind is the time entry.
+   */
+  const runningSpan = useMemo(() => {
+    if (!running) return null
+    const startedAt = stampFromDate(new Date(running.entry.startedAt))
+    const nowAt = stampFromDate(now)
+    // A timer left going overnight would otherwise draw a block of negative
+    // height on today and nothing at all on yesterday.
+    return dayOf(startedAt) === dayOf(nowAt) ? { startsAt: startedAt, endsAt: nowAt } : null
+  }, [running, now])
 
   const timed = blocks.filter((block) => !block.allDay)
   const allDay = blocks.filter((block) => block.allDay)
@@ -369,6 +424,86 @@ export function TimeGrid({
     settings.defaultBlockMinutes
   ])
 
+  /* ---------------- dropping a task from the rail ---------------- */
+
+  const [dropAt, setDropAt] = useState<GridPoint | null>(null)
+
+  useEffect(() => {
+    if (!pendingTask) {
+      setDropAt(null)
+      return
+    }
+
+    const onMove = (event: PointerEvent): void => {
+      const over = document
+        .elementFromPoint(event.clientX, event.clientY)
+        ?.closest<HTMLElement>('[data-column-day]')
+      // Off the grid entirely means no target, which is what makes dropping a
+      // task back on the rail a cancel rather than a schedule at midnight.
+      if (!over) {
+        setDropAt(null)
+        return
+      }
+      const point = pointAt(event.clientX, event.clientY, over.dataset.columnDay ?? today)
+      setDropAt({
+        day: point.day,
+        minutes: Math.round(point.minutes / settings.snapMinutes) * settings.snapMinutes
+      })
+    }
+
+    const onUp = (): void => {
+      const target = dropTarget.current
+      setDropAt(null)
+      if (target) onScheduleTask(pendingTask, stampAt(target.day, target.minutes))
+      else onCancelTaskDrag()
+    }
+
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') onCancelTaskDrag()
+    }
+
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+    window.addEventListener('keydown', onKey)
+    return () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [pendingTask, pointAt, settings.snapMinutes, today, onScheduleTask, onCancelTaskDrag])
+
+  // Read on pointerup, by which time the state above is a frame stale.
+  const dropTarget = useRef<GridPoint | null>(null)
+  dropTarget.current = dropAt
+
+  /**
+   * Planned against actual, where there is anything to compare.
+   *
+   * Null for a block scheduling nothing, and null before any time is tracked:
+   * a block for next Thursday reading "0m of 90m" would report a shortfall on
+   * work nobody has started.
+   */
+  function varianceFor(
+    block: CalendarBlockWithContext,
+    segment: { start: number; end: number }
+  ): { planned: number; over: boolean } | null {
+    if (block.taskId === null || block.trackedMinutes === 0) return null
+    const planned = segment.end - segment.start
+    return { planned, over: block.trackedMinutes > planned }
+  }
+
+  /**
+   * Whether a block is something you would time.
+   *
+   * Work you could bill or account for, and nothing already being timed. A
+   * play button on a holiday would be an offer to record a holiday as work.
+   */
+  function timerFor(block: CalendarBlockWithContext): boolean {
+    if (running) return false
+    if (block.locked) return false
+    return block.blockType === 'focus' || block.blockType === 'task'
+  }
+
   /** The dragged block's provisional span, so the drag reads as direct. */
   function spanOf(block: CalendarBlockWithContext): Span {
     return state.phase === 'dragging' && state.subject?.id === block.id && !state.duplicate
@@ -474,6 +609,28 @@ export function TimeGrid({
                   {onThisDay.length}
                 </span>
               ) : null}
+
+              {/* Deadlines, drawn dashed and unfilled so they never read as
+                  something you can pick up. None of these is a block; each is
+                  a date living somewhere else, shown here. */}
+              {markers
+                .filter((marker) => marker.day === day)
+                .map((marker) => (
+                  <span
+                    key={`${marker.kind}-${marker.id}`}
+                    title={`${marker.label} · ${marker.detail}`}
+                    style={{ borderColor: marker.colour || undefined }}
+                    className={cn(
+                      'flex items-center gap-1 truncate rounded-[4px] border border-dashed px-1.5 py-[1px] text-[10px]',
+                      marker.colour ? 'text-ink' : 'border-line-strong text-muted'
+                    )}
+                  >
+                    <span aria-hidden className="shrink-0 text-faint">
+                      {MARKER_GLYPH[marker.kind]}
+                    </span>
+                    <span className="truncate">{marker.label}</span>
+                  </span>
+                ))}
             </div>
           )
         })}
@@ -559,6 +716,29 @@ export function TimeGrid({
                   </div>
                 )}
 
+                {/* Where the task from the rail would land. Its own shape
+                    rather than a full ghost block: nothing has been decided
+                    yet, and drawing a finished block would say otherwise. */}
+                {pendingTask && dropAt?.day === day && (
+                  <div
+                    aria-hidden
+                    style={{
+                      top: dropAt.minutes * perMinute,
+                      height:
+                        (pendingTask.estimateMinutes ?? settings.defaultBlockMinutes) * perMinute
+                    }}
+                    className="pointer-events-none absolute inset-x-[2px] z-40 rounded-[5px] border border-dashed border-accent bg-accent-subtle px-1.5 py-0.5"
+                  >
+                    <p className="truncate text-[11.5px] font-medium text-ink">
+                      {pendingTask.title}
+                    </p>
+                    <p className="numeric truncate text-[10px] text-muted">
+                      {timeOf(stampAt(day, dropAt.minutes))}
+                      {pendingTask.estimateMinutes === null && ' · no estimate'}
+                    </p>
+                  </div>
+                )}
+
                 {ghostHere && (
                   <Ghost
                     span={ghostHere}
@@ -586,6 +766,7 @@ export function TimeGrid({
                   const detail = detailFor(height)
                   const meta = blockTypeMeta(block.blockType)
                   const dragging = state.phase === 'dragging' && state.subject?.id === block.id
+                  const variance = varianceFor(block, segment)
 
                   return (
                     <div
@@ -658,7 +839,41 @@ export function TimeGrid({
                               {[block.projectName, block.location].filter(Boolean).join(' · ')}
                             </p>
                           )}
+
+                          {/* What was planned against what actually happened.
+                              Only where there is a task to compare with, and
+                              only once something has been tracked — "0m of
+                              90m" on a block for next Thursday is not news. */}
+                          {detail !== 'title' && variance !== null && (
+                            <p
+                              className={cn(
+                                'numeric relative truncate text-[10px]',
+                                variance.over ? 'text-danger' : 'text-muted'
+                              )}
+                            >
+                              {durationLabel(block.trackedMinutes)} of{' '}
+                              {durationLabel(variance.planned)}
+                            </p>
+                          )}
                         </>
+                      )}
+
+                      {/* Start the timer on this block. Hover-only, and only
+                          where there is something to bill against — a play
+                          button on a dentist appointment is noise. */}
+                      {timerFor(block) && (
+                        <button
+                          type="button"
+                          aria-label={`Start timing ${block.title}`}
+                          onPointerDown={(event) => event.stopPropagation()}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            onStartTimer(block)
+                          }}
+                          className="absolute top-0.5 right-0.5 z-10 grid size-4 place-items-center rounded-[3px] bg-surface/90 text-muted opacity-0 transition-opacity group-hover:opacity-100 hover:text-ink"
+                        >
+                          <Play size={9} strokeWidth={2.25} />
+                        </button>
                       )}
 
                       {/* Resize grip: the bottom six pixels, so the rest of the
@@ -674,11 +889,53 @@ export function TimeGrid({
                     </div>
                   )
                 })}
+
+                {runningSpan && dayOf(runningSpan.startsAt) === day && (
+                  <RunningBlock
+                    span={runningSpan}
+                    perMinute={perMinute}
+                    label={running?.entry.taskTitle || running?.entry.projectName || 'Timing'}
+                  />
+                )}
               </div>
             )
           })}
         </div>
       </div>
+    </div>
+  )
+}
+
+/**
+ * The timer, drawn where it is happening.
+ *
+ * Deliberately not a block: no fill, a moving edge, and nothing to grab. What
+ * is being recorded is a time entry, and making it look like something you
+ * could drag would invite somebody to try.
+ */
+function RunningBlock({
+  span,
+  perMinute,
+  label
+}: {
+  span: Span
+  perMinute: number
+  label: string
+}): React.JSX.Element {
+  const start = minutesOf(span.startsAt)
+  const minutes = Math.max(1, minutesBetween(span.startsAt, span.endsAt))
+
+  return (
+    <div
+      aria-live="off"
+      style={{ top: start * perMinute, height: Math.max(minutes * perMinute, 8) }}
+      className="pointer-events-none absolute inset-x-[2px] z-20 overflow-hidden rounded-[5px] border border-accent bg-accent-subtle px-1.5"
+    >
+      <p className="flex items-center gap-1 truncate text-[10.5px] font-medium text-accent">
+        <span aria-hidden className="size-1.5 shrink-0 animate-pulse rounded-full bg-accent" />
+        <span className="truncate">{label}</span>
+        <span className="numeric shrink-0">{durationLabel(minutes)}</span>
+      </p>
     </div>
   )
 }

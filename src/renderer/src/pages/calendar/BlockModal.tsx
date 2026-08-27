@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { PanelRight, Trash2 } from 'lucide-react'
+import { ListChecks, PanelRight, Trash2 } from 'lucide-react'
 import type { BlockInput, BlockType, CalendarBlockWithContext } from '@shared/types'
 import { BLOCK_TYPES, REMINDER_CHOICES, blockTypeMeta } from '@shared/types'
 import { dayOf, minutesBetween, stampAt, timeOf } from '@shared/calendar'
+import { durationLabel } from './grid'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput, Toggle } from '@/components/ui/Field'
 import { ColourPicker, Select } from '@/components/ui/Select'
@@ -157,6 +158,11 @@ export function BlockModal({
     }
   })
 
+  const adopt = useMutation({
+    mutationFn: () => window.solo.invoke('calendar:adoptEstimate', { blockId: block?.id ?? 0 }),
+    onSuccess: () => invalidate(['tasks', 'calendar'])
+  })
+
   // Nothing from a subscribed calendar is editable. The service refuses it too;
   // this is so the modal does not offer something that will fail.
   const locked = block?.locked ?? false
@@ -220,6 +226,29 @@ export function BlockModal({
             placeholder="Client call, deep work, site visit…"
           />
         </Field>
+
+        {/* What this block is scheduling, and the one place its length can
+            become the task's estimate. Never on resize: dragging a block out
+            to fill a free afternoon is not a revised estimate, and an app that
+            decided it was would corrupt every figure built on them. */}
+        {block?.taskId !== null && block?.taskTitle && (
+          <div className="flex items-center gap-2 rounded-control border border-line bg-raised px-3 py-2">
+            <ListChecks size={13} strokeWidth={1.75} className="shrink-0 text-faint" />
+            <span className="min-w-0 flex-1 truncate text-[12.5px] text-muted">
+              Scheduling <span className="text-ink">{block.taskTitle}</span>
+            </span>
+            <button
+              type="button"
+              disabled={adopt.isPending}
+              onClick={() => adopt.mutate()}
+              className="shrink-0 text-[11.5px] text-muted transition-colors hover:text-ink disabled:opacity-45"
+            >
+              {adopt.isSuccess
+                ? 'Estimate saved'
+                : `Make ${durationLabel(minutesBetween(block.startsAt, block.endsAt))} the estimate`}
+            </button>
+          </div>
+        )}
 
         {/* Chips rather than a dropdown. The type decides colour, whether the
             hour counts toward capacity and whether it is billable — too much

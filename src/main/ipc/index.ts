@@ -133,6 +133,12 @@ import {
 } from '../services/finance'
 import { createBlock, getBlock, listBlocks, updateBlock, upcomingBlocks } from '../services/blocks'
 import { getCalendarSettings, updateCalendarSettings } from '../services/calendarSettings'
+import {
+  adoptEstimate,
+  derivedMarkers,
+  scheduleTask,
+  unscheduledTasks
+} from '../services/scheduling'
 import { nowStamp } from '@shared/calendar'
 import {
   createCampaign,
@@ -752,6 +758,14 @@ const handlers: Handlers = {
   'calendar:settings': () => getCalendarSettings(session.requireDb()),
 
   'calendar:updateSettings': (_g, patch) => updateCalendarSettings(session.requireDb(), patch),
+
+  'calendar:markers': (_g, range) => derivedMarkers(session.requireDb(), range),
+
+  'calendar:unscheduled': (_g, filter) => unscheduledTasks(session.requireDb(), filter ?? {}),
+
+  'calendar:scheduleTask': (_g, input) => scheduleTask(session.requireDb(), input),
+
+  'calendar:adoptEstimate': (_g, { blockId }) => adoptEstimate(session.requireDb(), blockId),
 
   'app:version': () => app.getVersion(),
 

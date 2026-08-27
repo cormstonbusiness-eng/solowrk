@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import type { CalendarBlockWithContext, CalendarSettings } from '@shared/types'
+import type { CalendarBlockWithContext, CalendarSettings, DerivedMarker } from '@shared/types'
 import { blockTypeMeta } from '@shared/types'
 import {
   dayOf,
@@ -29,10 +29,19 @@ const DRAG_THRESHOLD = 4
  */
 const VISIBLE_PER_CELL = 3
 
+/** A glyph per kind of deadline. Shapes survive ten pixels; icons smudge. */
+const MARKER_GLYPH: Record<DerivedMarker['kind'], string> = {
+  project: '◆',
+  milestone: '◇',
+  task: '•',
+  invoice: '£'
+}
+
 export function MonthView({
   month,
   today,
   blocks,
+  markers,
   settings,
   onOpenBlock,
   onCreateAt,
@@ -42,6 +51,8 @@ export function MonthView({
   month: string
   today: string
   blocks: CalendarBlockWithContext[]
+  /** Deadlines the calendar shows but does not own. */
+  markers: DerivedMarker[]
   settings: CalendarSettings
   onOpenBlock: (block: CalendarBlockWithContext) => void
   onCreateAt: (day: string) => void
@@ -167,6 +178,7 @@ export function MonthView({
           const capacity = settings.dailyCapacityMinutes
           const load = capacity > 0 ? committed / capacity : 0
           const hidden = dayBlocks.length - VISIBLE_PER_CELL
+          const dayMarkers = markers.filter((marker) => marker.day === day)
 
           return (
             <div
@@ -211,6 +223,26 @@ export function MonthView({
               </div>
 
               <div className="flex flex-col gap-[3px] overflow-hidden">
+                {/* Deadlines first: what a day is held to comes before what
+                    was put in it. Dashed and unfilled, so they never read as
+                    something to pick up. */}
+                {dayMarkers.map((marker) => (
+                  <span
+                    key={`${marker.kind}-${marker.id}`}
+                    title={`${marker.label} · ${marker.detail}`}
+                    style={{ borderColor: marker.colour || undefined }}
+                    className={cn(
+                      'flex items-center gap-1 truncate rounded-[4px] border border-dashed px-1.5 py-[2px] text-[10.5px]',
+                      marker.colour ? 'text-ink' : 'border-line-strong text-muted'
+                    )}
+                  >
+                    <span aria-hidden className="shrink-0 text-faint">
+                      {MARKER_GLYPH[marker.kind]}
+                    </span>
+                    <span className="truncate">{marker.label}</span>
+                  </span>
+                ))}
+
                 {dayBlocks.slice(0, VISIBLE_PER_CELL).map((block) => chip(block))}
 
                 {hidden > 0 && (
