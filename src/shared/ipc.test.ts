@@ -109,7 +109,10 @@ describe('what read-only allows', () => {
       'documents:generate',
       'documents:save',
       'documents:restoreVersion',
-      'documents:setStatus'
+      'documents:setStatus',
+      // Filing the review writes a note. `file` is not a write verb the
+      // classifier knows, so it is pinned here and added to WRITE_VERBS.
+      'review:file'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(false)
     }
@@ -177,7 +180,9 @@ describe('what read-only allows', () => {
       'docTemplates:get',
       'docTemplates:preview',
       'documents:get',
-      'documents:versions'
+      'documents:versions',
+      // Reading the review changes nothing.
+      'review:week'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(true)
     }

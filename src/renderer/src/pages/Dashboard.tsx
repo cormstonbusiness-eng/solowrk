@@ -23,6 +23,7 @@ import { addDays, dayFromDate, describeSpan, occursOn } from '@shared/calendar'
 import { rangeFor } from '@shared/taxYear'
 import type { GoalProgress } from '@shared/types'
 import { Page } from '@/components/Page'
+import { WeeklyReview } from './dashboard/WeeklyReview'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Dot } from '@/components/ui/Empty'
@@ -593,6 +594,15 @@ export function Dashboard(): React.JSX.Element {
           )}
         </Card>
 
+        <WeeklyReview />
+      </motion.div>
+
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ ...transition.page, delay: 0.2 }}
+        className="mt-4 grid grid-cols-3 gap-4"
+      >
         {/* The one place the palette advertises itself: a shortcut nobody has
             been told about is a shortcut nobody uses. */}
         <Card>

@@ -34,6 +34,7 @@ import type {
   CalendarSettings,
   CalendarSubscription,
   AgedDebtors,
+  Review,
   BankImportResult,
   DocumentTemplate,
   DocumentTemplateInput,
@@ -667,6 +668,21 @@ export interface IpcContract {
   'debtors:aged': { req: { asOf?: string } | void; res: AgedDebtors }
 
   /**
+   * The Monday review.
+   *
+   * Computed from the database rather than written by the assistant — this is
+   * the page somebody reads and believes without checking, so a hallucinated
+   * figure in it would be worse than no review. It needs no Claude account and
+   * cannot invent a number.
+   */
+  'review:week': { req: { asOf?: string } | void; res: Review }
+  /** Write it into the notebook, once per week. Returns the note it wrote. */
+  'review:file': {
+    req: { asOf?: string } | void
+    res: { review: Review; noteId: number; created: boolean }
+  }
+
+  /**
    * The bank import.
    *
    * A CSV the user downloaded themselves — there is no connection to any bank
@@ -1080,6 +1096,8 @@ export const IPC_CHANNELS = [
   'expenses:update',
   'expenses:delete',
   'debtors:aged',
+  'review:week',
+  'review:file',
   'bank:import',
   'bank:list',
   'bank:summary',
@@ -1209,7 +1227,7 @@ const BLOCKED_WHEN_READ_ONLY = new Set<string>(['templates:fromProject', 'quotes
  * prefix would have locked it on a lapsed licence.
  */
 const WRITE_VERBS =
-  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync|archive|restore|purge|empty|recolour|edit|schedule|adopt|subscribe|unsubscribe|copy|expand|reached|fill|ignore|forget|match(?![a-z])|unmatch(?![a-z]))/
+  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync|archive|restore|purge|empty|recolour|edit|schedule|adopt|subscribe|unsubscribe|copy|expand|reached|fill|ignore|forget|file|match(?![a-z])|unmatch(?![a-z]))/
 
 /**
  * Whether a channel is allowed while the app is read-only.

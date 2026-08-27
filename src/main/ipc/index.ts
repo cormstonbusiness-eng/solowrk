@@ -143,6 +143,7 @@ import {
 import { deleteOccurrence, editOccurrence } from '../services/recurrence'
 import { readReceiptImage } from '../services/ocr'
 import { agedDebtors } from '../services/debtors'
+import { fileWeeklyReview, weeklyReview } from '../services/review'
 import {
   createDocTemplate,
   deleteDocTemplate,
@@ -835,6 +836,10 @@ const handlers: Handlers = {
   'expenses:readReceipt': (_g, { path }) => readReceiptImage(path),
 
   'debtors:aged': (_g, request) => agedDebtors(session.requireDb(), request?.asOf),
+
+  'review:week': (_g, request) => weeklyReview(session.requireDb(), request?.asOf),
+  'review:file': (_g, request) =>
+    fileWeeklyReview(session.requireDb(), session.requirePath(), request?.asOf),
 
   'docTemplates:list': () => listDocTemplates(session.requireDb()),
   'docTemplates:get': (_g, { id }) => getDocTemplate(session.requireDb(), id),

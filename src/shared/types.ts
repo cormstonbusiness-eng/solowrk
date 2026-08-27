@@ -11,12 +11,14 @@ import type { Platform } from './social'
 import type { Vehicle } from './mileage'
 import type { DebtBucket, DebtHeat } from './debtors'
 import type { Match } from './bankMatch'
+import type { Review } from './review'
 import type { ReceiptReading } from './receipts'
 
 export type { Platform }
 export type { Vehicle }
 export type { DebtBucket, DebtHeat }
 export type { Match as BankMatch }
+export type { Review }
 // Re-exported so the IPC contract can name it without a second import
 // path for the same thing.
 export type { ReceiptReading }
