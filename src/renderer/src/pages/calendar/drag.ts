@@ -36,7 +36,15 @@ export interface Span {
 }
 
 export interface DragSubject extends Span {
-  id: number
+  /**
+   * What is being dragged, which is not always a row.
+   *
+   * `12@2026-08-17` for one occurrence of a weekly series. Using the row id
+   * here would make every occurrence of a series look like the same subject,
+   * so dragging one would move all of them on screen and commit to whichever
+   * the list happened to hold first.
+   */
+  key: string
 }
 
 export interface Pixels {
@@ -273,13 +281,13 @@ export function cancel(): DragState {
  * is and refuse to move.
  */
 export function edgesOn(
-  blocks: { id: number; startsAt: string; endsAt: string }[],
+  blocks: { key: string; startsAt: string; endsAt: string }[],
   day: string,
-  exclude: number | null
+  exclude: string | null
 ): number[] {
   const edges: number[] = []
   for (const block of blocks) {
-    if (block.id === exclude) continue
+    if (block.key === exclude) continue
     if (dayOf(block.startsAt) === day) edges.push(minutesOf(block.startsAt))
     if (dayOf(block.endsAt) === day) edges.push(minutesOf(block.endsAt))
   }

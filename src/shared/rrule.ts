@@ -48,13 +48,19 @@ export interface Recurrence {
 /**
  * Hard ceilings on expansion.
  *
- * A rule with neither COUNT nor UNTIL runs forever, and something has to stop
- * it. Five years is past the horizon anybody plans to; five hundred
- * occurrences is more than a daily rule produces in that time. Both are
- * belt and braces against a malformed rule from an imported feed.
+ * Both are measured against the range being drawn, never against the series
+ * start. Measuring from the start is the obvious thing and it is wrong: a
+ * stand-up somebody has had every Monday since 2018 would fall outside a
+ * horizon anchored to 2018 and vanish from this year's calendar entirely,
+ * and a daily series older than five hundred days would exhaust an occurrence
+ * cap long before the loop reached the week on screen.
+ *
+ * `MAX_IN_RANGE` bounds what comes back, which is what the grid has to draw.
+ * `MAX_STEPS` bounds the walk itself, so a rule from an imported feed that
+ * starts in 1900 costs a bounded amount of work rather than an unbounded one.
  */
-export const MAX_OCCURRENCES = 500
-export const MAX_YEARS = 5
+export const MAX_IN_RANGE = 500
+export const MAX_STEPS = 20_000
 
 /* ------------------------------------------------------------------ *
  * Day arithmetic
@@ -163,7 +169,10 @@ export function parseRule(text: string | null | undefined): Recurrence | null {
   }
 
   const count = Number(fields.get('COUNT'))
-  if (Number.isInteger(count) && count > 0) rule.count = Math.min(count, MAX_OCCURRENCES)
+  // Clamped to the walk budget rather than to a display cap: a COUNT is a
+  // fact about the series, and a feed claiming a million of them should
+  // cost bounded work rather than have its number quietly rewritten small.
+  if (Number.isInteger(count) && count > 0) rule.count = Math.min(count, MAX_STEPS)
 
   const until = fields.get('UNTIL')
   if (until) {
@@ -292,13 +301,16 @@ export function expand(
   exdates: string[] = []
 ): string[] {
   const skip = new Set(exdates)
-  const horizon = shiftDays(start, MAX_YEARS * 366)
-  const ceiling = [range.to, rule.until ?? horizon, horizon]
-    .filter(Boolean)
-    .reduce((low, day) => (day < low ? day : low))
+  // The range is what bounds this. An endless rule stops at `range.to`
+  // because there is nothing past it to draw, and `until` stops it sooner.
+  const ceiling =
+    rule.until !== undefined && rule.until < range.to ? rule.until : range.to
 
   const found: string[] = []
+  /** Occurrences of the series so far, which is what COUNT counts. */
   let emitted = 0
+  /** Iterations, which is only a guard against a pathological rule. */
+  let steps = 0
 
   /** True when the caller should stop generating entirely. */
   const take = (day: string): boolean => {
@@ -308,12 +320,16 @@ export function expand(
     // Counted before the skip, not after. COUNT counts occurrences of the
     // series, and one that was cancelled or dragged out of it still used one
     // up — which is what stops a series of ten quietly becoming eleven every
-    // time somebody moves an instance.
+    // time somebody moves an instance. It is also why a series that ran out
+    // years ago correctly shows nothing today: the only way to know it is
+    // over is to have counted from the beginning.
     emitted += 1
+    steps += 1
     if (!skip.has(day) && day >= range.from && day <= range.to) found.push(day)
 
     if (rule.count !== undefined && emitted >= rule.count) return true
-    if (emitted >= MAX_OCCURRENCES) return true
+    if (found.length >= MAX_IN_RANGE) return true
+    if (steps >= MAX_STEPS) return true
     return false
   }
 

@@ -53,13 +53,20 @@ function tick(getWindow: () => BrowserWindow | null): void {
       title: event.title,
       body: [bodyFor(event), event.location].filter(Boolean).join(' · '),
       link: '/calendar',
-      // One per event, so a reminder cannot be raised twice even if the poll
-      // and the reminded_at write ever disagree.
-      dedupeKey: `event-${event.id}`
+      // Per occurrence, not per row. A weekly meeting is one row and fifty
+      // reminders, and the key is the only thing standing between the second
+      // of those and silence — a generated occurrence has no `reminded_at`.
+      dedupeKey: `block-${event.key}`
     })
   }
 
-  markReminded(db, [...due, ...stale].map((event) => event.id), now)
+  // Only what is actually a row. A generated occurrence has nothing to mark,
+  // and marking its series would silence every repeat after it.
+  markReminded(
+    db,
+    [...due, ...stale].filter((block) => block.occurrenceOf === null).map((block) => block.id),
+    now
+  )
 
   refreshSubscriptions(db)
   runDigest(getWindow, new Date())

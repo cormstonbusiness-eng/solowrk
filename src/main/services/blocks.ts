@@ -7,7 +7,7 @@ import type {
   CalendarBlockWithContext
 } from '@shared/types'
 import { blockTypeMeta } from '@shared/types'
-import { addMinutes, dayOf, minutesBetween, stampAt, minutesOf } from '@shared/calendar'
+import { addDays, addMinutes, dayOf, minutesBetween, stampAt, minutesOf } from '@shared/calendar'
 import { expand, parseRule } from '@shared/rrule'
 
 /**
@@ -107,6 +107,7 @@ function toBlockWithContext(row: ContextRow): CalendarBlockWithContext {
     // agenda views cannot disagree about what colour a block is. The type is
     // the last resort, which is what gives an unassigned holiday its green.
     occurrenceOf: null,
+    key: String(block.id),
     displayColour: row.colour || row.project_colour || blockTypeMeta(block.blockType).colour
   }
 }
@@ -229,6 +230,7 @@ function occurrenceOn(
     startsAt,
     endsAt: addMinutes(startsAt, minutesBetween(master.startsAt, master.endsAt)),
     occurrenceOf: master.id,
+    key: `${master.id}@${day}`,
     // A generated occurrence has no timeline and no reminder history of its
     // own; both belong to the series.
     remindedAt: null
@@ -242,14 +244,23 @@ export function getBlock(db: Database, id: number): CalendarBlockWithContext {
 }
 
 /**
- * A block that ends before it starts is a data error, not a display quirk —
- * it would render as negative height and vanish. Fixed at the boundary so no
- * view has to defend against it.
+ * The shortest a block may be.
+ *
+ * §13: zero duration is not permitted at any entry point. A block of no
+ * length renders as nothing — not as a thin sliver, as *nothing* — so it
+ * cannot be clicked, cannot be found, and cannot be deleted by anybody who
+ * does not already know it is there.
+ */
+const MIN_MINUTES = 15
+
+/**
+ * A block that ends before it starts, or at the same moment, is a data error
+ * rather than a display quirk. Fixed at the boundary, so no view has to
+ * defend against it and no import can slip one past.
  */
 function normaliseSpan(startsAt: string, endsAt: string): { startsAt: string; endsAt: string } {
-  return minutesBetween(startsAt, endsAt) < 0
-    ? { startsAt, endsAt: startsAt }
-    : { startsAt, endsAt }
+  const minutes = minutesBetween(startsAt, endsAt)
+  return minutes < MIN_MINUTES ? { startsAt, endsAt: addMinutes(startsAt, MIN_MINUTES) } : { startsAt, endsAt }
 }
 
 export function createBlock(db: Database, input: BlockInput): CalendarBlockWithContext {
@@ -360,20 +371,32 @@ export function updateBlock(
   return getBlock(db, id)
 }
 
-/** The next blocks starting on or after `from`, for the dashboard and agenda. */
+/**
+ * How far ahead "what is next" looks before giving up.
+ *
+ * Two months is long enough to catch a monthly invoice review and short
+ * enough that expanding every series over it costs nothing.
+ */
+const UPCOMING_HORIZON_DAYS = 60
+
+/**
+ * The next blocks starting on or after `from`, for the dashboard and agenda.
+ *
+ * Through `listBlocks` rather than straight at the table, because a repeating
+ * block's row is its *first* occurrence. A stand-up somebody set up last year
+ * has a row in the past, and a query over rows would say their Monday morning
+ * was empty.
+ */
 export function upcomingBlocks(
   db: Database,
   from: string,
   limit = 5
 ): CalendarBlockWithContext[] {
-  return db
-    .all<ContextRow>(
-      `${SELECT_WITH_CONTEXT}
-        WHERE b.ends_at >= ? AND b.archived = 0
-        ORDER BY b.starts_at, b.id LIMIT ?`,
-      [from, limit]
-    )
-    .map(toBlockWithContext)
+  const fromDay = dayOf(from)
+  return listBlocks(db, { from: fromDay, to: addDays(fromDay, UPCOMING_HORIZON_DAYS) })
+    .filter((block) => block.endsAt >= from)
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id - b.id)
+    .slice(0, limit)
 }
 
 /* ------------------------------------------------------------------ *
@@ -395,19 +418,20 @@ export function dueReminders(
   db: Database,
   now: string
 ): { due: CalendarBlockWithContext[]; stale: CalendarBlockWithContext[] } {
-  const candidates = db
-    .all<ContextRow>(
-      `${SELECT_WITH_CONTEXT}
-        WHERE b.reminder_minutes IS NOT NULL
-          AND b.reminded_at IS NULL
-          AND b.archived = 0
-          AND b.starts_at >= ?
-        ORDER BY b.starts_at`,
-      // A day back is plenty of history to consider; anything older is stale by
-      // definition and would be swept on the next tick anyway.
-      [`${dayOf(now)}T00:00`]
-    )
-    .map(toBlockWithContext)
+  const today = dayOf(now)
+
+  // Through `listBlocks` so repeats are considered at all. Querying rows
+  // directly meant a weekly meeting reminded once, ever: its row is in the
+  // past, and marking that row as reminded silenced every occurrence after it.
+  // A generated occurrence has no `reminded_at` of its own and cannot get one,
+  // so what stops it firing twice is the notification's dedupe key, which
+  // carries the day.
+  const candidates = listBlocks(db, { from: today, to: addDays(today, 1) }).filter(
+    (block) =>
+      block.reminderMinutes !== null &&
+      (block.occurrenceOf !== null || block.remindedAt === null) &&
+      block.startsAt >= `${today}T00:00`
+  )
 
   const due: CalendarBlockWithContext[] = []
   const stale: CalendarBlockWithContext[] = []
@@ -423,6 +447,12 @@ export function dueReminders(
   return { due, stale }
 }
 
+/**
+ * Mark real rows as reminded.
+ *
+ * Generated occurrences are deliberately not passed here by the caller: they
+ * have no row, and marking their series would silence every future repeat.
+ */
 export function markReminded(db: Database, ids: number[], at: string): void {
   if (ids.length === 0) return
   db.run(

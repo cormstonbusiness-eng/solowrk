@@ -59,7 +59,7 @@ export function MonthView({
   onMoveBlock: (block: CalendarBlockWithContext, days: number) => void
 }): React.JSX.Element {
   const days = monthGrid(month)
-  const [dragging, setDragging] = useState<{ id: number; overDay: string } | null>(null)
+  const [dragging, setDragging] = useState<{ key: string; overDay: string } | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
   const origin = useRef<{ x: number; y: number; day: string; moved: boolean } | null>(null)
   // The drop target is read again on pointerup, by which time the state
@@ -97,7 +97,7 @@ export function MonthView({
         .elementFromPoint(move.clientX, move.clientY)
         ?.closest<HTMLElement>('[data-day]')
       overDay.current = cell?.dataset.day ?? from.day
-      setDragging({ id: block.id, overDay: overDay.current })
+      setDragging({ key: block.key, overDay: overDay.current })
     }
 
     const onUp = (): void => {
@@ -125,8 +125,8 @@ export function MonthView({
 
   const chip = (block: CalendarBlockWithContext, key?: string): React.JSX.Element => (
     <motion.button
-      key={key ?? block.id}
-      layoutId={`block-${block.id}`}
+      key={key ?? block.key}
+      layoutId={`block-${block.key}`}
       transition={transition.layout}
       type="button"
       onPointerDown={(pointerEvent) => startDrag(pointerEvent, block)}
@@ -137,7 +137,7 @@ export function MonthView({
       className={cn(
         'flex items-center gap-1.5 truncate rounded-[4px] border-l-[3px] px-1.5 py-[3px]',
         'text-left text-[11px] text-ink transition-opacity hover:opacity-80',
-        dragging?.id === block.id && 'opacity-50'
+        dragging?.key === block.key && 'opacity-50'
       )}
     >
       {!block.allDay && (
@@ -278,7 +278,7 @@ export function MonthView({
                         {Number(day.slice(8))} · {dayBlocks.length} blocks
                       </p>
                       <div className="flex max-h-[220px] flex-col gap-[3px] overflow-y-auto">
-                        {dayBlocks.map((block) => chip(block, `popover-${block.id}`))}
+                        {dayBlocks.map((block) => chip(block, `popover-${block.key}`))}
                       </div>
                     </motion.div>
                   </>

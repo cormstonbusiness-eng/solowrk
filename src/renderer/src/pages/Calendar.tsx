@@ -523,6 +523,10 @@ export function Calendar(): React.JSX.Element {
                 onScheduleTask={(task, startsAt) => void scheduleTask(task, startsAt)}
                 onCancelTaskDrag={() => setPendingTask(null)}
                 onStartTimer={(block) => void startTimer(block)}
+                onCrowdedDay={(day) => {
+                  setAnchor(day)
+                  setView('day')
+                }}
               />
 
               {railOpen && (

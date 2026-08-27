@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  MAX_OCCURRENCES,
+  MAX_IN_RANGE,
   describeRule,
   expand,
   formatRule,
@@ -231,22 +231,81 @@ describe('the range', () => {
   })
 })
 
+describe('a series that has been running for years', () => {
+  it('still appears', () => {
+    // A stand-up somebody has had every Monday since 2018. The caps exist to
+    // bound the work, not to make a long-running series vanish.
+    const found = expand(rule('FREQ=WEEKLY;BYDAY=MO'), '2018-01-01', range)
+    expect(found).toEqual([
+      '2026-08-03',
+      '2026-08-10',
+      '2026-08-17',
+      '2026-08-24',
+      '2026-08-31',
+      '2026-09-07',
+      '2026-09-14',
+      '2026-09-21',
+      '2026-09-28'
+    ])
+  })
+
+  it('still appears when it is daily', () => {
+    // A daily series older than 500 days would otherwise exhaust the
+    // occurrence cap long before it reached the range being drawn.
+    const found = expand(rule('FREQ=DAILY'), '2018-01-01', {
+      from: '2026-08-01',
+      to: '2026-08-05'
+    })
+    expect(found).toEqual([
+      '2026-08-01',
+      '2026-08-02',
+      '2026-08-03',
+      '2026-08-04',
+      '2026-08-05'
+    ])
+  })
+
+  it('honours a COUNT that ran out years ago', () => {
+    // Ten occurrences from 2018 is over long before 2026, and counting from
+    // the beginning is the only way to know that.
+    expect(expand(rule('FREQ=WEEKLY;COUNT=10'), '2018-01-01', range)).toEqual([])
+  })
+})
+
 describe('the ceilings', () => {
   it('stops an endless rule rather than running forever', () => {
     const found = expand(rule('FREQ=DAILY'), '2020-01-01', {
       from: '2020-01-01',
       to: '2099-12-31'
     })
-    expect(found).toHaveLength(MAX_OCCURRENCES)
+    expect(found).toHaveLength(MAX_IN_RANGE)
   })
 
-  it('does not look more than a few years past the start', () => {
-    const found = expand(rule('FREQ=YEARLY'), '2026-01-01', {
-      from: '2026-01-01',
-      to: '2099-12-31'
+  it('bounds the walk when the series starts a century ago', () => {
+    // The guard is on the work, not on the answer. Somewhere past twenty
+    // thousand steps this gives up rather than grinding, but it does not give
+    // up before reaching the range, which is the failure that matters.
+    const found = expand(rule('FREQ=WEEKLY;BYDAY=MO'), '1900-01-01', {
+      from: '2026-08-01',
+      to: '2026-08-31'
     })
-    // Five years plus the first.
-    expect(found.length).toBeLessThanOrEqual(6)
+    expect(found).toEqual([
+      '2026-08-03',
+      '2026-08-10',
+      '2026-08-17',
+      '2026-08-24',
+      '2026-08-31'
+    ])
+  })
+
+  it('returns nothing at all for a daily rule from 1900, rather than hanging', () => {
+    // Forty-six thousand days is past the step budget. Giving up is the right
+    // answer; taking a second to draw one week is not.
+    const found = expand(rule('FREQ=DAILY'), '1900-01-01', {
+      from: '2026-08-01',
+      to: '2026-08-31'
+    })
+    expect(found.length).toBeLessThanOrEqual(31)
   })
 })
 

@@ -100,15 +100,34 @@ describe('calendar blocks', () => {
     })
   })
 
-  it('refuses to store a block that ends before it starts', () => {
-    const created = createBlock(db, {
-      title: 'Backwards',
-      startsAt: '2026-08-17T14:00',
-      endsAt: '2026-08-17T09:00'
+  describe('a block always has a length', () => {
+    it('turns a backwards span into the minimum, not a point', () => {
+      const created = createBlock(db, {
+        title: 'Backwards',
+        startsAt: '2026-08-17T14:00',
+        endsAt: '2026-08-17T09:00'
+      })
+      // Collapsing to a point was the old behaviour and it was wrong: a block
+      // of no length renders as nothing at all, so it cannot be clicked,
+      // found, or deleted by anybody who does not already know it is there.
+      expect(created.endsAt).toBe('2026-08-17T14:15')
     })
-    // Collapsed to a point rather than stored with negative length, which would
-    // render as an invisible block of negative height.
-    expect(created.endsAt).toBe('2026-08-17T14:00')
+
+    it('refuses a start and end at the same moment', () => {
+      const created = createBlock(db, {
+        title: 'Instant',
+        startsAt: '2026-08-17T14:00',
+        endsAt: '2026-08-17T14:00'
+      })
+      expect(created.endsAt).toBe('2026-08-17T14:15')
+    })
+
+    it('holds the line on an update as well as a create', () => {
+      const created = createBlock(db, meeting)
+      expect(updateBlock(db, created.id, { endsAt: '2026-08-17T10:00' }).endsAt).toBe(
+        '2026-08-17T10:15'
+      )
+    })
   })
 
   it('refuses to change a block that came from someone else’s calendar', () => {
@@ -240,10 +259,12 @@ describe('calendar blocks', () => {
       expect(moved).toMatchObject({ startsAt: '2026-08-17T10:30', endsAt: '2026-08-17T11:00' })
     })
 
-    it('collapses a start dragged past the existing end', () => {
+    it('gives a start dragged past the existing end the minimum length', () => {
       const created = createBlock(db, meeting)
       const moved = updateBlock(db, created.id, { startsAt: '2026-08-17T12:00' })
-      expect(moved.endsAt).toBe('2026-08-17T12:00')
+      // Not 12:00. §13 forbids a zero-length block anywhere, and this is one
+      // of the entry points somebody can reach by accident with a mouse.
+      expect(moved.endsAt).toBe('2026-08-17T12:15')
     })
 
     it('stores all-day as a flag, not as a missing time', () => {

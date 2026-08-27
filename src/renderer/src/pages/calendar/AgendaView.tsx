@@ -47,7 +47,12 @@ export function AgendaView({
       {rows.map((row) => {
         // The drawer's arrows walk what the agenda is showing, in the order it
         // is showing it — the whole range, not just this day's group.
-        const siblings = blocks.map((block) => ({ type: 'block' as const, id: block.id }))
+        // The drawer walks entities, and a generated occurrence is not one:
+        // its links, tags and history all belong to the series it came from.
+        const siblings = blocks.map((block) => ({
+          type: 'block' as const,
+          id: block.occurrenceOf ?? block.id
+        }))
         const committed = row.blocks.reduce((total, block) => {
           if (block.allDay || !blockTypeMeta(block.blockType).counts) return total
           const segment = segmentOn(block, row.day)
@@ -75,7 +80,7 @@ export function AgendaView({
             <div className="flex min-w-0 flex-1 flex-col gap-1">
               {row.blocks.map((block) => (
                 <motion.div
-                  key={block.id}
+                  key={block.key}
                   variants={listItemVariants}
                   style={{ borderLeftColor: block.displayColour }}
                   className="group flex items-center gap-3 rounded-control border-l-[3px] bg-raised pr-2 transition-colors hover:bg-hover"
@@ -122,7 +127,7 @@ export function AgendaView({
                   </button>
 
                   <Inspect
-                    subject={{ type: 'block', id: block.id }}
+                    subject={{ type: 'block', id: block.occurrenceOf ?? block.id }}
                     siblings={siblings}
                     label={block.title}
                   />

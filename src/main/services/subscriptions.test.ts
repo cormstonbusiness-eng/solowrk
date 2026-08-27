@@ -361,6 +361,12 @@ describe('subscribed calendars', () => {
       expect(text).not.toContain('Client workshop')
     })
 
+    it('includes what was imported from a file, which is the user’s own', () => {
+      importIcs(db, FEED)
+      const text = exportIcs(db, AUGUST)
+      expect(text).toContain('Client workshop')
+    })
+
     it('filters by block type when asked', () => {
       createBlock(db, {
         title: 'Deep work',

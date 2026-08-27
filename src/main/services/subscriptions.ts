@@ -432,7 +432,10 @@ export function exportIcs(
   range: { from: string; to: string; blockTypes?: string[] }
 ): string {
   const blocks = listBlocks(db, { from: range.from, to: range.to })
-    .filter((block) => block.source === 'local')
+    // Everything except somebody else's calendar. A block that arrived as an
+    // .ics file is the user's own the moment it is in — it is editable, it is
+    // theirs, and leaving it out of their own export would be arbitrary.
+    .filter((block) => block.source !== 'ics_subscription')
     .filter((block) => !range.blockTypes || range.blockTypes.includes(block.blockType))
     // A generated occurrence is not a row, and its series is already in the
     // list carrying the rule that produces it.

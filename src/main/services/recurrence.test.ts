@@ -85,6 +85,77 @@ describe('repeating blocks', () => {
     })
   })
 
+  describe('what is next', () => {
+    it('finds a repeat, not just the row', async () => {
+      const { upcomingBlocks } = await import('./blocks')
+      // The row is last year. A query over rows would say Monday was empty.
+      createBlock(db, { ...STAND_UP, startsAt: '2025-01-06T09:00', endsAt: '2025-01-06T09:30' })
+
+      const next = upcomingBlocks(db, '2026-08-04T00:00', 3)
+      expect(next.map((one) => one.startsAt)).toEqual([
+        '2026-08-10T09:00',
+        '2026-08-17T09:00',
+        '2026-08-24T09:00'
+      ])
+    })
+
+    it('puts a one-off and a repeat in the right order', async () => {
+      const { upcomingBlocks } = await import('./blocks')
+      createBlock(db, STAND_UP)
+      createBlock(db, {
+        title: 'Dentist',
+        startsAt: '2026-08-05T14:00',
+        endsAt: '2026-08-05T15:00'
+      })
+
+      expect(upcomingBlocks(db, '2026-08-04T00:00', 2).map((one) => one.title)).toEqual([
+        'Dentist',
+        'Stand-up'
+      ])
+    })
+  })
+
+  describe('reminders on a repeat', () => {
+    it('fires for an occurrence whose series row is long past', async () => {
+      const { dueReminders } = await import('./blocks')
+      createBlock(db, {
+        ...STAND_UP,
+        startsAt: '2025-01-06T09:00',
+        endsAt: '2025-01-06T09:30',
+        reminderMinutes: 15
+      })
+
+      // Monday 10 August 2026, quarter to nine.
+      const { due } = dueReminders(db, '2026-08-10T08:45')
+      expect(due.map((one) => one.startsAt)).toEqual(['2026-08-10T09:00'])
+    })
+
+    it('gives each occurrence its own dedupe key', async () => {
+      const { dueReminders } = await import('./blocks')
+      const master = createBlock(db, { ...STAND_UP, reminderMinutes: 15 })
+
+      const first = dueReminders(db, '2026-08-03T08:45').due[0]
+      const second = dueReminders(db, '2026-08-10T08:45').due[0]
+
+      // The row is the same one; the occurrences are not. Without the day in
+      // the key the second reminder would be swallowed as a duplicate.
+      expect(first?.key).toBe(String(master.id))
+      expect(second?.key).toBe(`${master.id}@2026-08-10`)
+    })
+
+    it('does not silence the series when one occurrence is marked', async () => {
+      const { dueReminders, markReminded } = await import('./blocks')
+      const master = createBlock(db, { ...STAND_UP, reminderMinutes: 15 })
+
+      // The first occurrence is a real row and does get marked.
+      markReminded(db, [master.id], '2026-08-03T08:45')
+      expect(dueReminders(db, '2026-08-03T08:45').due).toHaveLength(0)
+
+      // Every Monday after it must still fire.
+      expect(dueReminders(db, '2026-08-10T08:45').due).toHaveLength(1)
+    })
+  })
+
   describe('changing one occurrence', () => {
     it('leaves the rest of the series alone', () => {
       const master = createBlock(db, STAND_UP)

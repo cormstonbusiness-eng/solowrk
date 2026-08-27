@@ -1313,6 +1313,19 @@ export interface CalendarBlockWithContext extends CalendarBlock {
    * look at this first, because there is nothing here to update.
    */
   occurrenceOf: number | null
+  /**
+   * What identifies this on screen: `12` for a row, `12@2026-08-17` for a
+   * generated occurrence of one.
+   *
+   * `id` cannot do this job. Every occurrence of a weekly series carries the
+   * series' id, so a week showing five of them has five things claiming to be
+   * the same one — which makes React reuse the wrong element, makes dragging
+   * one appear to move all five, and lands the write on whichever the array
+   * happened to hold first. Anything that identifies a block for the screen or
+   * for a drag uses this; anything that writes uses `occurrenceOf ?? id` and
+   * the day.
+   */
+  key: string
   /** `colour`, then the project's, then the block type's. Resolved once. */
   displayColour: string
 }

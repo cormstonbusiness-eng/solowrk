@@ -9,6 +9,7 @@ import type {
 } from '@shared/types'
 import { blockTypeMeta } from '@shared/types'
 import {
+  MINUTES_PER_DAY,
   dayOf,
   isWorkingDay,
   minutesBetween,
@@ -53,6 +54,16 @@ const EDGE_HOLD_MS = 600
 const EDGE_ZONE = 24
 
 /**
+ * §13: how many blocks one column will draw before it starts counting.
+ *
+ * Fifty is far past useful and well short of the point where layout becomes
+ * the slowest thing on screen. What matters is that the excess is *said*: a
+ * day that silently drew forty of five hundred would be a day somebody
+ * planned around believing it was empty.
+ */
+const MAX_BLOCKS_PER_DAY = 50
+
+/**
  * A glyph per kind of deadline.
  *
  * Text rather than icons, because these sit at ten pixels in a crowded strip
@@ -81,7 +92,8 @@ export function TimeGrid({
   onAdvance,
   onScheduleTask,
   onCancelTaskDrag,
-  onStartTimer
+  onStartTimer,
+  onCrowdedDay
 }: {
   days: string[]
   today: string
@@ -102,6 +114,8 @@ export function TimeGrid({
   onScheduleTask: (task: TaskWithContext, startsAt: string) => void
   onCancelTaskDrag: () => void
   onStartTimer: (block: CalendarBlockWithContext) => void
+  /** A day too crowded to draw in full. Opens it on its own. */
+  onCrowdedDay: (day: string) => void
 }): React.JSX.Element {
   const scroller = useRef<HTMLDivElement>(null)
   const body = useRef<HTMLDivElement>(null)
@@ -145,8 +159,18 @@ export function TimeGrid({
     return dayOf(startedAt) === dayOf(nowAt) ? { startsAt: startedAt, endsAt: nowAt } : null
   }, [running, now])
 
-  const timed = blocks.filter((block) => !block.allDay)
-  const allDay = blocks.filter((block) => block.allDay)
+  /**
+   * §13: anything longer than a day is a bar, not a block.
+   *
+   * A three-day workshop drawn in the grid becomes three tall columns of the
+   * same thing, which reads as three workshops. In the all-day row it reads
+   * as one thing spanning three days, which is what it is.
+   */
+  const spansDays = (block: CalendarBlockWithContext): boolean =>
+    minutesBetween(block.startsAt, block.endsAt) >= MINUTES_PER_DAY
+
+  const timed = blocks.filter((block) => !block.allDay && !spansDays(block))
+  const allDay = blocks.filter((block) => block.allDay || spansDays(block))
 
   /**
    * How much of each day is already spoken for, for the column headers.
@@ -264,7 +288,7 @@ export function TimeGrid({
       ? { step: 1, edges: [] }
       : {
           step: settings.snapMinutes,
-          edges: edgesOn(timed, point.day, current.subject?.id ?? null)
+          edges: edgesOn(timed, point.day, current.subject?.key ?? null)
         }
 
     set(advance(current, { x, y }, point, options, { duplicate: ctrl }))
@@ -302,7 +326,7 @@ export function TimeGrid({
         mode,
         origin,
         { x: pointerEvent.clientX, y: pointerEvent.clientY },
-        block ? { id: block.id, startsAt: block.startsAt, endsAt: block.endsAt } : null
+        block ? { key: block.key, startsAt: block.startsAt, endsAt: block.endsAt } : null
       )
     )
   }
@@ -370,7 +394,7 @@ export function TimeGrid({
       }
 
       if (result.kind === 'click') {
-        const block = blocks.find((one) => one.id === result.subject.id)
+        const block = blocks.find((one) => one.key === result.subject.key)
         if (block) onOpenBlock(block)
         return
       }
@@ -383,7 +407,7 @@ export function TimeGrid({
         return
       }
       if (result.kind === 'commit') {
-        const block = blocks.find((one) => one.id === result.subject.id)
+        const block = blocks.find((one) => one.key === result.subject.key)
         if (!block) return
         if (result.duplicate) onDuplicate(block, result.span)
         else onReschedule(block, result.span)
@@ -506,7 +530,7 @@ export function TimeGrid({
 
   /** The dragged block's provisional span, so the drag reads as direct. */
   function spanOf(block: CalendarBlockWithContext): Span {
-    return state.phase === 'dragging' && state.subject?.id === block.id && !state.duplicate
+    return state.phase === 'dragging' && state.subject?.key === block.key && !state.duplicate
       ? state.span
       : block
   }
@@ -634,7 +658,7 @@ export function TimeGrid({
               {allDayOpen ? (
                 onThisDay.map((block) => (
                   <button
-                    key={block.id}
+                    key={block.key}
                     type="button"
                     onClick={() => onOpenBlock(block)}
                     style={{
@@ -801,18 +825,21 @@ export function TimeGrid({
                   />
                 )}
 
-                {placed.map(({ item: block, column, columns, span: width }) => {
+                {placed.slice(0, MAX_BLOCKS_PER_DAY).map(({ item: block, column, columns, span: width }) => {
                   const span = spanOf(block)
                   const segment = segmentOn(span, day)
                   const height = (segment.end - segment.start) * perMinute
                   const detail = detailFor(height)
                   const meta = blockTypeMeta(block.blockType)
-                  const dragging = state.phase === 'dragging' && state.subject?.id === block.id
+                  const dragging = state.phase === 'dragging' && state.subject?.key === block.key
                   const variance = varianceFor(block, segment)
 
                   return (
                     <div
-                      key={block.id}
+                      key={block.key}
+                      // The grid never wraps, so a long title is an
+                      // ellipsis and this is the only way to read it.
+                      title={block.title}
                       onPointerDown={(pointerEvent) => begin(pointerEvent, 'move', block)}
                       style={{
                         top: segment.start * perMinute,
@@ -931,6 +958,23 @@ export function TimeGrid({
                     </div>
                   )
                 })}
+
+                {/* §13: a day with five hundred blocks on it is a day the
+                    grid cannot draw and nobody can read. Fifty, then a count
+                    — which at least says that the rest are there. */}
+                {placed.length > MAX_BLOCKS_PER_DAY && (
+                  <button
+                    type="button"
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onCrowdedDay(day)
+                    }}
+                    className="absolute inset-x-1 bottom-1 z-40 rounded-control border border-line-strong bg-surface px-2 py-1 text-[11px] text-muted shadow-lg transition-colors hover:text-ink"
+                  >
+                    +{placed.length - MAX_BLOCKS_PER_DAY} more
+                  </button>
+                )}
 
                 {runningSpan && dayOf(runningSpan.startsAt) === day && (
                   <RunningBlock

@@ -24,7 +24,7 @@ const at = (day: string, minutes: number): GridPoint => ({ day, minutes })
 
 /** 10:00–11:00 on the 17th, the block most of these move about. */
 const meeting = {
-  id: 1,
+  key: '1',
   startsAt: '2026-08-17T10:00',
   endsAt: '2026-08-17T11:00'
 }
@@ -195,12 +195,12 @@ describe('snapping to a neighbour', () => {
   })
 
   it('ignores the block being dragged, which would otherwise pin it', () => {
-    const blocks = [meeting, { id: 2, startsAt: '2026-08-17T14:00', endsAt: '2026-08-17T15:00' }]
-    expect(edgesOn(blocks, '2026-08-17', 1)).toEqual([840, 900])
+    const blocks = [meeting, { key: '2', startsAt: '2026-08-17T14:00', endsAt: '2026-08-17T15:00' }]
+    expect(edgesOn(blocks, '2026-08-17', '1')).toEqual([840, 900])
   })
 
   it('collects both edges of everything else on the day', () => {
-    const blocks = [meeting, { id: 2, startsAt: '2026-08-18T14:00', endsAt: '2026-08-18T15:00' }]
+    const blocks = [meeting, { key: '2', startsAt: '2026-08-18T14:00', endsAt: '2026-08-18T15:00' }]
     expect(edgesOn(blocks, '2026-08-17', null)).toEqual([600, 660])
   })
 })
