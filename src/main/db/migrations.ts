@@ -1734,5 +1734,68 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_documents_project ON documents(project_id);
       CREATE INDEX idx_documents_status  ON documents(status);
     `
+  },
+  {
+    id: 29,
+    name: 'lead_pipeline',
+    sql: `
+      -- The pipeline that stops the feast-and-famine cycle.
+      --
+      -- Note what is nullable and what is not: 'next_action_on' is nullable
+      -- on purpose, because a lead with nothing planned is a real and common
+      -- state and the app's job is to *show* it rather than to prevent it
+      -- being recorded. Forcing a date at the point of entry would produce a
+      -- pipeline full of invented dates, which is worse than one with visible
+      -- gaps.
+      CREATE TABLE leads (
+        id             INTEGER PRIMARY KEY AUTOINCREMENT,
+        name           TEXT    NOT NULL,
+        company        TEXT    NOT NULL DEFAULT '',
+        email          TEXT    NOT NULL DEFAULT '',
+        phone          TEXT    NOT NULL DEFAULT '',
+        -- Where they came from. Free text, because a freelancer's sources are
+        -- their own and a fixed list would be wrong for everybody.
+        source         TEXT    NOT NULL DEFAULT '',
+        stage          TEXT    NOT NULL DEFAULT 'lead'
+                       CHECK (stage IN ('lead','contacted','conversation','proposal','won','lost')),
+        -- Estimated, in pence. Nullable: an early lead genuinely has no figure,
+        -- and a zero would drag the weighted total down as though it did.
+        value          INTEGER,
+        next_action    TEXT    NOT NULL DEFAULT '',
+        next_action_on TEXT,
+        -- From the fixed list in '@shared/pipeline'. Free text cannot be
+        -- counted, and the point of asking is the count.
+        lost_reason    TEXT,
+        lost_note      TEXT    NOT NULL DEFAULT '',
+        notes          TEXT    NOT NULL DEFAULT '',
+        -- Set when a lead is won and turned into real work.
+        client_id      INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+        project_id     INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+        -- When it left the board, either way. Drives time-to-win.
+        closed_at      TEXT,
+        sort_order     REAL    NOT NULL DEFAULT 0,
+        archived       INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
+        archived_at    TEXT,
+        created_at     TEXT    NOT NULL,
+        updated_at     TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_leads_stage  ON leads(stage);
+      CREATE INDEX idx_leads_action ON leads(next_action_on);
+
+      -- Every stage a lead has passed through, so the funnel is measured
+      -- rather than inferred from where things happen to sit today. Without
+      -- this, a lead that went lead -> proposal -> lost is indistinguishable
+      -- from one that was never contacted, and the conversion figures would
+      -- flatter whichever way the board was last tidied.
+      CREATE TABLE lead_events (
+        id      INTEGER PRIMARY KEY AUTOINCREMENT,
+        lead_id INTEGER NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+        stage   TEXT    NOT NULL,
+        at      TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_lead_events ON lead_events(lead_id, id);
+    `
   }
 ]

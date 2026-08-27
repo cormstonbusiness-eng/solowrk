@@ -115,7 +115,14 @@ describe('what read-only allows', () => {
       'review:file',
       // Repair creates folders; applyRename moves files.
       'structure:repair',
-      'structure:applyRename'
+      'structure:applyRename',
+      // The board. `win` makes a client, so it is a write in the
+      // strongest sense — and `move` is one the classifier already knows.
+      'leads:create',
+      'leads:update',
+      'leads:move',
+      'leads:win',
+      'leads:delete'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(false)
     }
@@ -191,7 +198,12 @@ describe('what read-only allows', () => {
       'structure:check',
       'structure:checkAll',
       'structure:usage',
-      'structure:planRename'
+      'structure:planRename',
+      // Reading the board and its report.
+      'leads:list',
+      'leads:get',
+      'leads:report',
+      'leads:attention'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(true)
     }

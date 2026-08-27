@@ -35,6 +35,12 @@ import type {
   CalendarSubscription,
   AgedDebtors,
   CapacityDefaults,
+  Lead,
+  LeadInput,
+  LeadStage,
+  LeadWithHealth,
+  LostReason,
+  PipelineReport,
   ProjectStructure,
   ProjectUsage,
   RenamePreview,
@@ -691,6 +697,35 @@ export interface IpcContract {
    * In 3D and design work a folder structure is file paths, not tidiness — a
    * missing `02-Assets` breaks every texture reference in a scene.
    */
+  /**
+   * The lead pipeline.
+   *
+   * Under `leads:` rather than `marketing:` so the board can be reached
+   * without the whole module's gate — the tier line has not been drawn yet,
+   * and a prefix is easier to move than a dozen channel names.
+   */
+  'leads:list': { req: { asOf?: string } | void; res: LeadWithHealth[] }
+  'leads:get': { req: { id: number }; res: Lead }
+  'leads:create': { req: LeadInput; res: Lead }
+  'leads:update': { req: { id: number; patch: LeadInput }; res: Lead }
+  /** Moving to `lost` takes a reason from the fixed list. */
+  'leads:move': {
+    req: {
+      id: number
+      stage: LeadStage
+      lostReason?: LostReason
+      lostNote?: string
+      sortOrder?: number
+    }
+    res: Lead
+  }
+  /** Turns the lead into a client, made from its own details. */
+  'leads:win': { req: { id: number }; res: { lead: Lead; clientId: number } }
+  'leads:delete': { req: { id: number }; res: void }
+  'leads:report': { req: { asOf?: string } | void; res: PipelineReport }
+  /** Adrift first, then overdue, then due today. */
+  'leads:attention': { req: { asOf?: string } | void; res: LeadWithHealth[] }
+
   'structure:check': {
     req: { projectId: number; templateId?: number }
     res: ProjectStructure
@@ -1134,6 +1169,15 @@ export const IPC_CHANNELS = [
   'expenses:delete',
   'debtors:aged',
   'capacity:defaults',
+  'leads:list',
+  'leads:get',
+  'leads:create',
+  'leads:update',
+  'leads:move',
+  'leads:win',
+  'leads:delete',
+  'leads:report',
+  'leads:attention',
   'structure:check',
   'structure:checkAll',
   'structure:repair',
@@ -1271,7 +1315,7 @@ const BLOCKED_WHEN_READ_ONLY = new Set<string>(['templates:fromProject', 'quotes
  * prefix would have locked it on a lapsed licence.
  */
 const WRITE_VERBS =
-  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync|archive|restore|purge|empty|recolour|edit|schedule|adopt|subscribe|unsubscribe|copy|expand|reached|fill|ignore|forget|file|repair|match(?![a-z])|unmatch(?![a-z]))/
+  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync|archive|restore|purge|empty|recolour|edit|schedule|adopt|subscribe|unsubscribe|copy|expand|reached|fill|ignore|forget|file|repair|win|match(?![a-z])|unmatch(?![a-z]))/
 
 /**
  * Whether a channel is allowed while the app is read-only.

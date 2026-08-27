@@ -13,6 +13,7 @@ import { Empty } from '@/components/ui/Empty'
 import { Expand } from '@/components/ui/Expand'
 import { ProPanel } from '@/components/ProPanel'
 import { useFeature } from '@/lib/features'
+import { Pipeline } from './marketing/Pipeline'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { transition } from '@/lib/motion'
@@ -65,7 +66,12 @@ export function Marketing(): React.JSX.Element {
   return <MarketingBoard />
 }
 
+type Tab = 'pipeline' | 'calendar'
+
 function MarketingBoard(): React.JSX.Element {
+  // The pipeline first: a month of posts matters less than whether there
+  // is any work at the end of it.
+  const [tab, setTab] = useState<Tab>('pipeline')
   const invalidate = useInvalidate()
   const today = dayFromDate(new Date())
 
@@ -170,209 +176,237 @@ function MarketingBoard(): React.JSX.Element {
   return (
     <Page
       title="Marketing"
-      description={monthLabel(anchor)}
+      description={tab === 'calendar' ? monthLabel(anchor) : 'Where the next job is coming from.'}
       className="flex min-h-0 flex-col overflow-y-hidden"
       actions={
-        <Button variant="primary" onClick={() => setCreating({ day: today })}>
-          <Plus size={14} strokeWidth={1.75} />
-          New post
-        </Button>
+        // The calendar's action. The pipeline carries its own, because "New
+        // post" on a board of leads is an offer to do the wrong thing.
+        tab === 'calendar' ? (
+          <Button variant="primary" onClick={() => setCreating({ day: today })}>
+            <Plus size={14} strokeWidth={1.75} />
+            New post
+          </Button>
+        ) : undefined
       }
     >
-      <div className="mb-3 flex shrink-0 items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label="Previous month"
-          onClick={() => setAnchor(addMonths(anchor, -1))}
-        >
-          <ChevronLeft size={15} strokeWidth={1.75} />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          aria-label="Next month"
-          onClick={() => setAnchor(addMonths(anchor, 1))}
-        >
-          <ChevronRight size={15} strokeWidth={1.75} />
-        </Button>
-        <Button variant="outline" size="sm" onClick={() => setAnchor(today)} className="ml-1.5">
-          Today
-        </Button>
-
-        {summary && (
-          <div className="ml-auto flex items-center gap-4 text-[11.5px]">
-            <span className="text-muted">
-              <span className="numeric text-ink">{summary.scheduled}</span> scheduled
+      <div className="mb-3 flex shrink-0 items-center gap-1 border-b border-line">
+        {(['pipeline', 'calendar'] as Tab[]).map((name) => (
+          <button
+            key={name}
+            type="button"
+            onClick={() => setTab(name)}
+            className="relative px-3 py-2 text-[13px] capitalize"
+          >
+            <span className={tab === name ? 'text-ink' : 'text-muted hover:text-ink'}>
+              {name}
             </span>
-            <span className="text-muted">
-              <span className="numeric text-success">{summary.published}</span> published
-            </span>
-            <span className="text-muted">
-              <span className="numeric text-faint">{summary.emptyDays.length}</span> empty days
-            </span>
-          </div>
-        )}
+            {tab === name && (
+              <span className="absolute right-0 -bottom-px left-0 h-[2px] bg-accent" />
+            )}
+          </button>
+        ))}
       </div>
 
-      <AnimatePresence>
-        {attention.length > 0 && (
-          <Expand className="shrink-0" contentClassName="pb-3">
-            <div className="flex items-center gap-2 rounded-control border border-warning/30 bg-warning/8 px-3 py-2">
-              <TriangleAlert size={13} strokeWidth={1.75} className="shrink-0 text-warning" />
-              <p className="flex-1 text-[12px] text-ink">
-                {attention.length === 1
-                  ? 'One post missed its slot while SoloWrk was closed.'
-                  : `${attention.length} posts missed their slot while SoloWrk was closed.`}{' '}
-                <span className="text-muted">Reschedule them, or send them now.</span>
-              </p>
-              <Button variant="ghost" size="sm" onClick={() => setEditing(attention[0]!)}>
-                Open
-              </Button>
+      {tab === 'pipeline' ? (
+        <Pipeline />
+      ) : (
+        <>
+        <div className="mb-3 flex shrink-0 items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Previous month"
+            onClick={() => setAnchor(addMonths(anchor, -1))}
+          >
+            <ChevronLeft size={15} strokeWidth={1.75} />
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            aria-label="Next month"
+            onClick={() => setAnchor(addMonths(anchor, 1))}
+          >
+            <ChevronRight size={15} strokeWidth={1.75} />
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => setAnchor(today)} className="ml-1.5">
+            Today
+          </Button>
+
+          {summary && (
+            <div className="ml-auto flex items-center gap-4 text-[11.5px]">
+              <span className="text-muted">
+                <span className="numeric text-ink">{summary.scheduled}</span> scheduled
+              </span>
+              <span className="text-muted">
+                <span className="numeric text-success">{summary.published}</span> published
+              </span>
+              <span className="text-muted">
+                <span className="numeric text-faint">{summary.emptyDays.length}</span> empty days
+              </span>
             </div>
-          </Expand>
-        )}
-      </AnimatePresence>
+          )}
+        </div>
 
-      <div className="flex min-h-0 flex-1 gap-3">
-        {/* Month grid */}
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-card border border-line">
-          <div className="grid shrink-0 grid-cols-7 border-b border-line bg-surface">
-            {WEEKDAY_LABELS.map((label) => (
-              <div
-                key={label}
-                className="px-2 py-1.5 text-[10.5px] tracking-[0.08em] text-faint uppercase"
-              >
-                {label}
+        <AnimatePresence>
+          {attention.length > 0 && (
+            <Expand className="shrink-0" contentClassName="pb-3">
+              <div className="flex items-center gap-2 rounded-control border border-warning/30 bg-warning/8 px-3 py-2">
+                <TriangleAlert size={13} strokeWidth={1.75} className="shrink-0 text-warning" />
+                <p className="flex-1 text-[12px] text-ink">
+                  {attention.length === 1
+                    ? 'One post missed its slot while SoloWrk was closed.'
+                    : `${attention.length} posts missed their slot while SoloWrk was closed.`}{' '}
+                  <span className="text-muted">Reschedule them, or send them now.</span>
+                </p>
+                <Button variant="ghost" size="sm" onClick={() => setEditing(attention[0]!)}>
+                  Open
+                </Button>
               </div>
-            ))}
-          </div>
+            </Expand>
+          )}
+        </AnimatePresence>
 
-          <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6">
-            {days.map((day) => {
-              const dayPosts = posts.filter((post) => post.scheduledAt?.slice(0, 10) === day)
-              const outside = !isSameMonth(day, anchor)
-
-              return (
+        <div className="flex min-h-0 flex-1 gap-3">
+          {/* Month grid */}
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-card border border-line">
+            <div className="grid shrink-0 grid-cols-7 border-b border-line bg-surface">
+              {WEEKDAY_LABELS.map((label) => (
                 <div
-                  key={day}
-                  data-day={day}
-                  onDoubleClick={() => setCreating({ day })}
-                  className={cn(
-                    'min-h-0 border-r border-b border-line p-1 last:border-r-0',
-                    outside && 'bg-ground/60',
-                    dragging?.overDay === day && 'bg-accent/10'
-                  )}
+                  key={label}
+                  className="px-2 py-1.5 text-[10.5px] tracking-[0.08em] text-faint uppercase"
                 >
-                  <span
+                  {label}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6">
+              {days.map((day) => {
+                const dayPosts = posts.filter((post) => post.scheduledAt?.slice(0, 10) === day)
+                const outside = !isSameMonth(day, anchor)
+
+                return (
+                  <div
+                    key={day}
+                    data-day={day}
+                    onDoubleClick={() => setCreating({ day })}
                     className={cn(
-                      'numeric mb-1 block px-1 text-[11px]',
-                      outside ? 'text-faint/60' : 'text-muted',
-                      day === today &&
-                        'grid h-[18px] w-[18px] place-items-center rounded-full bg-accent text-[10.5px] font-medium text-accent-ink'
+                      'min-h-0 border-r border-b border-line p-1 last:border-r-0',
+                      outside && 'bg-ground/60',
+                      dragging?.overDay === day && 'bg-accent/10'
                     )}
                   >
-                    {Number(day.slice(8))}
-                  </span>
+                    <span
+                      className={cn(
+                        'numeric mb-1 block px-1 text-[11px]',
+                        outside ? 'text-faint/60' : 'text-muted',
+                        day === today &&
+                          'grid h-[18px] w-[18px] place-items-center rounded-full bg-accent text-[10.5px] font-medium text-accent-ink'
+                      )}
+                    >
+                      {Number(day.slice(8))}
+                    </span>
 
-                  <div className="flex flex-col gap-[3px] overflow-hidden">
-                    {dayPosts.slice(0, 3).map((post) => (
-                      <PostChip
-                        key={post.id}
-                        post={post}
-                        dimmed={dragging?.id === post.id}
-                        onPointerDown={(event) => startDrag(event, post)}
-                      />
-                    ))}
-                    {dayPosts.length > 3 && (
-                      <span className="px-1 text-[10.5px] text-faint">
-                        +{dayPosts.length - 3} more
-                      </span>
-                    )}
+                    <div className="flex flex-col gap-[3px] overflow-hidden">
+                      {dayPosts.slice(0, 3).map((post) => (
+                        <PostChip
+                          key={post.id}
+                          post={post}
+                          dimmed={dragging?.id === post.id}
+                          onPointerDown={(event) => startDrag(event, post)}
+                        />
+                      ))}
+                      {dayPosts.length > 3 && (
+                        <span className="px-1 text-[10.5px] text-faint">
+                          +{dayPosts.length - 3} more
+                        </span>
+                      )}
+                    </div>
                   </div>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Backlog and mix */}
+          <div className="flex w-[260px] shrink-0 flex-col gap-3 overflow-y-auto">
+            <Card className="p-3">
+              <CardHeader title="Mix" />
+              {summary && <PillarMix mix={summary.mix} />}
+            </Card>
+
+            <Card className="p-3">
+              <CardHeader
+                title="Backlog"
+                action={
+                  <button
+                    type="button"
+                    onClick={() => setCreating({ day: '' })}
+                    className="text-[11px] text-faint transition-colors hover:text-ink"
+                  >
+                    Add idea
+                  </button>
+                }
+              />
+
+              {backlog.length === 0 ? (
+                <p className="text-[11.5px] leading-relaxed text-faint">
+                  Ideas with no date live here. Drag one onto a day when it earns a slot.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  {backlog.map((post) => (
+                    <div
+                      key={post.id}
+                      onPointerDown={(event) => startDrag(event, post)}
+                      className={cn(
+                        'flex cursor-grab items-start gap-2 rounded-control bg-raised px-2.5 py-2 select-none active:cursor-grabbing',
+                        dragging?.id === post.id && 'opacity-50'
+                      )}
+                    >
+                      <Lightbulb size={12} strokeWidth={1.75} className="mt-0.5 shrink-0 text-faint" />
+                      <span className="min-w-0 flex-1 text-[12px] leading-snug text-ink">
+                        {post.title || post.body.slice(0, 60) || 'Untitled'}
+                      </span>
+                    </div>
+                  ))}
                 </div>
-              )
-            })}
+              )}
+            </Card>
           </div>
         </div>
 
-        {/* Backlog and mix */}
-        <div className="flex w-[260px] shrink-0 flex-col gap-3 overflow-y-auto">
-          <Card className="p-3">
-            <CardHeader title="Mix" />
-            {summary && <PillarMix mix={summary.mix} />}
-          </Card>
-
-          <Card className="p-3">
-            <CardHeader
-              title="Backlog"
+        {posts.length === 0 && backlog.length === 0 && (
+          <div className="mt-3 shrink-0">
+            <Empty
+              icon={Megaphone}
+              title="Nothing planned yet"
+              body="Double-click a day to plan a post, or add an idea to the backlog and date it later. You can plan and write everything before connecting a single account."
               action={
-                <button
-                  type="button"
-                  onClick={() => setCreating({ day: '' })}
-                  className="text-[11px] text-faint transition-colors hover:text-ink"
-                >
-                  Add idea
-                </button>
+                <Button variant="primary" onClick={() => setCreating({ day: today })}>
+                  <Plus size={14} strokeWidth={1.75} />
+                  Plan your first post
+                </Button>
               }
             />
+          </div>
+        )}
 
-            {backlog.length === 0 ? (
-              <p className="text-[11.5px] leading-relaxed text-faint">
-                Ideas with no date live here. Drag one onto a day when it earns a slot.
-              </p>
-            ) : (
-              <div className="flex flex-col gap-1">
-                {backlog.map((post) => (
-                  <div
-                    key={post.id}
-                    onPointerDown={(event) => startDrag(event, post)}
-                    className={cn(
-                      'flex cursor-grab items-start gap-2 rounded-control bg-raised px-2.5 py-2 select-none active:cursor-grabbing',
-                      dragging?.id === post.id && 'opacity-50'
-                    )}
-                  >
-                    <Lightbulb size={12} strokeWidth={1.75} className="mt-0.5 shrink-0 text-faint" />
-                    <span className="min-w-0 flex-1 text-[12px] leading-snug text-ink">
-                      {post.title || post.body.slice(0, 60) || 'Untitled'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Card>
-        </div>
-      </div>
-
-      {posts.length === 0 && backlog.length === 0 && (
-        <div className="mt-3 shrink-0">
-          <Empty
-            icon={Megaphone}
-            title="Nothing planned yet"
-            body="Double-click a day to plan a post, or add an idea to the backlog and date it later. You can plan and write everything before connecting a single account."
-            action={
-              <Button variant="primary" onClick={() => setCreating({ day: today })}>
-                <Plus size={14} strokeWidth={1.75} />
-                Plan your first post
-              </Button>
-            }
-          />
-        </div>
+        <Composer
+          open={editing !== null || creating !== null}
+          post={editing}
+          defaults={
+            creating
+              ? { day: creating.day, scheduled: creating.day !== '' }
+              : undefined
+          }
+          onClose={() => {
+            setEditing(null)
+            setCreating(null)
+          }}
+        />
+        </>
       )}
-
-      <Composer
-        open={editing !== null || creating !== null}
-        post={editing}
-        defaults={
-          creating
-            ? { day: creating.day, scheduled: creating.day !== '' }
-            : undefined
-        }
-        onClose={() => {
-          setEditing(null)
-          setCreating(null)
-        }}
-      />
     </Page>
   )
 }
