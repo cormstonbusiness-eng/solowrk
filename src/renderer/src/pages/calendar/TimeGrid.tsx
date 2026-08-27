@@ -831,21 +831,35 @@ export function TimeGrid({
                   !working && 'bg-ground/40'
                 )}
               >
-                {/* Working hours, drawn as the *absence* of shade: the hours
-                    you do not work are dimmed rather than the ones you do
-                    being tinted, so a block's own colour is never sitting on
-                    top of a second wash. */}
+                {/* The working day, as a band.
+                    Two things at once: the hours outside it are dimmed, and
+                    the hours inside get a faint surface of their own with a
+                    hairline at each edge. Dimming alone was too quiet to
+                    read as a period — you could see *something* was different
+                    without being able to say where the day started. The tint
+                    is deliberately weaker than any block fill, so a block's
+                    own colour is never competing with the ground under it. */}
                 {working && (
                   <>
                     <div
                       aria-hidden
+                      style={{
+                        top: settings.workingHoursStart * perMinute,
+                        height:
+                          Math.max(0, settings.workingHoursEnd - settings.workingHoursStart) *
+                          perMinute
+                      }}
+                      className="pointer-events-none absolute inset-x-0 border-y border-line/70 bg-surface/70"
+                    />
+                    <div
+                      aria-hidden
                       style={{ height: settings.workingHoursStart * perMinute }}
-                      className="pointer-events-none absolute inset-x-0 top-0 bg-ground/45"
+                      className="pointer-events-none absolute inset-x-0 top-0 bg-ground/55"
                     />
                     <div
                       aria-hidden
                       style={{ top: settings.workingHoursEnd * perMinute, bottom: 0 }}
-                      className="pointer-events-none absolute inset-x-0 bg-ground/45"
+                      className="pointer-events-none absolute inset-x-0 bg-ground/55"
                     />
                   </>
                 )}

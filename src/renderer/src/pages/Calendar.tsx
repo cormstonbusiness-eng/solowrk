@@ -5,6 +5,7 @@ import {
   CalendarPlus,
   ChevronLeft,
   ChevronRight,
+  Clock,
   Link2,
   Minus,
   Plane,
@@ -23,6 +24,7 @@ import {
   addMonths,
   dayFromDate,
   dayOf,
+  isWorkingDay,
   monthGrid,
   stampAt,
   stampFromDate,
@@ -40,6 +42,7 @@ import { cn } from '@/lib/utils'
 import { AgendaView } from './calendar/AgendaView'
 import { BlockModal } from './calendar/BlockModal'
 import { Availability } from './calendar/Availability'
+import { WorkingHours } from './calendar/WorkingHours'
 import { FocusMode } from './calendar/FocusMode'
 import { Horizon } from './calendar/Horizon'
 import { MonthView } from './calendar/MonthView'
@@ -167,6 +170,7 @@ export function Calendar(): React.JSX.Element {
   /** Null when the calendar is showing reality, which is almost always. */
   const [scenario, setScenario] = useState<Scenario | null>(null)
   const [tzDismissed, setTzDismissed] = useState(false)
+  const [hoursOpen, setHoursOpen] = useState(false)
 
   useOpenParam('new', () => setCreating({ day: anchor, startTime: '09:00', endTime: '10:00' }))
 
@@ -176,7 +180,18 @@ export function Calendar(): React.JSX.Element {
     staleTime: 60_000
   })
 
-  const days = daysInView(view, anchor)
+  /**
+   * The days on screen.
+   *
+   * A week view drops the weekend when somebody has said not to show it —
+   * but only days they do not work, so a Saturday worker keeps their Saturday.
+   * Hiding a day somebody works would hide the work on it.
+   */
+  const days = useMemo(() => {
+    const all = daysInView(view, anchor)
+    if (settings.showWeekends || view === 'month' || view === 'agenda') return all
+    return all.filter((day) => isWorkingDay(settings.workingDays, day))
+  }, [view, anchor, settings.showWeekends, settings.workingDays])
   const from = days[0] ?? anchor
   const to = days.at(-1) ?? anchor
 
@@ -715,6 +730,14 @@ export function Calendar(): React.JSX.Element {
           />
           <Button
             variant="ghost"
+            onClick={() => setHoursOpen(true)}
+            title="Working hours, capacity and snapping"
+          >
+            <Clock size={14} strokeWidth={1.75} />
+            Hours
+          </Button>
+          <Button
+            variant="ghost"
             onClick={() => setCalendarsOpen(true)}
             title="Subscribed calendars, import and export"
           >
@@ -909,7 +932,7 @@ export function Calendar(): React.JSX.Element {
           {(view === 'week' || view === 'day') && (
             <div className="flex min-h-0 flex-1 gap-3">
               <TimeGrid
-                days={view === 'day' ? [anchor] : weekDays(anchor)}
+                days={view === 'day' ? [anchor] : days}
                 today={today}
                 blocks={shown}
                 markers={markers}
@@ -1034,6 +1057,8 @@ export function Calendar(): React.JSX.Element {
         settings={settings}
         onClose={() => setAvailabilityOpen(false)}
       />
+
+      <WorkingHours open={hoursOpen} settings={settings} onClose={() => setHoursOpen(false)} />
 
       <Subscriptions
         open={calendarsOpen}
