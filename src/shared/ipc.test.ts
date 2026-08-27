@@ -39,6 +39,11 @@ describe('what read-only allows', () => {
       'calendar:copyToMine',
       'calendar:syncSubscription',
       'calendar:importIcs',
+      // A milestone is a date somebody is held to. `reached` had to join
+      // the verb list for the usual fail-open reason.
+      'milestones:create',
+      'milestones:reached',
+      'milestones:delete',
       'ai:send',
       'ai:writeBusinessPlan',
       // Both advance the chase schedule, which is a write on the invoice. The

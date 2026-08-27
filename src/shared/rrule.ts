@@ -294,11 +294,63 @@ function ordinalDate(date: number): string {
  * `exdates` are days the series skips: a cancelled instance, or one moved
  * somewhere else and materialised as its own block.
  */
+/**
+ * Expansions already worked out.
+ *
+ * §12 asks for recurrence expansion under 30ms for the visible range, and the
+ * same series is expanded several times per render — the grid asks, the
+ * horizon strip asks over its own ninety days, the gap radar asks again. The
+ * key is everything the answer depends on, so a cached result can never be
+ * the answer to a different question.
+ *
+ * Bounded, and cleared oldest-first: an app left open for a week paging
+ * through a year would otherwise accumulate one entry per rule per range
+ * forever.
+ */
+const CACHE_LIMIT = 400
+const cache = new Map<string, string[]>()
+
+function cacheKey(
+  rule: Recurrence,
+  start: string,
+  range: { from: string; to: string },
+  exdates: string[]
+): string {
+  return [formatRule(rule), start, range.from, range.to, exdates.join(',')].join('|')
+}
+
+/** For tests, and for anything that changes a series underneath a cached answer. */
+export function clearExpansionCache(): void {
+  cache.clear()
+}
+
 export function expand(
   rule: Recurrence,
   start: string,
   range: { from: string; to: string },
   exdates: string[] = []
+): string[] {
+  const key = cacheKey(rule, start, range, exdates)
+  const already = cache.get(key)
+  // Copied out, because the caller owns what it is given and an array handed
+  // back twice would let one caller's sort corrupt the next one's answer.
+  if (already) return [...already]
+
+  const computed = expandUncached(rule, start, range, exdates)
+
+  if (cache.size >= CACHE_LIMIT) {
+    const oldest = cache.keys().next().value
+    if (oldest !== undefined) cache.delete(oldest)
+  }
+  cache.set(key, computed)
+  return [...computed]
+}
+
+function expandUncached(
+  rule: Recurrence,
+  start: string,
+  range: { from: string; to: string },
+  exdates: string[]
 ): string[] {
   const skip = new Set(exdates)
   // The range is what bounds this. An endless rule stops at `range.to`

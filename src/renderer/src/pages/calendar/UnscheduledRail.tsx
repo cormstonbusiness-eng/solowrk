@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
-import { Inbox, Search } from 'lucide-react'
+import { Inbox, Search, Wand2 } from 'lucide-react'
 import type { TaskWithContext } from '@shared/types'
 import { DEFAULT_ENTITY_COLOUR } from '@shared/types'
 import { cn } from '@/lib/utils'
@@ -20,11 +20,16 @@ export const RAIL_WIDTH = 260
 
 export function UnscheduledRail({
   today,
-  onDragTask
+  fillable,
+  onDragTask,
+  onFillGaps
 }: {
   today: string
+  /** How many of these would fit in this week's holes. Zero hides the offer. */
+  fillable: number
   /** Called on press; the grid takes over from there. */
   onDragTask: (task: TaskWithContext, event: React.PointerEvent) => void
+  onFillGaps: () => void
 }): React.JSX.Element {
   const [search, setSearch] = useState('')
 
@@ -140,9 +145,24 @@ export function UnscheduledRail({
         )}
       </div>
 
-      <p className="shrink-0 border-t border-line px-3 py-1.5 text-[10.5px] text-faint">
-        Drag onto the grid to schedule
-      </p>
+      {/* Gaps only, never moving what is already committed — §18's fourth
+          decision, answered cautiously on purpose. It says how many it can
+          place before it places any, because a button that silently did a
+          different amount of work each time is one nobody presses twice. */}
+      {fillable > 0 ? (
+        <button
+          type="button"
+          onClick={onFillGaps}
+          className="flex shrink-0 items-center justify-center gap-1.5 border-t border-line px-3 py-2 text-[11.5px] text-muted transition-colors hover:bg-hover hover:text-ink"
+        >
+          <Wand2 size={12} strokeWidth={1.75} />
+          Fit {fillable} into this week&rsquo;s gaps
+        </button>
+      ) : (
+        <p className="shrink-0 border-t border-line px-3 py-1.5 text-[10.5px] text-faint">
+          Drag onto the grid to schedule
+        </p>
+      )}
     </aside>
   )
 }

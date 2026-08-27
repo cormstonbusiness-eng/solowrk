@@ -24,6 +24,7 @@ import {
   dayFromDate,
   dayOf,
   monthGrid,
+  stampAt,
   stampFromDate,
   weekDays
 } from '@shared/calendar'
@@ -55,6 +56,7 @@ import {
   stepZoom
 } from './calendar/grid'
 import { LENSES } from './calendar/lens'
+import { autoSchedule, gapsAcross } from './calendar/gaps'
 import {
   applyScenario,
   emptyScenario,
@@ -496,6 +498,48 @@ export function Calendar(): React.JSX.Element {
     })
   }
 
+  /**
+   * What auto-schedule would do, worked out before anybody presses anything.
+   *
+   * Computed rather than promised: the button says how many it can actually
+   * place, because one that silently did a different amount of work each time
+   * is one nobody presses twice.
+   */
+  const { data: unscheduled = [] } = useQuery({
+    queryKey: ['calendar', 'unscheduled', ''],
+    queryFn: () => window.solo.invoke('calendar:unscheduled', undefined),
+    enabled: railOpen
+  })
+
+  const placements = useMemo(
+    () =>
+      autoSchedule(
+        unscheduled,
+        gapsAcross(shown, days, settings),
+        settings.defaultBlockMinutes
+      ),
+    [unscheduled, shown, days, settings]
+  )
+
+  const fillGaps = async (): Promise<void> => {
+    const made: number[] = []
+    for (const placement of placements) {
+      const block = await window.solo.invoke('calendar:scheduleTask', {
+        taskId: placement.taskId,
+        startsAt: stampAt(placement.day, placement.start),
+        endsAt: stampAt(placement.day, placement.start + placement.minutes)
+      })
+      made.push(block.id)
+    }
+    invalidate(['calendar', 'tasks'])
+
+    offer(`Scheduled ${made.length} task${made.length === 1 ? '' : 's'}`, async () => {
+      // All of them, because filling the gaps was one decision.
+      for (const id of made) await window.solo.invoke('entity:delete', { type: 'block', id })
+      invalidate(['calendar', 'tasks'])
+    })
+  }
+
   const create = async (
     span: { startsAt: string; endsAt: string },
     title: string
@@ -892,7 +936,12 @@ export function Calendar(): React.JSX.Element {
               />
 
               {railOpen && (
-                <UnscheduledRail today={today} onDragTask={(task) => setPendingTask(task)} />
+                <UnscheduledRail
+                  today={today}
+                  fillable={placements.length}
+                  onDragTask={(task) => setPendingTask(task)}
+                  onFillGaps={() => void fillGaps()}
+                />
               )}
             </div>
           )}

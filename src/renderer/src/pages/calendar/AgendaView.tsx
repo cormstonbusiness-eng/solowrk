@@ -60,7 +60,19 @@ export function AgendaView({
         }, 0)
 
         return (
-          <div key={row.day} className="mb-4 flex gap-4">
+          <div
+            key={row.day}
+            // §12 asks for the agenda to be virtualised. `content-visibility`
+            // is the browser doing it: layout and paint are skipped for a day
+            // group that is off screen, and the intrinsic size keeps the
+            // scrollbar honest so nothing jumps as you go. No windowing code,
+            // no measurement, nothing to get wrong on a resize.
+            style={{
+              contentVisibility: 'auto',
+              containIntrinsicSize: `auto ${56 + row.blocks.length * 40}px`
+            }}
+            className="mb-4 flex gap-4"
+          >
             <div className="w-[86px] shrink-0 pt-1 text-right">
               <p
                 className={cn(

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   MAX_IN_RANGE,
+  clearExpansionCache,
   describeRule,
   expand,
   formatRule,
@@ -308,6 +309,42 @@ describe('the ceilings', () => {
     expect(found.length).toBeLessThanOrEqual(31)
   })
 })
+
+describe('the expansion cache', () => {
+    it('gives the same answer twice', () => {
+      clearExpansionCache()
+      const once = expand(rule('FREQ=WEEKLY;BYDAY=MO'), '2026-08-03', range)
+      const twice = expand(rule('FREQ=WEEKLY;BYDAY=MO'), '2026-08-03', range)
+      expect(twice).toEqual(once)
+    })
+
+    it('hands back a copy, not the cached array', () => {
+      // A caller owns what it is given. Returning the cached array itself
+      // would let one caller's sort corrupt the next one's answer.
+      const first = expand(rule('FREQ=DAILY'), '2026-08-01', range)
+      first.length = 0
+      expect(expand(rule('FREQ=DAILY'), '2026-08-01', range).length).toBeGreaterThan(0)
+    })
+
+    it('does not answer a different question from a cached one', () => {
+      const withSkip = expand(rule('FREQ=DAILY'), '2026-08-01', range, ['2026-08-02'])
+      const without = expand(rule('FREQ=DAILY'), '2026-08-01', range)
+      expect(without.length).toBe(withSkip.length + 1)
+    })
+
+    it('keeps two ranges of the same rule apart', () => {
+      const august = expand(rule('FREQ=WEEKLY;BYDAY=MO'), '2026-08-03', {
+        from: '2026-08-01',
+        to: '2026-08-31'
+      })
+      const september = expand(rule('FREQ=WEEKLY;BYDAY=MO'), '2026-08-03', {
+        from: '2026-09-01',
+        to: '2026-09-30'
+      })
+      expect(august[0]).toBe('2026-08-03')
+      expect(september[0]).toBe('2026-09-07')
+    })
+  })
 
 describe('saying it out loud', () => {
   it('describes the common rules in plain words', () => {

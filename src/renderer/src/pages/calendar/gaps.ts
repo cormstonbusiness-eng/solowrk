@@ -176,6 +176,68 @@ export function describeAvailability(
   return lines.join('\n')
 }
 
+/* ------------------------------------------------------------------ *
+ * Auto-schedule
+ * ------------------------------------------------------------------ */
+
+export interface Placement {
+  taskId: number
+  title: string
+  day: string
+  /** Minutes past midnight. */
+  start: number
+  minutes: number
+}
+
+/**
+ * Fit unscheduled work into the holes, and only into the holes.
+ *
+ * §18's fourth open decision, answered the cautious way on purpose: this may
+ * fill gaps and may not move anything already committed. Rearranging somebody's
+ * plan without asking is the fastest way to make them stop trusting the
+ * feature — and a scheduler nobody trusts is a scheduler nobody runs twice.
+ *
+ * Deadlines first, then priority, which is the order the rail already shows.
+ * Anything that will not fit is simply left where it was: a task pushed into
+ * a slot too small for it looks scheduled and is not.
+ */
+export function autoSchedule(
+  tasks: { id: number; title: string; estimateMinutes: number | null; dueAt: string | null }[],
+  gaps: Gap[],
+  defaultMinutes: number
+): Placement[] {
+  // A working copy, so a gap partly used by one task can still take another.
+  const remaining = gaps.map((gap) => ({ ...gap }))
+  const placements: Placement[] = []
+
+  for (const task of tasks) {
+    const needs = task.estimateMinutes ?? defaultMinutes
+
+    // The earliest gap it fits in, and never past its own deadline — putting
+    // work after the day it is due is worse than leaving it unscheduled,
+    // because it looks handled.
+    const gap = remaining.find(
+      (one) =>
+        one.minutes >= needs &&
+        (task.dueAt === null || one.day <= task.dueAt.slice(0, 10))
+    )
+    if (!gap) continue
+
+    placements.push({
+      taskId: task.id,
+      title: task.title,
+      day: gap.day,
+      start: gap.start,
+      minutes: needs
+    })
+
+    gap.start += needs
+    gap.minutes -= needs
+  }
+
+  return placements
+}
+
 function clock(minutes: number): string {
   const hour = Math.floor(minutes / 60)
   return `${String(hour).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`

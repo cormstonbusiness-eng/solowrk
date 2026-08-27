@@ -141,6 +141,13 @@ import {
 } from '../services/scheduling'
 import { deleteOccurrence, editOccurrence } from '../services/recurrence'
 import {
+  createMilestone,
+  deleteMilestone,
+  listMilestones,
+  markReached,
+  updateMilestone
+} from '../services/milestones'
+import {
   copyToMyCalendar,
   createSubscription,
   deleteSubscription,
@@ -783,6 +790,20 @@ const handlers: Handlers = {
 
   'calendar:deleteOccurrence': (_g, { id, day, scope }) => {
     deleteOccurrence(session.requireDb(), { id, day }, scope)
+  },
+
+  'milestones:list': (_g, { projectId }) => listMilestones(session.requireDb(), projectId),
+
+  'milestones:create': (_g, input) => createMilestone(session.requireDb(), input),
+
+  'milestones:update': (_g, { id, patch }) =>
+    updateMilestone(session.requireDb(), id, patch),
+
+  'milestones:reached': (_g, { id, reached }) =>
+    markReached(session.requireDb(), id, reached),
+
+  'milestones:delete': (_g, { id }) => {
+    deleteMilestone(session.requireDb(), id)
   },
 
   'calendar:subscriptions': () => listSubscriptions(session.requireDb()),

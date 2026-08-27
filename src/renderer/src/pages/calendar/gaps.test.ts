@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { CalendarBlockWithContext, CalendarSettings } from '@shared/types'
-import { describeAvailability, gapsAcross, gapsOn, nearestGap } from './gaps'
+import { autoSchedule, describeAvailability, gapsAcross, gapsOn, nearestGap } from './gaps'
 
 /** 09:00–17:30, Monday to Friday. */
 const settings: CalendarSettings = {
@@ -40,6 +40,7 @@ const at = (
 
 // Monday 17 August 2026.
 const MON = '2026-08-17'
+const TUE = '2026-08-18'
 // The Saturday after it.
 const SAT = '2026-08-22'
 
@@ -162,6 +163,83 @@ describe('smart drop', () => {
   it('counts a drop inside a gap as being in it', () => {
     const found = nearestGap(gaps, { day: MON, minutes: 900 }, 60)
     expect(found).toMatchObject({ start: 840 })
+  })
+})
+
+describe('filling the gaps', () => {
+  const gaps = [
+    { day: MON, start: 540, end: 660, minutes: 120 },
+    { day: TUE, start: 540, end: 1050, minutes: 510 }
+  ]
+
+  it('places work in the earliest hole it fits', () => {
+    const placed = autoSchedule(
+      [{ id: 1, title: 'Write the copy', estimateMinutes: 90, dueAt: null }],
+      gaps,
+      60
+    )
+    expect(placed).toEqual([
+      { taskId: 1, title: 'Write the copy', day: MON, start: 540, minutes: 90 }
+    ])
+  })
+
+  it('fits a second task into what is left of the same hole', () => {
+    const placed = autoSchedule(
+      [
+        { id: 1, title: 'One', estimateMinutes: 60, dueAt: null },
+        { id: 2, title: 'Two', estimateMinutes: 60, dueAt: null }
+      ],
+      gaps,
+      60
+    )
+    expect(placed.map((one) => [one.day, one.start])).toEqual([
+      [MON, 540],
+      [MON, 600]
+    ])
+  })
+
+  it('moves on to the next day when the hole is used up', () => {
+    const placed = autoSchedule(
+      [
+        { id: 1, title: 'One', estimateMinutes: 120, dueAt: null },
+        { id: 2, title: 'Two', estimateMinutes: 120, dueAt: null }
+      ],
+      gaps,
+      60
+    )
+    expect(placed[1]?.day).toBe(TUE)
+  })
+
+  it('never schedules work after the day it is due', () => {
+    // Putting it past the deadline is worse than leaving it unscheduled,
+    // because it looks handled.
+    const placed = autoSchedule(
+      [{ id: 1, title: 'Late', estimateMinutes: 480, dueAt: MON }],
+      gaps,
+      60
+    )
+    expect(placed).toEqual([])
+  })
+
+  it('leaves alone anything that will not fit anywhere', () => {
+    const placed = autoSchedule(
+      [{ id: 1, title: 'Enormous', estimateMinutes: 900, dueAt: null }],
+      gaps,
+      60
+    )
+    expect(placed).toEqual([])
+  })
+
+  it('uses the default length for a task nobody estimated', () => {
+    const placed = autoSchedule([{ id: 1, title: 'Vague', estimateMinutes: null, dueAt: null }], gaps, 45)
+    expect(placed[0]?.minutes).toBe(45)
+  })
+
+  it('never touches the gaps it was given', () => {
+    // The caller still needs them: the radar is drawn from the same array.
+    const before = JSON.stringify(gaps)
+    autoSchedule([{ id: 1, title: 'One', estimateMinutes: 60, dueAt: null }], gaps, 60)
+    expect(JSON.stringify(gaps)).toBe(before)
   })
 })
 

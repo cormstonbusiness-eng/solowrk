@@ -33,6 +33,7 @@ import type {
   CalendarBlockWithContext,
   CalendarSettings,
   CalendarSubscription,
+  ProjectMilestone,
   DerivedMarker,
   EditScope,
   Campaign,
@@ -671,6 +672,19 @@ export interface IpcContract {
    * Subscribed calendars. The only outward-facing thing in the module, and
    * the whole of what it does is an HTTP GET of the feed URL.
    */
+  /** The dates inside a project that are not its deadline. */
+  'milestones:list': { req: { projectId: number }; res: ProjectMilestone[] }
+  'milestones:create': {
+    req: { projectId: number; title: string; dueOn: string; notes?: string }
+    res: ProjectMilestone
+  }
+  'milestones:update': {
+    req: { id: number; patch: Partial<ProjectMilestone> }
+    res: ProjectMilestone
+  }
+  'milestones:reached': { req: { id: number; reached: boolean }; res: ProjectMilestone }
+  'milestones:delete': { req: { id: number }; res: void }
+
   'calendar:subscriptions': { req: void; res: CalendarSubscription[] }
   'calendar:subscribe': {
     req: { name: string; url: string; colour?: string; refreshMinutes?: number }
@@ -952,6 +966,11 @@ export const IPC_CHANNELS = [
   'calendar:adoptEstimate',
   'calendar:editOccurrence',
   'calendar:deleteOccurrence',
+  'milestones:list',
+  'milestones:create',
+  'milestones:update',
+  'milestones:reached',
+  'milestones:delete',
   'calendar:subscriptions',
   'calendar:subscribe',
   'calendar:updateSubscription',
@@ -1033,7 +1052,7 @@ const WRITABLE_WHEN_READ_ONLY = new Set<string>([
 const BLOCKED_WHEN_READ_ONLY = new Set<string>(['templates:fromProject', 'quotes:convert'])
 
 const WRITE_VERBS =
-  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync|archive|restore|purge|empty|recolour|edit|schedule|adopt|subscribe|unsubscribe|copy|expand)/
+  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync|archive|restore|purge|empty|recolour|edit|schedule|adopt|subscribe|unsubscribe|copy|expand|reached|fill)/
 
 /**
  * Whether a channel is allowed while the app is read-only.

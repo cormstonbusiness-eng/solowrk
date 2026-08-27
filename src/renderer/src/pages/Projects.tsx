@@ -21,6 +21,7 @@ import { TaskList } from './tasks/TaskList'
 import { ProjectNotes } from './ProjectNotes'
 import { ProjectBoard } from './projects/Board'
 import { DEFAULT_ENTITY_COLOUR } from '@shared/types'
+import { Milestones } from './projects/Milestones'
 
 const BLANK: ProjectInput = {
   name: '',
@@ -365,6 +366,8 @@ export function ProjectDetail(): React.JSX.Element {
               Rate {project.rate === null ? 'inherited' : formatMoney(project.rate)}
             </p>
           </Card>
+          <Milestones projectId={projectId} />
+
           <Card className="col-span-2">
             <CardHeader
               title="Folder"
