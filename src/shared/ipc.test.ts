@@ -157,7 +157,10 @@ describe('what read-only allows', () => {
       // The debtors report reads invoices; chasing one is a separate channel.
       'debtors:aged',
       'bank:list',
-      'bank:summary'
+      'bank:summary',
+      // The year-end pack and the accountant ZIP. Both build a file out of
+      // records the user already owns, which read-only must never refuse.
+      'yearEnd:accountant'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(true)
     }

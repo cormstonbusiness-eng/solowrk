@@ -1,5 +1,5 @@
-import { mkdir } from 'node:fs/promises'
-import { join } from 'node:path'
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
+import { basename, join } from 'node:path'
 import type { Database, Row } from '../db'
 import type { SummaryLine, YearEndPack, YearSummaryForPdf } from '@shared/types'
 import { currentTaxYear, taxYearStarting, today } from '@shared/taxYear'
@@ -7,6 +7,8 @@ import { writeDatasetCsv } from './exports'
 import { summary } from './finance'
 import { listInvoices } from './invoices'
 import { getClient } from './clients'
+import { listExpenses } from './expenses'
+import { zipEntries, type ZipEntry } from './zip'
 import { writePdf } from './pdf'
 import { getSettings } from './settings'
 import { resolveInWorkspace } from './workspace'
@@ -70,6 +72,8 @@ export async function buildYearEndPack(
     (invoice) => invoice.status === 'sent' || invoice.status === 'paid'
   )
 
+  await mkdir(resolveInWorkspace(workspacePath, join(folder, 'Receipts')), { recursive: true })
+
   const pdfFolder = join(folder, 'Invoices')
   if (invoices.length > 0) await mkdir(resolveInWorkspace(workspacePath, pdfFolder), { recursive: true })
 
@@ -99,7 +103,90 @@ export async function buildYearEndPack(
     )
   }
 
-  return { folder, taxYearLabel: taxYear.label, files, invoicePdfs: invoices.length }
+  /**
+   * Every receipt for the year, gathered into the pack.
+   *
+   * Copied rather than referenced: the pack is handed to somebody who does not
+   * have the workspace, and a CSV column full of paths to a folder on another
+   * person's laptop is not a receipt. A receipt whose file has since been
+   * moved or deleted is skipped rather than failing the whole export — the
+   * expense is still in the CSV, which is what the figures are built from.
+   */
+  const receipts: string[] = []
+  for (const expense of listExpenses(db, range)) {
+    if (!expense.receiptFile) continue
+    try {
+      const from = resolveInWorkspace(workspacePath, expense.receiptFile)
+      const to = join(folder, 'Receipts', basename(expense.receiptFile))
+      await copyFile(from, resolveInWorkspace(workspacePath, to))
+      receipts.push(to)
+    } catch {
+      // Missing, moved, or a path that no longer resolves. Not worth losing
+      // the rest of the year's paperwork over.
+      continue
+    }
+  }
+
+  files.push(...receipts)
+
+  return {
+    folder,
+    taxYearLabel: taxYear.label,
+    files,
+    invoicePdfs: invoices.length,
+    receipts: receipts.length,
+    archive: null,
+    missing: []
+  }
+}
+
+/**
+ * The same pack, as one dated ZIP.
+ *
+ * Which is the form it is actually sent in. A folder is a folder on somebody's
+ * machine; an accountant gets an attachment, and asking a freelancer to zip
+ * eleven folders by hand in January is how the eleventh gets left out.
+ *
+ * Built by reading the pack back off disk rather than by keeping every file in
+ * memory as it is written — a year of receipt photographs is comfortably more
+ * than an Electron main process should be holding at once, and the pack has to
+ * exist on disk anyway.
+ */
+export async function buildAccountantExport(
+  db: Database,
+  workspacePath: string,
+  startYear?: number
+): Promise<YearEndPack> {
+  const pack = await buildYearEndPack(db, workspacePath, startYear)
+
+  const entries: ZipEntry[] = []
+  // A file the pack has just written and cannot now read back is a fault, not
+  // a detail. It is not fatal — one file locked by an antivirus scanner should
+  // not cost somebody the year's paperwork — but it is never silent: an
+  // archive quietly two files short is discovered in January by the one person
+  // least able to do anything about it.
+  const missing: string[] = []
+
+  for (const relative of pack.files) {
+    try {
+      const absolute = resolveInWorkspace(workspacePath, relative)
+      entries.push({
+        // `Exports` dropped and the tax-year folder kept, so unpacking gives
+        // one tidy folder rather than scattering CSVs into wherever it was
+        // opened. Split on both separators: the paths are built with
+        // `join`, which uses backslashes here and forward slashes elsewhere.
+        name: relative.split(/[\\/]/).slice(1).join('/'),
+        data: await readFile(absolute)
+      })
+    } catch {
+      missing.push(relative)
+    }
+  }
+
+  const archive = join('Exports', `${folderNameFor(pack.taxYearLabel)}.zip`)
+  await writeFile(resolveInWorkspace(workspacePath, archive), zipEntries(entries))
+
+  return { ...pack, archive, missing }
 }
 
 /**

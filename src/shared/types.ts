@@ -722,6 +722,18 @@ export interface YearEndPack {
   files: string[]
   /** Invoice PDFs that were rendered into the pack. */
   invoicePdfs: number
+  /** Receipt images gathered into it. */
+  receipts: number
+  /**
+   * The ZIP, when one was asked for. Null for a plain folder pack — the two
+   * are the same files, and only the accountant export needs an attachment.
+   */
+  archive: string | null
+  /**
+   * Files the pack listed that could not be read back into the archive.
+   * Normally empty; never silent when it is not.
+   */
+  missing: string[]
 }
 
 /**

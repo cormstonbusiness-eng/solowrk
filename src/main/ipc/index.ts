@@ -227,7 +227,7 @@ import {
 import { logoFor, writeHtmlPdf, writePdf } from '../services/pdf'
 import { buildStatement } from '../services/statements'
 import { writeDatasetCsv } from '../services/exports'
-import { buildYearEndPack } from '../services/yearEnd'
+import { buildAccountantExport, buildYearEndPack } from '../services/yearEnd'
 import { trends } from '../services/trends'
 import { buildUpdatePack } from '../services/updatePack'
 import { renderUpdatePack } from '../services/updatePackHtml'
@@ -711,6 +711,9 @@ const handlers: Handlers = {
 
   'yearEnd:pack': (_g, { startYear }) =>
     buildYearEndPack(session.requireDb(), session.requirePath(), startYear),
+
+  'yearEnd:accountant': (_g, { startYear }) =>
+    buildAccountantExport(session.requireDb(), session.requirePath(), startYear),
 
   'quotes:list': (_g, filter) => listQuotes(session.requireDb(), filter ?? {}),
   'quotes:get': (_g, { id }) => getQuote(session.requireDb(), id),

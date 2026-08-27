@@ -570,6 +570,14 @@ export interface IpcContract {
    * obtainable free, one at a time.
    */
   'yearEnd:pack': { req: { startYear?: number }; res: YearEndPack }
+  /**
+   * The same pack as one dated ZIP, receipt images and all.
+   *
+   * The form it is actually sent in — an accountant gets an attachment, and
+   * asking somebody to zip eleven folders by hand in January is how the
+   * eleventh gets left out.
+   */
+  'yearEnd:accountant': { req: { startYear?: number }; res: YearEndPack }
 
   'quotes:list': { req: { status?: QuoteStatus } | void; res: QuoteWithContext[] }
   'quotes:get': { req: { id: number }; res: QuoteWithContext }
@@ -998,6 +1006,7 @@ export const IPC_CHANNELS = [
   'mail:test',
   'export:csv',
   'yearEnd:pack',
+  'yearEnd:accountant',
   'quotes:list',
   'quotes:get',
   'quotes:create',

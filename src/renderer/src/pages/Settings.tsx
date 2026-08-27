@@ -8,6 +8,7 @@ import {
   Compass,
   Download,
   FileText,
+  FileArchive,
   FolderArchive,
   FolderOpen,
   Image as ImageIcon,
@@ -650,11 +651,15 @@ function ExportCard(): React.JSX.Element {
   const [busy, setBusy] = useState('')
   const [done, setDone] = useState('')
   const [error, setError] = useState('')
+  // Files the archive could not take. Normally none, and never silent when
+  // there are: a pack two files short is discovered by an accountant.
+  const [missing, setMissing] = useState<string[]>([])
 
   async function run(label: string, work: () => Promise<string>): Promise<void> {
     setBusy(label)
     setError('')
     setDone('')
+    setMissing([])
     try {
       const path = await work()
       setDone(path)
@@ -714,27 +719,53 @@ function ExportCard(): React.JSX.Element {
             </p>
             <p className="mt-1 text-[11.5px] leading-relaxed text-faint">
               {entitled
-                ? `One folder for tax year ${year.label}: a summary on a page, the records as CSV, and every invoice you raised as a PDF. What an accountant asks for in January.`
+                ? `One folder for tax year ${year.label}: a summary on a page, the records as CSV, every invoice you raised as a PDF, and every receipt image. What an accountant asks for in January.`
                 : 'One folder holding the whole tax year for your accountant. Every file in it is still free above, one at a time — Pro saves you an evening assembling them.'}
             </p>
           </div>
 
           {entitled ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={busy !== ''}
-              onClick={() =>
-                void run('pack', async () => (await window.solo.invoke('yearEnd:pack', {})).folder)
-              }
-            >
-              {busy === 'pack' ? (
-                <Loader2 size={13} className="animate-spin" />
-              ) : (
-                <FolderArchive size={13} strokeWidth={1.75} />
-              )}
-              Build it
-            </Button>
+            <div className="flex shrink-0 gap-1.5">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={busy !== ''}
+                onClick={() =>
+                  void run('pack', async () => (await window.solo.invoke('yearEnd:pack', {})).folder)
+                }
+              >
+                {busy === 'pack' ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  <FolderArchive size={13} strokeWidth={1.75} />
+                )}
+                Build it
+              </Button>
+              {/*
+                The same files as one attachment, which is how it is actually
+                sent. Asking somebody to zip eleven folders by hand in January
+                is how the eleventh gets left out.
+              */}
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={busy !== ''}
+                onClick={() =>
+                  void run('zip', async () => {
+                    const pack = await window.solo.invoke('yearEnd:accountant', {})
+                    setMissing(pack.missing)
+                    return pack.archive ?? pack.folder
+                  })
+                }
+              >
+                {busy === 'zip' ? (
+                  <Loader2 size={13} className="animate-spin" />
+                ) : (
+                  <FileArchive size={13} strokeWidth={1.75} />
+                )}
+                As a ZIP
+              </Button>
+            </div>
           ) : (
             <a
               href="https://solo-wrk.com/pricing"
@@ -748,13 +779,20 @@ function ExportCard(): React.JSX.Element {
         </div>
       </div>
 
-      {busy === 'pack' && (
+      {(busy === 'pack' || busy === 'zip') && (
         <p className="mt-3 text-[11.5px] text-muted">
-          Rendering every invoice for the year. On a busy year this takes a minute.
+          Rendering every invoice for the year and gathering the receipts. On a busy year this
+          takes a minute.
         </p>
       )}
       {done !== '' && busy === '' && (
         <p className="mt-3 text-[11.5px] text-success">Saved to {done}</p>
+      )}
+      {missing.length > 0 && busy === '' && (
+        <p className="mt-1.5 text-[11.5px] text-warning">
+          {missing.length} file{missing.length === 1 ? '' : 's'} could not be read and {missing.length === 1 ? 'is' : 'are'} not in the ZIP:{' '}
+          {missing.join(', ')}. The folder version has {missing.length === 1 ? 'it' : 'them'}.
+        </p>
       )}
       {error !== '' && <p className="mt-3 text-[11.5px] text-danger">{error}</p>}
     </Card>
