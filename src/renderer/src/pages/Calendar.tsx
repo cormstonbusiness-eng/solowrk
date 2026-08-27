@@ -36,6 +36,7 @@ import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { AgendaView } from './calendar/AgendaView'
 import { BlockModal } from './calendar/BlockModal'
+import { Horizon } from './calendar/Horizon'
 import { MonthView } from './calendar/MonthView'
 import { ScopePrompt } from './calendar/ScopePrompt'
 import { Subscriptions } from './calendar/Subscriptions'
@@ -604,6 +605,11 @@ export function Calendar(): React.JSX.Element {
           </div>
         </div>
       </div>
+
+      {/* §17.2. Twenty-four pixels buys permanent three-month awareness, and
+          dragging it scrubs the grid below in real time. Every other calendar
+          makes you navigate to see the future. */}
+      <Horizon today={today} days={days} settings={settings} onJump={setAnchor} />
 
       <AnimatePresence mode="wait">
         <motion.div

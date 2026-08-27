@@ -32,6 +32,7 @@ import {
   pxPerMinute
 } from './grid'
 import { alpha, peakRateOf, readoutFor, surfaceFor, type Lens } from './lens'
+import { gapsAcross, nearestGap } from './gaps'
 import {
   MIN_BLOCK_MINUTES,
   cancel,
@@ -460,6 +461,52 @@ export function TimeGrid({
     settings.defaultBlockMinutes
   ])
 
+  /**
+   * §17.3: hold Space and the week shows you where it is empty.
+   *
+   * A hold rather than a toggle, and nothing about it is persistent: it does
+   * its job while held and disappears. That is the design constraint for all
+   * of this — power through disclosure, not density.
+   *
+   * Only when nothing has focus, because Space with a block focused selects
+   * it, and a key that did two things depending on nothing visible would be
+   * worse than either.
+   */
+  const [radar, setRadar] = useState(false)
+  const radarLive = useRef(false)
+  radarLive.current = radar
+
+  useEffect(() => {
+    const down = (event: KeyboardEvent): void => {
+      if (event.key !== ' ' || event.repeat) return
+      if (focusedKey !== null) return
+      const target = event.target as HTMLElement | null
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+      event.preventDefault()
+      setRadar(true)
+    }
+    const up = (event: KeyboardEvent): void => {
+      if (event.key === ' ') setRadar(false)
+    }
+    // A window that loses focus mid-hold never sees the keyup, and the radar
+    // would be stuck on when somebody came back.
+    const clear = (): void => setRadar(false)
+
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    window.addEventListener('blur', clear)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+      window.removeEventListener('blur', clear)
+    }
+  }, [focusedKey])
+
+  const gaps = useMemo(
+    () => (radar || pendingTask ? gapsAcross(timed, days, settings) : []),
+    [radar, pendingTask, timed, days, settings]
+  )
+
   /* ---------------- dropping a task from the rail ---------------- */
 
   const [dropAt, setDropAt] = useState<GridPoint | null>(null)
@@ -481,10 +528,24 @@ export function TimeGrid({
         return
       }
       const point = pointAt(event.clientX, event.clientY, over.dataset.columnDay ?? today)
-      setDropAt({
+      const snapped = {
         day: point.day,
         minutes: Math.round(point.minutes / settings.snapMinutes) * settings.snapMinutes
-      })
+      }
+
+      // §17.3's smart drop. Drag roughly at Wednesday with Space held and it
+      // lands cleanly in the two-hour hole at 14:00 rather than halfway
+      // through whatever is already there.
+      if (radarLive.current) {
+        const needs = pendingTask.estimateMinutes ?? settings.defaultBlockMinutes
+        const gap = nearestGap(gapsLive.current, snapped, needs)
+        if (gap) {
+          setDropAt({ day: gap.day, minutes: gap.start })
+          return
+        }
+      }
+
+      setDropAt(snapped)
     }
 
     const onUp = (): void => {
@@ -511,6 +572,11 @@ export function TimeGrid({
   // Read on pointerup, by which time the state above is a frame stale.
   const dropTarget = useRef<GridPoint | null>(null)
   dropTarget.current = dropAt
+
+  // Same reason: the pointermove listener is registered once and would
+  // otherwise close over the gaps as they were when the drag started.
+  const gapsLive = useRef(gaps)
+  gapsLive.current = gaps
 
   /**
    * Planned against actual, where there is anything to compare.
@@ -808,6 +874,31 @@ export function TimeGrid({
                   </div>
                 )}
 
+                {/* The radar. Gaps glow, brighter for longer ones, and each
+                    says how long it is — the answer to "when can I fit this?"
+                    as a gesture rather than a search. */}
+                {(radar || pendingTask) &&
+                  gaps
+                    .filter((gap) => gap.day === day)
+                    .map((gap) => (
+                      <div
+                        key={`${gap.day}-${gap.start}`}
+                        aria-hidden
+                        style={{
+                          top: gap.start * perMinute,
+                          height: (gap.end - gap.start) * perMinute,
+                          // Brighter for longer, capped so a whole free day
+                          // does not become a solid block of accent.
+                          opacity: 0.1 + Math.min(0.28, gap.minutes / 900)
+                        }}
+                        className="pointer-events-none absolute inset-x-1 z-[5] rounded-[4px] bg-accent"
+                      >
+                        <span className="numeric absolute top-0.5 left-1.5 text-[10px] font-medium text-accent-ink mix-blend-luminosity">
+                          {durationLabel(gap.minutes)}
+                        </span>
+                      </div>
+                    ))}
+
                 {/* Where the task from the rail would land. Its own shape
                     rather than a full ghost block: nothing has been decided
                     yet, and drawing a finished block would say otherwise. */}
@@ -889,7 +980,10 @@ export function TimeGrid({
                           ? 'transparent'
                           : `${surface.colour}${alpha(surface.fill)}`,
                         borderColor: surface.colour,
-                        opacity: surface.opacity
+                        // The radar drops everything back to 20% so the empty
+                        // space is what reads. 150ms back on release.
+                        opacity: radar ? surface.opacity * 0.2 : surface.opacity,
+                        transition: 'opacity 150ms ease-out'
                       }}
                       className={cn(
                         'group absolute z-10 overflow-hidden rounded-[5px] border-l-[3px] px-1.5',
