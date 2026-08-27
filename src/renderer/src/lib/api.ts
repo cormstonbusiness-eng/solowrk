@@ -56,6 +56,7 @@ export type Domain =
   | 'expenses'
   | 'mileage'
   | 'debtors'
+  | 'bank'
   | 'finance'
   | 'calendar'
   | 'marketing'

@@ -90,7 +90,16 @@ describe('what read-only allows', () => {
       'mileage:create',
       'mileage:update',
       'mileage:delete',
-      'mileage:setRate'
+      'mileage:setRate',
+      // The bank import. `ignore` and `unmatch` are writes despite reading
+      // like dismissals — both change what the app believes about an invoice.
+      'bank:import',
+      'bank:matchInvoice',
+      'bank:matchExpense',
+      'bank:createExpense',
+      'bank:ignore',
+      'bank:unmatch',
+      'bank:forget'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(false)
     }
@@ -146,7 +155,9 @@ describe('what read-only allows', () => {
       'mileage:year',
       'mileage:rates',
       // The debtors report reads invoices; chasing one is a separate channel.
-      'debtors:aged'
+      'debtors:aged',
+      'bank:list',
+      'bank:summary'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(true)
     }

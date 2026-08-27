@@ -34,6 +34,9 @@ import type {
   CalendarSettings,
   CalendarSubscription,
   AgedDebtors,
+  BankImportResult,
+  BankTransaction,
+  BankTransactionWithMatches,
   MileageInput,
   MileageRateRow,
   MileageYear,
@@ -607,6 +610,30 @@ export interface IpcContract {
    */
   'debtors:aged': { req: { asOf?: string } | void; res: AgedDebtors }
 
+  /**
+   * The bank import.
+   *
+   * A CSV the user downloaded themselves — there is no connection to any bank
+   * and no credentials anywhere in this app. Importing never reconciles
+   * anything: a wrong match marks an invoice paid that was not, which stops
+   * the chasing and misstates the income at once, so the app suggests and a
+   * person decides.
+   */
+  'bank:import': { req: { path: string }; res: BankImportResult }
+  'bank:list': {
+    req: { status?: 'new' | 'matched' | 'ignored' } | void
+    res: BankTransactionWithMatches[]
+  }
+  'bank:summary': { req: void; res: { unreconciled: number; total: number } }
+  /** Marks the invoice paid, on the date the money actually arrived. */
+  'bank:matchInvoice': { req: { id: number; invoiceId: number }; res: BankTransaction }
+  'bank:matchExpense': { req: { id: number; expenseId: number }; res: BankTransaction }
+  'bank:createExpense': { req: { id: number; patch?: ExpenseInput }; res: BankTransaction }
+  'bank:ignore': { req: { id: number }; res: BankTransaction }
+  /** Clears a match. Deliberately does not un-pay the invoice. */
+  'bank:unmatch': { req: { id: number }; res: BankTransaction }
+  'bank:forget': { req: { source: string }; res: number }
+
   'mileage:year': { req: { date?: string } | void; res: MileageYear }
   'mileage:create': { req: MileageInput; res: MileageYear }
   'mileage:update': { req: { id: number; patch: MileageInput }; res: MileageYear }
@@ -983,6 +1010,15 @@ export const IPC_CHANNELS = [
   'expenses:update',
   'expenses:delete',
   'debtors:aged',
+  'bank:import',
+  'bank:list',
+  'bank:summary',
+  'bank:matchInvoice',
+  'bank:matchExpense',
+  'bank:createExpense',
+  'bank:ignore',
+  'bank:unmatch',
+  'bank:forget',
   'mileage:year',
   'mileage:create',
   'mileage:update',
@@ -1095,8 +1131,15 @@ const WRITABLE_WHEN_READ_ONLY = new Set<string>([
 /** Writes whose names do not begin with one of the verbs below. */
 const BLOCKED_WHEN_READ_ONLY = new Set<string>(['templates:fromProject', 'quotes:convert'])
 
+/**
+ * `match` and `unmatch` carry a lookahead the rest do not.
+ *
+ * Every other verb here is a prefix on purpose — `create` covers
+ * `createExpense`. But `tags:matching` is a read, and a bare `match`
+ * prefix would have locked it on a lapsed licence.
+ */
 const WRITE_VERBS =
-  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync|archive|restore|purge|empty|recolour|edit|schedule|adopt|subscribe|unsubscribe|copy|expand|reached|fill)/
+  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync|archive|restore|purge|empty|recolour|edit|schedule|adopt|subscribe|unsubscribe|copy|expand|reached|fill|ignore|forget|match(?![a-z])|unmatch(?![a-z]))/
 
 /**
  * Whether a channel is allowed while the app is read-only.

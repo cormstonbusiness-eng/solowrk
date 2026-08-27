@@ -10,11 +10,13 @@
 import type { Platform } from './social'
 import type { Vehicle } from './mileage'
 import type { DebtBucket, DebtHeat } from './debtors'
+import type { Match } from './bankMatch'
 import type { ReceiptReading } from './receipts'
 
 export type { Platform }
 export type { Vehicle }
 export type { DebtBucket, DebtHeat }
+export type { Match as BankMatch }
 // Re-exported so the IPC contract can name it without a second import
 // path for the same thing.
 export type { ReceiptReading }
@@ -942,6 +944,41 @@ export interface Expense {
 
 export interface ExpenseWithContext extends Expense {
   projectName: string | null
+}
+
+/* Bank import */
+
+/** One line off a bank statement, as the app keeps it. */
+export interface BankTransaction {
+  id: number
+  date: string
+  description: string
+  reference: string
+  /** Signed integer pence. Negative is money leaving the account. */
+  amount: Pence
+  /** The file it came from. */
+  source: string
+  status: 'new' | 'matched' | 'ignored'
+  invoiceId: number | null
+  expenseId: number | null
+}
+
+export interface BankTransactionWithMatches extends BankTransaction {
+  /** What this line might be. Empty once it has been decided. */
+  matches: Match[]
+  /** Whether the best match is safe to offer as *the* answer. */
+  clear: boolean
+}
+
+export interface BankImportResult {
+  added: number
+  /** Lines this workspace had already seen — an overlapping statement. */
+  alreadySeen: number
+  skipped: { line: number; reason: string }[]
+  /** Which columns were recognised, so the user can see it read them right. */
+  columns: { date: string; description: string; amount: string } | null
+  /** Set when nothing could be imported. Said to the user verbatim. */
+  error: string | null
 }
 
 /* Aged debt */

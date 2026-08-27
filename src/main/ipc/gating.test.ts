@@ -81,6 +81,15 @@ describe('the chase schedule is Pro, chasing is not', () => {
     expect(gateFor('invoices:receipt')).toBeNull()
   })
 
+  it('gates the bank import, and only the reconciling', () => {
+    // The statement is the user's own, held at their own bank. What Pro buys
+    // is the app reading it and matching it up — every invoice and expense it
+    // touches stays free to read and export either way.
+    expect(gateFor('bank:import')?.feature).toBe('bank')
+    expect(gateFor('bank:matchInvoice')?.feature).toBe('bank')
+    expect(gateFor('expenses:list')).toBeNull()
+  })
+
   it('gates a scheduling channel that does not exist yet', () => {
     // Why these live under `chasing:` rather than `invoices:` — the gate is one
     // rule, and anything added to the feature is covered without an edit here.
@@ -96,6 +105,7 @@ describe('everything else stays free', () => {
         !channel.startsWith('marketing:') &&
         !channel.startsWith('chasing:') &&
         !channel.startsWith('yearEnd:') &&
+        !channel.startsWith('bank:') &&
         channel !== 'ai:send'
     )
 
@@ -138,7 +148,8 @@ describe('the messages', () => {
     for (const gate of GATES) {
       expect(gate.feature).toBe(gate.feature.trim().toLowerCase())
       expect(gate.feature).not.toContain(',')
-      expect(['assistant', 'marketing', 'chasing', 'yearend']).toContain(gate.feature)
+      // Adding one here is a promise the licence server issues it too.
+      expect(['assistant', 'marketing', 'chasing', 'yearend', 'bank']).toContain(gate.feature)
     }
   })
 })

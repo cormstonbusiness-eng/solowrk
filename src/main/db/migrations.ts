@@ -1634,5 +1634,41 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_mileage_date    ON mileage(date);
       CREATE INDEX idx_mileage_project ON mileage(project_id);
     `
+  },
+  {
+    id: 27,
+    name: 'bank_import',
+    sql: `
+      -- Statement lines from a CSV the user downloaded themselves.
+      --
+      -- Kept rather than consumed. An import that read a file, created some
+      -- rows and forgot the file has no answer to "did that £1,500 ever get
+      -- reconciled?" — and no way to import next month's statement, which
+      -- overlaps this one, without doing everything twice.
+      CREATE TABLE bank_transactions (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        -- Built in \`@shared/bankCsv\` from date, amount and payee, so
+        -- re-importing an overlapping statement recognises what it has seen.
+        -- UNIQUE is the whole mechanism: the import inserts and ignores.
+        fingerprint  TEXT    NOT NULL UNIQUE,
+        date         TEXT    NOT NULL,
+        description  TEXT    NOT NULL DEFAULT '',
+        reference    TEXT    NOT NULL DEFAULT '',
+        -- Signed integer pence. Negative is money leaving the account.
+        amount       INTEGER NOT NULL,
+        -- Which statement it came from, so a bad import can be found again.
+        source       TEXT    NOT NULL DEFAULT '',
+        status       TEXT    NOT NULL DEFAULT 'new'
+                     CHECK (status IN ('new','matched','ignored')),
+        -- What it was reconciled to. Both null while it is still 'new'.
+        invoice_id   INTEGER REFERENCES invoices(id) ON DELETE SET NULL,
+        expense_id   INTEGER REFERENCES expenses(id) ON DELETE SET NULL,
+        imported_at  TEXT    NOT NULL,
+        updated_at   TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_bank_status ON bank_transactions(status);
+      CREATE INDEX idx_bank_date   ON bank_transactions(date);
+    `
   }
 ]

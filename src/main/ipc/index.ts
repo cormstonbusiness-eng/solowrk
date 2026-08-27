@@ -143,6 +143,17 @@ import { deleteOccurrence, editOccurrence } from '../services/recurrence'
 import { readReceiptImage } from '../services/ocr'
 import { agedDebtors } from '../services/debtors'
 import {
+  bankSummary,
+  forgetSource,
+  ignoreTransaction,
+  importStatement,
+  listTransactions,
+  matchToExpense,
+  matchToInvoice,
+  transactionToExpense,
+  unmatchTransaction
+} from '../services/bank'
+import {
   createMileage,
   deleteMileage,
   listRates,
@@ -805,6 +816,19 @@ const handlers: Handlers = {
   'expenses:readReceipt': (_g, { path }) => readReceiptImage(path),
 
   'debtors:aged': (_g, request) => agedDebtors(session.requireDb(), request?.asOf),
+
+  'bank:import': (_g, { path }) => importStatement(session.requireDb(), path),
+  'bank:list': (_g, filter) => listTransactions(session.requireDb(), filter ?? {}),
+  'bank:summary': () => bankSummary(session.requireDb()),
+  'bank:matchInvoice': (_g, { id, invoiceId }) =>
+    matchToInvoice(session.requireDb(), id, invoiceId),
+  'bank:matchExpense': (_g, { id, expenseId }) =>
+    matchToExpense(session.requireDb(), id, expenseId),
+  'bank:createExpense': (_g, { id, patch }) =>
+    transactionToExpense(session.requireDb(), session.requirePath(), id, patch),
+  'bank:ignore': (_g, { id }) => ignoreTransaction(session.requireDb(), id),
+  'bank:unmatch': (_g, { id }) => unmatchTransaction(session.requireDb(), id),
+  'bank:forget': (_g, { source }) => forgetSource(session.requireDb(), source),
 
   'mileage:year': (_g, request) => mileageYear(session.requireDb(), request?.date),
   'mileage:create': (_g, input) => createMileage(session.requireDb(), input),

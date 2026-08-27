@@ -62,6 +62,21 @@ export const GATES: Gate[] = [
       'The year-end pack is part of SoloWrk Pro. Upgrade at solo-wrk.com/account. Every file in it is still free on its own — the CSVs from Settings, and each invoice from the Invoices page.'
   },
   {
+    /**
+     * Reading a statement and reconciling it.
+     *
+     * The whole prefix, because the import and the matching are one feature —
+     * importing without being able to reconcile would be a list of numbers.
+     * Nothing behind this gate is a record the user cannot otherwise reach:
+     * their own bank holds the statement, and every invoice and expense in
+     * here is free to read and export either way.
+     */
+    prefix: 'bank:',
+    feature: 'bank',
+    message:
+      'Bank import is part of SoloWrk Pro. Upgrade at solo-wrk.com/account. Your invoices and expenses are still yours either way — this is the reconciling, not the records.'
+  },
+  {
     // Only sending. The rest of `ai:*` is the business plan and the status the
     // upsell panel reads, both of which Basic keeps.
     prefix: 'ai:send',
