@@ -13,6 +13,9 @@ import { QuickAddHint, useQuickAdd } from '@/components/list/QuickAdd'
 import { useEntityActions } from '@/hooks/useEntityActions'
 import { TaskRow } from './TaskRow'
 import { TaskModal } from './TaskModal'
+import { BulkBar } from '@/components/list/BulkBar'
+import { useSelection } from '@/hooks/useSelection'
+import { useUndo } from '@/hooks/useUndo'
 
 /**
  * The task list for a single project, used on the project detail page. The
@@ -55,6 +58,7 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
   })
 
   const actions = useEntityActions()
+  const { offer } = useUndo()
 
   const remove = useMutation({
     mutationFn: (task: { id: number; title: string }) =>
@@ -76,8 +80,53 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
   const done = tasks.filter((t) => t.status === 'done')
 
   // Open first, then done — the order they are drawn in, so the drawer's
-  // arrows walk the list the way the eye does.
-  const siblings = [...open_, ...done].map((task) => ({ type: 'task' as const, id: task.id }))
+  // arrows walk the list the way the eye does, and so a Shift-range covers
+  // what is between two rows on screen rather than between two ids.
+  const shown = [...open_, ...done]
+  const siblings = shown.map((task) => ({ type: 'task' as const, id: task.id }))
+  const selection = useSelection(shown.map((task) => task.id))
+
+  const rename = useMutation({
+    mutationFn: (input: { id: number; title: string }) =>
+      window.solo.invoke('tasks:update', { id: input.id, patch: { title: input.title } }),
+    onSuccess: () => invalidate(['tasks'])
+  })
+
+  /**
+   * Bulk actions, each as one decision with one undo.
+   *
+   * Archiving nine tasks is a single thing somebody did, and offering nine
+   * separate undos for it would be offering to half-undo it — which is worse
+   * than not offering at all.
+   */
+  const chosen = shown.filter((task) => selection.isSelected(task.id))
+
+  const bulkArchive = async (): Promise<void> => {
+    const ids = chosen.map((task) => task.id)
+    selection.clear()
+    for (const id of ids) {
+      await window.solo.invoke('tasks:update', { id, patch: { archived: true } })
+    }
+    invalidate(['tasks'])
+    offer(`Archived ${ids.length} task${ids.length === 1 ? '' : 's'}`, async () => {
+      for (const id of ids) {
+        await window.solo.invoke('tasks:update', { id, patch: { archived: false } })
+      }
+      invalidate(['tasks'])
+    })
+  }
+
+  const bulkDelete = async (): Promise<void> => {
+    // Through the trash, one at a time, exactly as a single delete goes —
+    // which is what makes all of them restorable afterwards.
+    const targets = [...chosen]
+    selection.clear()
+    for (const task of targets) {
+      await window.solo.invoke('entity:delete', { type: 'task', id: task.id })
+    }
+    invalidate(['tasks'])
+    offer(`Deleted ${targets.length} task${targets.length === 1 ? '' : 's'}`)
+  }
 
   return (
     <div className="max-w-[860px]">
@@ -120,6 +169,10 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
                 key={task.id}
                 task={task}
                 siblings={siblings}
+                selected={selection.isSelected(task.id)}
+                selectable={selection.count > 0}
+                onSelect={(modifiers) => selection.click(task.id, modifiers)}
+                onRename={(title) => rename.mutate({ id: task.id, title })}
                 onToggle={() => toggle.mutate(task)}
                 onOpen={() => setOpen(task)}
                 onArchive={() => archive.mutate(task.id)}
@@ -143,6 +196,9 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
                     key={task.id}
                     task={task}
                     siblings={siblings}
+                    selected={selection.isSelected(task.id)}
+                    selectable={selection.count > 0}
+                    onSelect={(modifiers) => selection.click(task.id, modifiers)}
                     onToggle={() => toggle.mutate(task)}
                     onOpen={() => setOpen(task)}
                   />
@@ -152,6 +208,14 @@ export function TaskList({ projectId }: { projectId: number }): React.JSX.Elemen
           )}
         </div>
       </Swap>
+
+      <BulkBar
+        count={selection.count}
+        noun="task"
+        onArchive={() => void bulkArchive()}
+        onDelete={() => void bulkDelete()}
+        onClear={selection.clear}
+      />
 
       <TaskModal task={open} onClose={() => setOpen(null)} />
     </div>

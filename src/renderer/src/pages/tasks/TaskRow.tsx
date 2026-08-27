@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
-import { Archive, ChevronRight, GripVertical, Trash2 } from 'lucide-react'
+import { Archive, Check, ChevronRight, GripVertical, Trash2 } from 'lucide-react'
 import type { EntityRef, TaskWithContext } from '@shared/types'
 import { PRIORITIES } from '@shared/types'
 import { Dot } from '@/components/ui/Empty'
 import { Inspect } from '@/components/detail/Inspect'
 import { StruckText, Tickbox } from '@/components/ui/Tickbox'
+import { InlineEdit } from '@/components/list/InlineEdit'
 import { describeDue } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
@@ -26,6 +27,10 @@ export function TaskRow({
   onOpen,
   onDelete,
   onArchive,
+  onRename,
+  onSelect,
+  selected,
+  selectable,
   showProject,
   dragHandle,
   dragging,
@@ -34,6 +39,13 @@ export function TaskRow({
   task: TaskWithContext
   onToggle: () => void
   onOpen: () => void
+  /** Omit and the title is not editable in place. */
+  onRename?: (title: string) => void
+  /** Omit and the row shows no checkbox and cannot be picked. */
+  onSelect?: (modifiers: { shift?: boolean; toggle?: boolean }) => void
+  selected?: boolean
+  /** True once anything is selected: the boxes stop hiding on hover. */
+  selectable?: boolean
   /** The rows the drawer's arrows walk. Omit and there are simply no arrows. */
   siblings?: EntityRef[]
   /** Omit to hide the hover delete. */
@@ -82,9 +94,34 @@ export function TaskRow({
       className={cn(
         'group flex items-center gap-2.5 rounded-control border border-transparent bg-raised px-2.5 py-2',
         'transition-colors duration-150 hover:border-line-strong',
-        dragging && 'opacity-40'
+        dragging && 'opacity-40',
+        selected && 'border-accent bg-accent-subtle'
       )}
     >
+      {/* Hidden until the row is hovered, and then permanently once anything
+          is selected — a checkbox that vanished mid-selection would make
+          picking the next row a hunt. */}
+      {onSelect && (
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={selected === true}
+          aria-label={`Select ${task.title}`}
+          onClick={(event) => {
+            event.stopPropagation()
+            onSelect({ shift: event.shiftKey, toggle: event.ctrlKey || event.metaKey })
+          }}
+          className={cn(
+            'grid size-[15px] shrink-0 place-items-center rounded-[3px] border transition-all',
+            selected
+              ? 'border-accent bg-accent text-accent-ink'
+              : 'border-line-strong text-transparent hover:border-accent',
+            selected || selectable ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
+          )}
+        >
+          <Check size={10} strokeWidth={3} />
+        </button>
+      )}
       {dragHandle && (
         <span className="cursor-grab text-faint opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing">
           {dragHandle ?? <GripVertical size={13} />}
@@ -100,17 +137,31 @@ export function TaskRow({
         }}
       />
 
-      <button type="button" onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-2">
-        <StruckText done={done} className="text-[13px]">
-          {task.title}
-        </StruckText>
+      <div className="flex min-w-0 flex-1 items-center gap-2">
+        {onRename ? (
+          // Click the title to change it. No edit mode, no Save button — the
+          // row opens on the chevron and the drawer, so the title is free to
+          // be the control it looks like.
+          <InlineEdit
+            value={task.title}
+            label={`Rename ${task.title}`}
+            onSave={onRename}
+            className={cn('text-[13px]', done && 'text-faint line-through')}
+          />
+        ) : (
+          <button type="button" onClick={onOpen} className="min-w-0 flex-1 text-left">
+            <StruckText done={done} className="text-[13px]">
+              {task.title}
+            </StruckText>
+          </button>
+        )}
 
         {task.subtaskCount > 0 && (
           <span className="numeric shrink-0 text-[10.5px] text-faint">
             {task.subtaskDoneCount}/{task.subtaskCount}
           </span>
         )}
-      </button>
+      </div>
 
       <div className="flex shrink-0 items-center gap-2.5">
         {task.priority >= 2 && priority && (
