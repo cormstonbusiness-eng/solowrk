@@ -9,10 +9,12 @@
 
 import type { Platform } from './social'
 import type { Vehicle } from './mileage'
+import type { DebtBucket, DebtHeat } from './debtors'
 import type { ReceiptReading } from './receipts'
 
 export type { Platform }
 export type { Vehicle }
+export type { DebtBucket, DebtHeat }
 // Re-exported so the IPC contract can name it without a second import
 // path for the same thing.
 export type { ReceiptReading }
@@ -940,6 +942,44 @@ export interface Expense {
 
 export interface ExpenseWithContext extends Expense {
   projectName: string | null
+}
+
+/* Aged debt */
+
+/** One unpaid invoice, with how late it is and what chasing it would be. */
+export interface AgedDebtor {
+  invoice: InvoiceWithContext
+  /** Days past the due date. Zero or negative means not yet due. */
+  daysOverdue: number
+  bucket: DebtBucket
+  heat: DebtHeat
+  lastChasedAt: string | null
+  /** Which note a chase pressed now would be, counting from 1. */
+  nextAttempt: number
+  /** How many notes are in the schedule, so a row can say "2 of 3". */
+  attempts: number
+}
+
+export interface ClientDebt {
+  clientId: number | null
+  clientName: string
+  buckets: Record<DebtBucket, Pence>
+  total: Pence
+  invoices: number
+  /** Days on the oldest of this client's debts. */
+  oldestDays: number
+}
+
+export interface AgedDebtors {
+  /** The date everything here was aged against. */
+  asOf: string
+  rows: AgedDebtor[]
+  buckets: Record<DebtBucket, Pence>
+  /** Everything unpaid, including what is not yet due. */
+  total: Pence
+  /** Only what is actually late. */
+  overdue: Pence
+  byClient: ClientDebt[]
 }
 
 export const EXPENSE_CATEGORIES = [

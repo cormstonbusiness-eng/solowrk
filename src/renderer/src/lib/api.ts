@@ -55,6 +55,7 @@ export type Domain =
   | 'quotes'
   | 'expenses'
   | 'mileage'
+  | 'debtors'
   | 'finance'
   | 'calendar'
   | 'marketing'
@@ -68,6 +69,11 @@ export function invalidate(queryClient: QueryClient, domains: Domain[]): void {
     void queryClient.invalidateQueries({ queryKey: [domain] })
   }
   // Project summaries carry task counts, so tasks changing means projects too.
+  // Aged debt is a view of the invoices, so it is stale whenever they are.
+  if (domains.includes('invoices')) {
+    void queryClient.invalidateQueries({ queryKey: ['debtors'] })
+  }
+
   if (domains.includes('tasks')) {
     void queryClient.invalidateQueries({ queryKey: ['projects'] })
     void queryClient.invalidateQueries({ queryKey: ['project'] })

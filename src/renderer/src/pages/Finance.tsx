@@ -31,6 +31,7 @@ import { Inspect } from '@/components/detail/Inspect'
 import { Toolbar } from '@/components/list/Toolbar'
 import { SavedViews } from '@/components/list/SavedViews'
 import { useListState } from '@/hooks/useListState'
+import { Debtors } from './finance/Debtors'
 import { Mileage } from './finance/Mileage'
 import { useTagFilter } from '@/hooks/useTagFilter'
 import { useEntityActions } from '@/hooks/useEntityActions'
@@ -43,7 +44,7 @@ const PERIODS: { value: Period; label: string }[] = [
   { value: 'year', label: 'Tax year' }
 ]
 
-type Tab = 'overview' | 'expenses' | 'mileage'
+type Tab = 'overview' | 'expenses' | 'mileage' | 'debtors'
 
 export function Finance(): React.JSX.Element {
   const [period, setPeriod] = useState<Period>('month')
@@ -83,7 +84,7 @@ export function Finance(): React.JSX.Element {
       }
     >
       <div className="mb-4 flex items-center gap-2 border-b border-line">
-        {(['overview', 'expenses', 'mileage'] as Tab[]).map((name) => (
+        {(['overview', 'expenses', 'mileage', 'debtors'] as Tab[]).map((name) => (
           <button
             key={name}
             type="button"
@@ -106,6 +107,8 @@ export function Finance(): React.JSX.Element {
       {tab === 'expenses' && <Expenses period={period} />}
       {/* Mileage takes no period: it is valued a tax year at a time. */}
       {tab === 'mileage' && <Mileage />}
+      {/* Debt is a fact about now, not about the period above. */}
+      {tab === 'debtors' && <Debtors />}
     </Page>
   )
 }

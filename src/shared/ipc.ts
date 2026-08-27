@@ -33,6 +33,7 @@ import type {
   CalendarBlockWithContext,
   CalendarSettings,
   CalendarSubscription,
+  AgedDebtors,
   MileageInput,
   MileageRateRow,
   MileageYear,
@@ -598,6 +599,14 @@ export interface IpcContract {
    * annual one: a journey's rate depends on the miles before it, so there is
    * no honest way to answer for March alone.
    */
+  /**
+   * Who owes what, aged 30/60/90 against their due dates.
+   *
+   * Takes no range: what you are owed is a fact about now, the same reason
+   * `finance:summary` ignores the period for `outstanding`.
+   */
+  'debtors:aged': { req: { asOf?: string } | void; res: AgedDebtors }
+
   'mileage:year': { req: { date?: string } | void; res: MileageYear }
   'mileage:create': { req: MileageInput; res: MileageYear }
   'mileage:update': { req: { id: number; patch: MileageInput }; res: MileageYear }
@@ -973,6 +982,7 @@ export const IPC_CHANNELS = [
   'expenses:create',
   'expenses:update',
   'expenses:delete',
+  'debtors:aged',
   'mileage:year',
   'mileage:create',
   'mileage:update',

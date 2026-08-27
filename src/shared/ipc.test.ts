@@ -144,7 +144,9 @@ describe('what read-only allows', () => {
       'tags:matching',
       // The mileage log itself, and the rates it is valued at.
       'mileage:year',
-      'mileage:rates'
+      'mileage:rates',
+      // The debtors report reads invoices; chasing one is a separate channel.
+      'debtors:aged'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(true)
     }

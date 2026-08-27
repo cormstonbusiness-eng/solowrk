@@ -141,6 +141,7 @@ import {
 } from '../services/scheduling'
 import { deleteOccurrence, editOccurrence } from '../services/recurrence'
 import { readReceiptImage } from '../services/ocr'
+import { agedDebtors } from '../services/debtors'
 import {
   createMileage,
   deleteMileage,
@@ -802,6 +803,8 @@ const handlers: Handlers = {
   },
 
   'expenses:readReceipt': (_g, { path }) => readReceiptImage(path),
+
+  'debtors:aged': (_g, request) => agedDebtors(session.requireDb(), request?.asOf),
 
   'mileage:year': (_g, request) => mileageYear(session.requireDb(), request?.date),
   'mileage:create': (_g, input) => createMileage(session.requireDb(), input),
