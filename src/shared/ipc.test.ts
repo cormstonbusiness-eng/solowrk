@@ -182,7 +182,8 @@ describe('what read-only allows', () => {
       'documents:get',
       'documents:versions',
       // Reading the review changes nothing.
-      'review:week'
+      'review:week',
+      'capacity:defaults'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(true)
     }

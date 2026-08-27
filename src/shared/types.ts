@@ -12,6 +12,7 @@ import type { Vehicle } from './mileage'
 import type { DebtBucket, DebtHeat } from './debtors'
 import type { Match } from './bankMatch'
 import type { Review } from './review'
+import type { CapacityInput } from './capacity'
 import type { ReceiptReading } from './receipts'
 
 export type { Platform }
@@ -19,6 +20,17 @@ export type { Vehicle }
 export type { DebtBucket, DebtHeat }
 export type { Match as BankMatch }
 export type { Review }
+export type { CapacityInput }
+
+/** The calculator's starting figures, and where they came from. */
+export interface CapacityDefaults extends CapacityInput {
+  /** True when utilisation came from tracked history rather than a default. */
+  fromHistory: boolean
+  trackedBillableHours: number
+  trackedHours: number
+  /** What an hour has really earned, which is often below the headline rate. */
+  actualRate: number
+}
 // Re-exported so the IPC contract can name it without a second import
 // path for the same thing.
 export type { ReceiptReading }

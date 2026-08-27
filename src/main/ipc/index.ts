@@ -144,6 +144,7 @@ import { deleteOccurrence, editOccurrence } from '../services/recurrence'
 import { readReceiptImage } from '../services/ocr'
 import { agedDebtors } from '../services/debtors'
 import { fileWeeklyReview, weeklyReview } from '../services/review'
+import { capacityDefaults } from '../services/capacity'
 import {
   createDocTemplate,
   deleteDocTemplate,
@@ -836,6 +837,8 @@ const handlers: Handlers = {
   'expenses:readReceipt': (_g, { path }) => readReceiptImage(path),
 
   'debtors:aged': (_g, request) => agedDebtors(session.requireDb(), request?.asOf),
+
+  'capacity:defaults': () => capacityDefaults(session.requireDb()),
 
   'review:week': (_g, request) => weeklyReview(session.requireDb(), request?.asOf),
   'review:file': (_g, request) =>

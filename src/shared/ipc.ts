@@ -34,6 +34,7 @@ import type {
   CalendarSettings,
   CalendarSubscription,
   AgedDebtors,
+  CapacityDefaults,
   Review,
   BankImportResult,
   DocumentTemplate,
@@ -675,6 +676,12 @@ export interface IpcContract {
    * figure in it would be worse than no review. It needs no Claude account and
    * cannot invent a number.
    */
+  /**
+   * Where the capacity calculator starts from — seeded from tracked history
+   * rather than from optimism, and saying which of the two it used.
+   */
+  'capacity:defaults': { req: void; res: CapacityDefaults }
+
   'review:week': { req: { asOf?: string } | void; res: Review }
   /** Write it into the notebook, once per week. Returns the note it wrote. */
   'review:file': {
@@ -1096,6 +1103,7 @@ export const IPC_CHANNELS = [
   'expenses:update',
   'expenses:delete',
   'debtors:aged',
+  'capacity:defaults',
   'review:week',
   'review:file',
   'bank:import',

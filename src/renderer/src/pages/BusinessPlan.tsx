@@ -24,6 +24,7 @@ import {
   type PlanSection,
   type PlanSectionSpec
 } from '@shared/plan'
+import { Capacity } from './plan/Capacity'
 import { Markdown } from '@/components/ui/Markdown'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
@@ -183,6 +184,13 @@ export function BusinessPlan(): React.JSX.Element {
                 busy={start.isPending}
               />
             )}
+
+            {/*
+              Above the sections rather than inside one. The arithmetic is
+              what most of the plan is arguing with, and a freelancer who
+              reads it first writes different sections.
+            */}
+            <Capacity />
 
             <div className="flex flex-col gap-3">
               {sections.map((section) => (
