@@ -227,11 +227,23 @@ export function TaskRow({
           />
         </span>
 
-        <ChevronRight
-          size={14}
-          strokeWidth={1.75}
-          className="text-faint opacity-0 transition-opacity group-hover:opacity-100"
-        />
+        {/* The way in.
+            It used to be the title, and the title is now the rename control —
+            so this had to stop being decoration and become the thing it has
+            always looked like. A row with no way to open it is what you get
+            if inline editing is added and nobody checks. */}
+        <button
+          type="button"
+          aria-label={`Open ${task.title}`}
+          onClick={(event) => {
+            event.stopPropagation()
+            onOpen()
+          }}
+          onPointerDown={(event) => event.stopPropagation()}
+          className="rounded-control p-0.5 text-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-ink"
+        >
+          <ChevronRight size={14} strokeWidth={1.75} />
+        </button>
       </div>
     </motion.div>
   )

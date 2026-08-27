@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 /**
  * Selecting rows, including the awkward parts.
@@ -104,6 +104,44 @@ export function useSelection(order: number[]): Selection {
   }, [])
 
   const clear = useCallback(() => setState(emptySelection), [])
+
+  // Read by the key handler, which is registered once and would otherwise be
+  // looking at whatever the selection was when the list first rendered.
+  const current = useRef(state)
+  current.current = state
+
+  /**
+   * Escape clears, Ctrl+A takes everything on screen.
+   *
+   * Ctrl+A is only claimed while something is already selected. Stealing it
+   * from an empty list would break selecting text on the page, and somebody
+   * who has not picked a row has not signalled they are working with rows.
+   */
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      const target = event.target as HTMLElement | null
+      if (target?.isContentEditable) return
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+
+      if (event.key === 'Escape') {
+        clear()
+        return
+      }
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
+        // Decided out here, not inside the setter. A state updater has to be
+        // pure — React is entitled to run it twice — and by the second run the
+        // event is long finished, so `preventDefault` in there does nothing
+        // some of the time and something the rest of it.
+        if (live.current.length === 0) return
+        if (current.current.selected.size === 0) return
+        event.preventDefault()
+        setState((state) => resolveToggleAll(state, live.current))
+      }
+    }
+
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [clear])
 
   return useMemo(
     () => ({

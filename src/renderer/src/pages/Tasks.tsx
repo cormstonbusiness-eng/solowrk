@@ -34,6 +34,9 @@ import { useOpenParam } from '@/hooks/useOpenParam'
 import { TICK_SETTLE_MS } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { TaskRow } from './tasks/TaskRow'
+import { BulkBar } from '@/components/list/BulkBar'
+import { useSelection } from '@/hooks/useSelection'
+import { useUndo } from '@/hooks/useUndo'
 import { TaskModal } from './tasks/TaskModal'
 import { DEFAULT_ENTITY_COLOUR } from '@shared/types'
 
@@ -120,6 +123,7 @@ function ColourDot({
 
 export function Tasks(): React.JSX.Element {
   const invalidate = useInvalidate()
+  const { offer } = useUndo()
   const navigate = useNavigate()
   const list = useListState()
   const tagFilter = useTagFilter('task', list)
@@ -242,6 +246,51 @@ export function Tasks(): React.JSX.Element {
     if (search && !task.title.toLowerCase().includes(search)) return false
     return true
   })
+
+  // Against what is on screen after filtering, so a Shift-range covers the
+  // rows between two things somebody can see rather than two ids.
+  const selection = useSelection(visible.map((task) => task.id))
+
+  const rename = useMutation({
+    mutationFn: (input: { id: number; title: string }) =>
+      window.solo.invoke('tasks:update', { id: input.id, patch: { title: input.title } }),
+    onSuccess: () => invalidate(['tasks'])
+  })
+
+  const chosen = visible.filter((task) => selection.isSelected(task.id))
+
+  /**
+   * Bulk actions: one decision, one undo.
+   *
+   * Archiving nine tasks is a single thing somebody did. Nine separate undos
+   * would be an offer to half-undo it, which is worse than no offer.
+   */
+  const bulkArchive = async (): Promise<void> => {
+    const ids = chosen.map((task) => task.id)
+    selection.clear()
+    for (const id of ids) {
+      await window.solo.invoke('tasks:update', { id, patch: { archived: true } })
+    }
+    invalidate(['tasks'])
+    offer(`Archived ${ids.length} task${ids.length === 1 ? '' : 's'}`, async () => {
+      for (const id of ids) {
+        await window.solo.invoke('tasks:update', { id, patch: { archived: false } })
+      }
+      invalidate(['tasks'])
+    })
+  }
+
+  const bulkDelete = async (): Promise<void> => {
+    // Through the trash one at a time, exactly as a single delete goes, which
+    // is what makes every one of them restorable afterwards.
+    const targets = [...chosen]
+    selection.clear()
+    for (const task of targets) {
+      await window.solo.invoke('entity:delete', { type: 'task', id: task.id })
+    }
+    invalidate(['tasks'])
+    offer(`Deleted ${targets.length} task${targets.length === 1 ? '' : 's'}`)
+  }
 
   const onDragEnd = (event: DragEndEvent): void => {
     setDragging(null)
@@ -401,6 +450,10 @@ export function Tasks(): React.JSX.Element {
                 task={task}
                 siblings={visible.map((row) => ({ type: 'task' as const, id: row.id }))}
                 showProject
+                selected={selection.isSelected(task.id)}
+                selectable={selection.count > 0}
+                onSelect={(modifiers) => selection.click(task.id, modifiers)}
+                onRename={(title) => rename.mutate({ id: task.id, title })}
                 onToggle={() => toggle.mutate(task)}
                 onOpen={() => setOpen(task)}
                 onArchive={() => archive.mutate(task.id)}
@@ -409,6 +462,19 @@ export function Tasks(): React.JSX.Element {
             ))}
           </AnimatePresence>
         </div>
+      )}
+
+      {/* Only in the list. The board is a different gesture — you pick a
+          card up rather than tick it — and a checkbox on a draggable card
+          fights the drag for the same first few pixels of every press. */}
+      {view === 'list' && (
+        <BulkBar
+          count={selection.count}
+          noun="task"
+          onArchive={() => void bulkArchive()}
+          onDelete={() => void bulkDelete()}
+          onClear={selection.clear}
+        />
       )}
 
       <TaskModal task={open} onClose={() => setOpen(null)} />
