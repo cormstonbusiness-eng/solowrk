@@ -1179,6 +1179,16 @@ export const BLOCK_TYPES: BlockTypeMeta[] = [
 ]
 
 /**
+ * Which occurrences of a series an edit applies to.
+ *
+ * Asked every time, never assumed. "Move the Tuesday stand-up to Wednesday"
+ * and "move this week's stand-up to Wednesday" are different sentences, and an
+ * app that guesses between them is one that rewrites a year of somebody's
+ * calendar on a drag.
+ */
+export type EditScope = 'one' | 'future' | 'all'
+
+/**
  * A date the calendar shows but does not own.
  *
  * A project deadline, a milestone, a task's due date, an invoice falling due.
@@ -1271,6 +1281,16 @@ export interface CalendarBlockWithContext extends CalendarBlock {
    * answer.
    */
   trackedMinutes: number
+  /**
+   * The series this was generated from, when it is not a row at all.
+   *
+   * A repeating block is stored once and expanded for whatever range is on
+   * screen, so most occurrences of a weekly stand-up have no row of their own.
+   * Null means this *is* a row: the first occurrence, a one-off, or an
+   * instance somebody changed and so materialised. Anything that writes has to
+   * look at this first, because there is nothing here to update.
+   */
+  occurrenceOf: number | null
   /** `colour`, then the project's, then the block type's. Resolved once. */
   displayColour: string
 }

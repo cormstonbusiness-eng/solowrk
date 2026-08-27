@@ -2,8 +2,13 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { CalendarPlus, ChevronLeft, ChevronRight, Minus, PanelRightClose, Plus } from 'lucide-react'
-import type { CalendarBlockWithContext, CalendarSettings, TaskWithContext } from '@shared/types'
-import { addDays, addMonths, dayFromDate, monthGrid, weekDays } from '@shared/calendar'
+import type {
+  CalendarBlockWithContext,
+  CalendarSettings,
+  EditScope,
+  TaskWithContext
+} from '@shared/types'
+import { addDays, addMonths, dayFromDate, dayOf, monthGrid, weekDays } from '@shared/calendar'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
@@ -15,6 +20,7 @@ import { cn } from '@/lib/utils'
 import { AgendaView } from './calendar/AgendaView'
 import { BlockModal } from './calendar/BlockModal'
 import { MonthView } from './calendar/MonthView'
+import { ScopePrompt } from './calendar/ScopePrompt'
 import { TimeGrid } from './calendar/TimeGrid'
 import { UnscheduledRail } from './calendar/UnscheduledRail'
 import { ZOOM_LEVELS, dayLabel, monthLabel, nearestZoom, stepZoom } from './calendar/grid'
@@ -175,10 +181,30 @@ export function Calendar(): React.JSX.Element {
    * calendar is a thing people rearrange quickly and occasionally by accident,
    * and a drag with no way back is the reason people stop trusting one.
    */
+  /**
+   * A move waiting on "which of them?".
+   *
+   * Held rather than applied, because a repeating block cannot be moved until
+   * the question is answered, and the answer is not something to guess at.
+   */
+  const [pendingMove, setPendingMove] = useState<{
+    block: CalendarBlockWithContext
+    span: { startsAt: string; endsAt: string }
+  } | null>(null)
+
+  /** True when this block is one of many, and so needs the question asked. */
+  const repeats = (block: CalendarBlockWithContext): boolean =>
+    block.occurrenceOf !== null || block.recurrenceRule !== null
+
   const reschedule = async (
     block: CalendarBlockWithContext,
     span: { startsAt: string; endsAt: string }
   ): Promise<void> => {
+    if (repeats(block)) {
+      setPendingMove({ block, span })
+      return
+    }
+
     const before = { startsAt: block.startsAt, endsAt: block.endsAt }
     await window.solo.invoke('calendar:updateBlock', { id: block.id, patch: span })
     invalidate(['calendar'])
@@ -187,6 +213,30 @@ export function Calendar(): React.JSX.Element {
       await window.solo.invoke('calendar:updateBlock', { id: block.id, patch: before })
       invalidate(['calendar'])
     })
+  }
+
+  /**
+   * The answer, applied.
+   *
+   * No undo offered here, deliberately. "This and every one after it" splits a
+   * series in two and re-points the exceptions; putting that back is not a
+   * single reverse operation, and an undo that half-worked on a year of
+   * somebody's diary would be worse than none. The question itself is the
+   * safeguard — it is asked before anything is written.
+   */
+  const applyScope = async (scope: EditScope): Promise<void> => {
+    if (!pendingMove) return
+    const { block, span } = pendingMove
+    setPendingMove(null)
+
+    await window.solo.invoke('calendar:editOccurrence', {
+      // The series master, which for a generated occurrence is not this row.
+      id: block.occurrenceOf ?? block.id,
+      day: dayOf(block.startsAt),
+      scope,
+      patch: span
+    })
+    invalidate(['calendar'])
   }
 
   const duplicate = async (
@@ -470,6 +520,14 @@ export function Calendar(): React.JSX.Element {
           )}
         </motion.div>
       </AnimatePresence>
+
+      <ScopePrompt
+        open={pendingMove !== null}
+        title={pendingMove?.block.title ?? ''}
+        action="Move"
+        onChoose={(scope) => void applyScope(scope)}
+        onCancel={() => setPendingMove(null)}
+      />
 
       <BlockModal
         open={editing !== null || creating !== null}

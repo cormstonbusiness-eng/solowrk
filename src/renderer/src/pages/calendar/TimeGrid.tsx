@@ -515,6 +515,12 @@ export function TimeGrid({
   const nowMinutes = now.getHours() * 60 + now.getMinutes()
   const dayCapacity = settings.dailyCapacityMinutes
 
+  const weekTotal = days.reduce((total, day) => total + (committed.get(day) ?? 0), 0)
+  // Capacity is per working day, so a week with a bank holiday in it has less
+  // of it. Counting all seven would quietly say there was a day spare.
+  const weekCapacity = days.filter((day) => isWorkingDay(settings.workingDays, day)).length *
+    dayCapacity
+
   /** The block being drawn, or the copy a Ctrl-drag is trailing. */
   const ghost =
     state.phase === 'dragging' && (state.mode === 'create' || state.duplicate)
@@ -565,6 +571,42 @@ export function TimeGrid({
           )
         })}
       </div>
+
+      {/* The week, in one line.
+          Under the headers rather than above them, because it summarises what
+          is below it — and because a figure at the very top of a calendar
+          reads as a title. */}
+      {days.length > 1 && (
+        <div className="flex shrink-0 items-center gap-3 border-b border-line bg-surface px-3 py-1">
+          <span className="text-[10.5px] tracking-[0.06em] text-faint uppercase">This week</span>
+          <span className="numeric text-[11px] text-ink">
+            {durationLabel(weekTotal)} committed
+          </span>
+          <span className="text-[11px] text-faint">
+            of {durationLabel(weekCapacity)} available
+          </span>
+
+          <span className="h-[4px] min-w-[80px] flex-1 overflow-hidden rounded-full bg-line">
+            <span
+              className={cn(
+                'block h-full rounded-full transition-[width] duration-300',
+                weekTotal > weekCapacity ? 'bg-danger' : 'bg-accent'
+              )}
+              style={{
+                width: `${Math.min(100, weekCapacity > 0 ? (weekTotal / weekCapacity) * 100 : 0)}%`
+              }}
+            />
+          </span>
+
+          {/* Said out loud, and only when it is true. A calendar that warns
+              about a normal week teaches people to ignore it. */}
+          {weekTotal > weekCapacity && weekCapacity > 0 && (
+            <span className="shrink-0 text-[11px] text-danger">
+              {durationLabel(weekTotal - weekCapacity)} over
+            </span>
+          )}
+        </div>
+      )}
 
       {/* All-day strip. Collapsible, because a fortnight in Greece should not
           take a third of the grid for a fortnight. */}

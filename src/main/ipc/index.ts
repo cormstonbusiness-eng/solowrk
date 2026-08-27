@@ -139,6 +139,7 @@ import {
   scheduleTask,
   unscheduledTasks
 } from '../services/scheduling'
+import { deleteOccurrence, editOccurrence } from '../services/recurrence'
 import { nowStamp } from '@shared/calendar'
 import {
   createCampaign,
@@ -766,6 +767,13 @@ const handlers: Handlers = {
   'calendar:scheduleTask': (_g, input) => scheduleTask(session.requireDb(), input),
 
   'calendar:adoptEstimate': (_g, { blockId }) => adoptEstimate(session.requireDb(), blockId),
+
+  'calendar:editOccurrence': (_g, { id, day, scope, patch }) =>
+    editOccurrence(session.requireDb(), { id, day }, scope, patch),
+
+  'calendar:deleteOccurrence': (_g, { id, day, scope }) => {
+    deleteOccurrence(session.requireDb(), { id, day }, scope)
+  },
 
   'app:version': () => app.getVersion(),
 

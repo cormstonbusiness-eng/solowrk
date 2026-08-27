@@ -23,6 +23,14 @@ describe('what read-only allows', () => {
       'expenses:create',
       'calendar:createBlock',
       'calendar:updateSettings',
+      // The calendar's writing verbs, every one of which had to be added to
+      // the list: `edit`, `schedule` and `adopt` are all writes, and the
+      // classifier fails open, so an unrecognised verb would have let them
+      // straight through on a lapsed licence.
+      'calendar:editOccurrence',
+      'calendar:deleteOccurrence',
+      'calendar:scheduleTask',
+      'calendar:adoptEstimate',
       'ai:send',
       'ai:writeBusinessPlan',
       // Both advance the chase schedule, which is a write on the invoice. The

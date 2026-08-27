@@ -7,7 +7,8 @@ import type {
   CalendarBlockWithContext
 } from '@shared/types'
 import { blockTypeMeta } from '@shared/types'
-import { dayOf, minutesBetween } from '@shared/calendar'
+import { addMinutes, dayOf, minutesBetween, stampAt, minutesOf } from '@shared/calendar'
+import { expand, parseRule } from '@shared/rrule'
 
 /**
  * Calendar blocks.
@@ -105,6 +106,7 @@ function toBlockWithContext(row: ContextRow): CalendarBlockWithContext {
     // Resolved here rather than in the renderer so the month, week, day and
     // agenda views cannot disagree about what colour a block is. The type is
     // the last resort, which is what gives an unassigned holiday its green.
+    occurrenceOf: null,
     displayColour: row.colour || row.project_colour || blockTypeMeta(block.blockType).colour
   }
 }
@@ -139,24 +141,82 @@ export function listBlocks(
   db: Database,
   range: { from: string; to: string; projectId?: number }
 ): CalendarBlockWithContext[] {
-  const conditions = [
-    'substr(b.ends_at, 1, 10) >= ?',
-    'substr(b.starts_at, 1, 10) <= ?',
-    'b.archived = 0'
-  ]
-  const params: (string | number)[] = [range.from, range.to]
+  const project = range.projectId === undefined ? '' : ' AND b.project_id = ?'
+  const projectParam: number[] = range.projectId === undefined ? [] : [range.projectId]
 
-  if (range.projectId !== undefined) {
-    conditions.push('b.project_id = ?')
-    params.push(range.projectId)
-  }
-
-  return db
+  // Everything that actually sits in the range, repeating or not. A series
+  // master is a real occurrence in its own right, so it comes back from here.
+  const plain = db
     .all<ContextRow>(
-      `${SELECT_WITH_CONTEXT} WHERE ${conditions.join(' AND ')} ORDER BY b.starts_at, b.id`,
-      params
+      `${SELECT_WITH_CONTEXT}
+        WHERE substr(b.ends_at, 1, 10) >= ?
+          AND substr(b.starts_at, 1, 10) <= ?
+          AND b.archived = 0${project}
+        ORDER BY b.starts_at, b.id`,
+      [range.from, range.to, ...projectParam]
     )
     .map(toBlockWithContext)
+
+  // And the series that started before the range and are still running. Their
+  // rows are nowhere near the visible days, which is exactly why they have to
+  // be fetched separately rather than by overlap.
+  const series = db
+    .all<ContextRow>(
+      `${SELECT_WITH_CONTEXT}
+        WHERE b.recurrence_rule IS NOT NULL
+          AND b.archived = 0
+          AND substr(b.starts_at, 1, 10) <= ?${project}
+        ORDER BY b.starts_at, b.id`,
+      [range.to, ...projectParam]
+    )
+    .map(toBlockWithContext)
+
+  const occurrences: CalendarBlockWithContext[] = []
+  for (const master of series) {
+    for (const day of occurrencesOf(master, range)) {
+      // The master's own row is already in `plain`; only the repeats are new.
+      if (day === dayOf(master.startsAt)) continue
+      occurrences.push(occurrenceOn(master, day))
+    }
+  }
+
+  return [...plain, ...occurrences].sort(
+    (a, b) => a.startsAt.localeCompare(b.startsAt) || a.id - b.id
+  )
+}
+
+/** The days a series falls on inside a range, exceptions already removed. */
+function occurrencesOf(
+  master: CalendarBlockWithContext,
+  range: { from: string; to: string }
+): string[] {
+  const rule = parseRule(master.recurrenceRule)
+  if (!rule) return []
+  return expand(rule, dayOf(master.startsAt), range, master.recurrenceExdates)
+}
+
+/**
+ * One repeat of a series, built rather than read.
+ *
+ * The date changes and the wall time does not, which is what keeps a 09:00
+ * stand-up at 09:00 through a clock change: nothing is being shifted, only a
+ * new date being put together with the same time. The length is carried over
+ * so a block running past midnight still does.
+ */
+function occurrenceOn(
+  master: CalendarBlockWithContext,
+  day: string
+): CalendarBlockWithContext {
+  const startsAt = stampAt(day, minutesOf(master.startsAt))
+  return {
+    ...master,
+    startsAt,
+    endsAt: addMinutes(startsAt, minutesBetween(master.startsAt, master.endsAt)),
+    occurrenceOf: master.id,
+    // A generated occurrence has no timeline and no reminder history of its
+    // own; both belong to the series.
+    remindedAt: null
+  }
 }
 
 export function getBlock(db: Database, id: number): CalendarBlockWithContext {
@@ -183,10 +243,11 @@ export function createBlock(db: Database, input: BlockInput): CalendarBlockWithC
   db.run(
     `INSERT INTO calendar_blocks
        (title, description, location, block_type, starts_at, ends_at, all_day, timezone,
-        project_id, client_id, task_id, colour, billable, recurrence_rule, source,
+        project_id, client_id, task_id, colour, billable, recurrence_rule,
+        recurrence_parent_id, recurrence_exdates, source,
         source_uid, source_calendar_id, locked, meeting_url, reminder_minutes,
         created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
              datetime('now'), datetime('now'))`,
     [
       input.title,
@@ -205,6 +266,8 @@ export function createBlock(db: Database, input: BlockInput): CalendarBlockWithC
       // billable and an admin block is not without anybody saying so.
       (input.billable ?? blockTypeMeta(blockType).billable) ? 1 : 0,
       input.recurrenceRule ?? null,
+      input.recurrenceParentId ?? null,
+      (input.recurrenceExdates ?? []).join(','),
       input.source ?? 'local',
       input.sourceUid ?? null,
       input.sourceCalendarId ?? null,

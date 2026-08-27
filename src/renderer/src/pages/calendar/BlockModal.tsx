@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { ListChecks, PanelRight, Trash2 } from 'lucide-react'
-import type { BlockInput, BlockType, CalendarBlockWithContext } from '@shared/types'
+import type { BlockInput, BlockType, CalendarBlockWithContext, EditScope } from '@shared/types'
 import { BLOCK_TYPES, REMINDER_CHOICES, blockTypeMeta } from '@shared/types'
 import { dayOf, minutesBetween, stampAt, timeOf } from '@shared/calendar'
+import { describeRule, formatRule, parseRule, simpleRule, type Frequency } from '@shared/rrule'
 import { durationLabel } from './grid'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput, Toggle } from '@/components/ui/Field'
@@ -13,6 +14,23 @@ import { keys, useInvalidate } from '@/lib/api'
 import { useEntityActions } from '@/hooks/useEntityActions'
 import { useDrawer } from '@/hooks/useDrawer'
 import { cn } from '@/lib/utils'
+import { ScopePrompt } from './ScopePrompt'
+
+/**
+ * The four repeats worth a button, and "never".
+ *
+ * A full rule editor would be six controls for something most people set once
+ * and never look at. Anything more elaborate than these arrives from an
+ * imported calendar, and is shown as a sentence and left alone rather than
+ * being flattened into whichever of these is closest.
+ */
+const REPEATS: { value: '' | Frequency; label: string }[] = [
+  { value: '', label: 'Never' },
+  { value: 'DAILY', label: 'Daily' },
+  { value: 'WEEKLY', label: 'Weekly' },
+  { value: 'MONTHLY', label: 'Monthly' },
+  { value: 'YEARLY', label: 'Yearly' }
+]
 
 /** What the modal edits. Split into day + times because that is how people think. */
 interface Draft {
@@ -29,6 +47,8 @@ interface Draft {
   colour: string
   billable: boolean
   reminderMinutes: number | null
+  /** An RRULE string, or empty for a one-off. */
+  recurrenceRule: string
 }
 
 function toDraft(block: CalendarBlockWithContext | null, defaults: Partial<Draft>): Draft {
@@ -47,7 +67,8 @@ function toDraft(block: CalendarBlockWithContext | null, defaults: Partial<Draft
       description: '',
       colour: '',
       billable: blockTypeMeta(blockType).billable,
-      reminderMinutes: 15
+      reminderMinutes: 15,
+      recurrenceRule: ''
     }
   }
 
@@ -64,7 +85,8 @@ function toDraft(block: CalendarBlockWithContext | null, defaults: Partial<Draft
     description: block.description,
     colour: block.colour,
     billable: block.billable,
-    reminderMinutes: block.reminderMinutes
+    reminderMinutes: block.reminderMinutes,
+    recurrenceRule: block.recurrenceRule ?? ''
   }
 }
 
@@ -98,7 +120,8 @@ function toInput(draft: Draft): BlockInput {
     description: draft.description,
     colour: draft.colour,
     billable: draft.billable,
-    reminderMinutes: draft.reminderMinutes
+    reminderMinutes: draft.reminderMinutes,
+    recurrenceRule: draft.recurrenceRule || null
   }
 }
 
@@ -147,6 +170,19 @@ export function BlockModal({
         : { ...current, blockType }
     )
 
+  /**
+   * Whether this block is one of many.
+   *
+   * True for a generated occurrence and for the series master itself. Both
+   * need the question asked, because `block.id` on an occurrence is the
+   * *series*, and saving it directly would rewrite every repeat without
+   * anybody being told.
+   */
+  const repeats = block !== null && (block.occurrenceOf !== null || block.recurrenceRule !== null)
+
+  /** What the scope prompt is standing in front of, once it is open. */
+  const [asking, setAsking] = useState<'save' | 'delete' | null>(null)
+
   const save = useMutation({
     mutationFn: () =>
       block
@@ -158,6 +194,34 @@ export function BlockModal({
     }
   })
 
+  const applyScope = async (scope: EditScope): Promise<void> => {
+    if (!block) return
+    const series = block.occurrenceOf ?? block.id
+    const day = dayOf(block.startsAt)
+    const kind = asking
+    setAsking(null)
+
+    if (kind === 'save') {
+      await window.solo.invoke('calendar:editOccurrence', {
+        id: series,
+        day,
+        scope,
+        patch: toInput(draft)
+      })
+    } else if (scope === 'all') {
+      // The whole series is a row, so it goes through the trash like anything
+      // else — and comes back the same way.
+      await remove({ type: 'block', id: series }, block.title)
+    } else {
+      await window.solo.invoke('calendar:deleteOccurrence', { id: series, day, scope })
+    }
+
+    invalidate(['calendar'])
+    onClose()
+  }
+
+  const rule = parseRule(draft.recurrenceRule)
+
   const adopt = useMutation({
     mutationFn: () => window.solo.invoke('calendar:adoptEstimate', { blockId: block?.id ?? 0 }),
     onSuccess: () => invalidate(['tasks', 'calendar'])
@@ -168,8 +232,17 @@ export function BlockModal({
   const locked = block?.locked ?? false
 
   return (
+    <>
+    <ScopePrompt
+      open={asking !== null}
+      title={block?.title ?? ''}
+      action={asking === 'delete' ? 'Delete' : 'Save'}
+      onChoose={(scope) => void applyScope(scope)}
+      onCancel={() => setAsking(null)}
+    />
+
     <Modal
-      open={open}
+      open={open && asking === null}
       onClose={onClose}
       title={block ? 'Edit block' : 'New block'}
       description={
@@ -183,6 +256,10 @@ export function BlockModal({
               variant="danger"
               className="mr-auto"
               onClick={() => {
+                if (repeats) {
+                  setAsking('delete')
+                  return
+                }
                 void remove({ type: 'block', id: block.id }, block.title)
                 onClose()
               }}
@@ -210,7 +287,11 @@ export function BlockModal({
             {locked ? 'Close' : 'Cancel'}
           </Button>
           {!locked && (
-            <Button variant="primary" onClick={() => save.mutate()} disabled={!draft.title.trim()}>
+            <Button
+              variant="primary"
+              disabled={!draft.title.trim()}
+              onClick={() => (repeats ? setAsking('save') : save.mutate())}
+            >
               {block ? 'Save' : 'Add block'}
             </Button>
           )}
@@ -332,6 +413,51 @@ export function BlockModal({
           </Field>
         </div>
 
+        {/* Repeating. Only offered on the series itself: an occurrence that
+            was pulled out of a series is a one-off by definition, and letting
+            it grow a rule of its own would mean two series where there was
+            one. */}
+        {block?.occurrenceOf == null && block?.recurrenceParentId == null && (
+          <Field label="Repeats">
+            <div className="flex flex-wrap gap-1.5">
+              {REPEATS.map((choice) => {
+                const active =
+                  choice.value === ''
+                    ? draft.recurrenceRule === ''
+                    : parseRule(draft.recurrenceRule)?.freq === choice.value
+                return (
+                  <button
+                    key={choice.value || 'never'}
+                    type="button"
+                    onClick={() =>
+                      update(
+                        'recurrenceRule',
+                        choice.value === ''
+                          ? ''
+                          : formatRule(simpleRule(choice.value as Frequency, draft.day))
+                      )
+                    }
+                    className={cn(
+                      'rounded-control border px-2.5 py-1 text-[12px] transition-colors',
+                      active
+                        ? 'border-accent bg-accent-subtle text-ink'
+                        : 'border-line text-muted hover:border-line-strong hover:text-ink'
+                    )}
+                  >
+                    {choice.label}
+                  </button>
+                )
+              })}
+            </div>
+
+            {/* The rule as a sentence, because FREQ=MONTHLY;BYDAY=3TH is not
+                something anybody should have to check by reading. Getting it
+                wrong is how a meeting ends up on the wrong Thursday for a
+                year. */}
+            {rule && <p className="mt-1.5 text-[11.5px] text-muted">{describeRule(rule)}</p>}
+          </Field>
+        )}
+
         <Toggle
           checked={draft.billable}
           onChange={(value) => update('billable', value)}
@@ -382,5 +508,6 @@ export function BlockModal({
         </Field>
       </fieldset>
     </Modal>
+    </>
   )
 }

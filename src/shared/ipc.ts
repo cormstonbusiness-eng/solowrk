@@ -33,6 +33,7 @@ import type {
   CalendarBlockWithContext,
   CalendarSettings,
   DerivedMarker,
+  EditScope,
   Campaign,
   CampaignWithCounts,
   Category,
@@ -648,6 +649,23 @@ export interface IpcContract {
    */
   'calendar:adoptEstimate': { req: { blockId: number }; res: TaskWithContext }
 
+  /**
+   * Change one, some or all of a repeating block.
+   *
+   * `day` names the occurrence being edited, because most of them are not
+   * rows. `scope` has no default anywhere in the stack: the caller has to have
+   * asked, since the difference between the three is a year of somebody's
+   * diary.
+   */
+  'calendar:editOccurrence': {
+    req: { id: number; day: string; scope: EditScope; patch: Partial<BlockInput> }
+    res: CalendarBlockWithContext
+  }
+  'calendar:deleteOccurrence': {
+    req: { id: number; day: string; scope: EditScope }
+    res: void
+  }
+
   'marketing:campaigns': { req: { includeArchived?: boolean } | void; res: CampaignWithCounts[] }
   'marketing:createCampaign': { req: Partial<Campaign> & { name: string }; res: Campaign }
   'marketing:updateCampaign': { req: { id: number; patch: Partial<Campaign> }; res: Campaign }
@@ -902,6 +920,8 @@ export const IPC_CHANNELS = [
   'calendar:unscheduled',
   'calendar:scheduleTask',
   'calendar:adoptEstimate',
+  'calendar:editOccurrence',
+  'calendar:deleteOccurrence',
   'marketing:campaigns',
   'marketing:createCampaign',
   'marketing:updateCampaign',
@@ -975,7 +995,7 @@ const WRITABLE_WHEN_READ_ONLY = new Set<string>([
 const BLOCKED_WHEN_READ_ONLY = new Set<string>(['templates:fromProject', 'quotes:convert'])
 
 const WRITE_VERBS =
-  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync|archive|restore|purge|empty|recolour)/
+  /^(create|update|delete|remove|write|save|add|set|clear|rename|move|trash|import|upload|start|stop|pin|new|attach|detach|duplicate|reorder|send|merge|apply|assign|toggle|mark|record|log|generate|seed|sync|archive|restore|purge|empty|recolour|edit|schedule|adopt|subscribe|expand)/
 
 /**
  * Whether a channel is allowed while the app is read-only.
