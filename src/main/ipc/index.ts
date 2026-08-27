@@ -140,6 +140,7 @@ import {
   unscheduledTasks
 } from '../services/scheduling'
 import { deleteOccurrence, editOccurrence } from '../services/recurrence'
+import { readReceiptImage } from '../services/ocr'
 import {
   createMilestone,
   deleteMilestone,
@@ -791,6 +792,8 @@ const handlers: Handlers = {
   'calendar:deleteOccurrence': (_g, { id, day, scope }) => {
     deleteOccurrence(session.requireDb(), { id, day }, scope)
   },
+
+  'expenses:readReceipt': (_g, { path }) => readReceiptImage(path),
 
   'milestones:list': (_g, { projectId }) => listMilestones(session.requireDb(), projectId),
 

@@ -34,6 +34,7 @@ import type {
   CalendarSettings,
   CalendarSubscription,
   ProjectMilestone,
+  ReceiptReading,
   DerivedMarker,
   EditScope,
   Campaign,
@@ -672,6 +673,15 @@ export interface IpcContract {
    * Subscribed calendars. The only outward-facing thing in the module, and
    * the whole of what it does is an HTTP GET of the feed URL.
    */
+  /**
+   * Read a receipt image with Windows' own OCR — offline, and nothing leaves
+   * the machine. Returns guesses for a form somebody then checks.
+   */
+  'expenses:readReceipt': {
+    req: { path: string }
+    res: { text: string; reading: ReceiptReading; error: string | null }
+  }
+
   /** The dates inside a project that are not its deadline. */
   'milestones:list': { req: { projectId: number }; res: ProjectMilestone[] }
   'milestones:create': {
@@ -966,6 +976,7 @@ export const IPC_CHANNELS = [
   'calendar:adoptEstimate',
   'calendar:editOccurrence',
   'calendar:deleteOccurrence',
+  'expenses:readReceipt',
   'milestones:list',
   'milestones:create',
   'milestones:update',

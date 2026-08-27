@@ -491,6 +491,55 @@ function ExpenseModal({
     rebillable: false
   })
   const [receipt, setReceipt] = useState<string | null>(null)
+  const [read, setRead] = useState<{ filled: string[]; error: string | null } | null>(null)
+
+  /**
+   * Attaching a receipt reads it, and reading it fills the form.
+   *
+   * Windows' own OCR, so it happens on the machine and nothing is sent
+   * anywhere — the only kind of receipt reading an app that promises
+   * local-first can honestly offer.
+   *
+   * It fills *empty* fields only, and says which. OCR reads £11.90 as £1190
+   * often enough that overwriting something somebody typed would eventually
+   * put a wrong figure in a tax return, and a wrong figure nobody was asked
+   * about is far worse than an empty box.
+   */
+  const attach = async (path: string): Promise<void> => {
+    setReceipt(path)
+    setRead(null)
+
+    const result = await window.solo.invoke('expenses:readReceipt', { path })
+    if (result.error) {
+      setRead({ filled: [], error: result.error })
+      return
+    }
+
+    const filled: string[] = []
+    setDraft((current) => {
+      const next = { ...current }
+      if (result.reading.vendor && !current.vendor) {
+        next.vendor = result.reading.vendor
+        filled.push('supplier')
+      }
+      if (result.reading.date && current.date === today()) {
+        next.date = result.reading.date
+        filled.push('date')
+      }
+      if (result.reading.total !== null && !current.net) {
+        // The receipt's total is gross. The form holds net and VAT
+        // separately, so the VAT comes off rather than being added on top —
+        // getting this backwards inflates every expense by twenty per cent.
+        const vat = result.reading.vat ?? 0
+        next.net = result.reading.total - vat
+        next.vat = vat
+        filled.push(vat > 0 ? 'amount and VAT' : 'amount')
+      }
+      return next
+    })
+
+    setRead({ filled, error: null })
+  }
 
   const { data: projects = [] } = useQuery({
     queryKey: keys.projects(),
@@ -505,6 +554,7 @@ function ExpenseModal({
       onClose()
       setDraft({ date: today(), vendor: '', category: 'General', net: 0, vat: 0, rebillable: false })
       setReceipt(null)
+      setRead(null)
     }
   })
 
@@ -583,6 +633,22 @@ function ExpenseModal({
           <span className="text-[13px] text-ink">Rebill this to the client</span>
         </label>
 
+        {read && (
+          <p
+            className={
+              read.error
+                ? 'text-[11.5px] text-muted'
+                : 'text-[11.5px] text-success'
+            }
+          >
+            {read.error
+              ? read.error
+              : read.filled.length === 0
+                ? 'Read it, but everything was already filled in. Check it against the image.'
+                : `Read the ${read.filled.join(', ')} off the receipt \u2014 worth checking.`}
+          </p>
+        )}
+
         <Field label="Receipt">
           <div className="flex gap-2">
             <div className="flex h-9 min-w-0 flex-1 items-center rounded-control border border-line bg-raised px-3">
@@ -595,7 +661,9 @@ function ExpenseModal({
               onClick={() =>
                 void window.solo
                   .invoke('files:pick', { multiple: false })
-                  .then(([path]) => path && setReceipt(path))
+                  .then(([path]) => {
+                    if (path) void attach(path)
+                  })
               }
             >
               Choose

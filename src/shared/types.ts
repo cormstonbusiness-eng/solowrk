@@ -8,8 +8,12 @@
  */
 
 import type { Platform } from './social'
+import type { ReceiptReading } from './receipts'
 
 export type { Platform }
+// Re-exported so the IPC contract can name it without a second import
+// path for the same thing.
+export type { ReceiptReading }
 
 /** Integer pence. */
 export type Pence = number
