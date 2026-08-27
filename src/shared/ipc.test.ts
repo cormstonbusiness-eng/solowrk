@@ -99,7 +99,17 @@ describe('what read-only allows', () => {
       'bank:createExpense',
       'bank:ignore',
       'bank:unmatch',
-      'bank:forget'
+      'bank:forget',
+      // Documents. `generate` and `setStatus` both write; `restore` and
+      // `restoreVersion` write a new version rather than reading an old one.
+      'docTemplates:create',
+      'docTemplates:update',
+      'docTemplates:delete',
+      'docTemplates:restore',
+      'documents:generate',
+      'documents:save',
+      'documents:restoreVersion',
+      'documents:setStatus'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(false)
     }
@@ -160,7 +170,14 @@ describe('what read-only allows', () => {
       'bank:summary',
       // The year-end pack and the accountant ZIP. Both build a file out of
       // records the user already owns, which read-only must never refuse.
-      'yearEnd:accountant'
+      'yearEnd:accountant',
+      // Reading templates, and seeing what one would fill in before
+      // committing to generating anything.
+      'docTemplates:list',
+      'docTemplates:get',
+      'docTemplates:preview',
+      'documents:get',
+      'documents:versions'
     ]) {
       expect(allowedWhenReadOnly(channel), channel).toBe(true)
     }

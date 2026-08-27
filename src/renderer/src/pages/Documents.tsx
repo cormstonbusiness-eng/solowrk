@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { FileText, FolderOpen, Plus, TriangleAlert } from 'lucide-react'
-import type { DocumentInput, DocumentRecord } from '@shared/types'
-import { DOCUMENT_CATEGORIES } from '@shared/types'
+import { FilePlus2, FileText, FolderOpen, Plus, TriangleAlert } from 'lucide-react'
+import type { DocumentInput, DocumentKind, DocumentRecord, DocumentStatus } from '@shared/types'
+import { DOCUMENT_CATEGORIES, DOCUMENT_KIND_LABELS } from '@shared/types'
 import { Page } from '@/components/Page'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -20,6 +20,8 @@ import { Inspect } from '@/components/detail/Inspect'
 import { Toolbar } from '@/components/list/Toolbar'
 import { SavedViews } from '@/components/list/SavedViews'
 import { useListState } from '@/hooks/useListState'
+import { DocumentEditor } from './documents/DocumentEditor'
+import { TemplatePicker } from './documents/TemplatePicker'
 import { useTagFilter } from '@/hooks/useTagFilter'
 import { RowTags } from '@/components/list/RowTags'
 import { useEntityActions } from '@/hooks/useEntityActions'
@@ -30,6 +32,21 @@ import { cn } from '@/lib/utils'
  * insurance policy that lapses silently costs real money, so anything close to
  * its date is pushed to the top of the page.
  */
+/** Matches the invoice status colours, so one vocabulary covers both. */
+const STATUS_COLOURS: Record<DocumentStatus, string> = {
+  draft: '#8a8a93',
+  sent: '#3B82F6',
+  signed: '#30A46C',
+  declined: '#E5484D'
+}
+
+const STATUS_LABELS: Record<DocumentStatus, string> = {
+  draft: 'Draft',
+  sent: 'Sent',
+  signed: 'Signed',
+  declined: 'Declined'
+}
+
 function expiryState(expiryAt: string | null): { label: string; colour: string } | null {
   if (!expiryAt) return null
 
@@ -49,6 +66,10 @@ export function Documents(): React.JSX.Element {
   const [editing, setEditing] = useState<(DocumentInput & { id?: number }) | null>(null)
   const [pendingFile, setPendingFile] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<DocumentRecord | null>(null)
+  const [picking, setPicking] = useState(false)
+  // The generated document being written. Distinct from `editing`, which
+  // is the register entry — a title and an expiry date, not the text.
+  const [writing, setWriting] = useState<DocumentRecord | null>(null)
 
   const search = list.one('q') ?? ''
   const categories = list.values('category')
@@ -122,10 +143,16 @@ function DocumentTags({ id }: { id: number }): React.JSX.Element {
       title="Documents"
       description="Contracts, insurance, certificates and tax paperwork."
       actions={
-        <Button variant="primary" onClick={() => void startAdd()}>
-          <Plus size={14} strokeWidth={1.75} />
-          Add document
-        </Button>
+        <>
+          <Button variant="secondary" onClick={() => setPicking(true)}>
+            <FilePlus2 size={14} strokeWidth={1.75} />
+            New from template
+          </Button>
+          <Button variant="primary" onClick={() => void startAdd()}>
+            <Plus size={14} strokeWidth={1.75} />
+            Add document
+          </Button>
+        </>
       }
     >
       <Toolbar
@@ -202,13 +229,23 @@ function DocumentTags({ id }: { id: number }): React.JSX.Element {
                 <Card className="group flex items-center justify-between gap-4 py-3">
                   <button
                     type="button"
-                    onClick={() => void window.solo.invoke('files:open', { path: doc.file })}
+                    // A generated document opens in the editor; a filed one
+                    // opens in whatever the machine uses for that file. Both
+                    // are paperwork, and the row should not make the user
+                    // think about which kind they are looking at.
+                    onClick={() =>
+                      doc.body
+                        ? setWriting(doc)
+                        : void window.solo.invoke('files:open', { path: doc.file })
+                    }
                     className="flex min-w-0 flex-1 items-center gap-3 text-left"
                   >
                     <FileText size={16} strokeWidth={1.75} className="shrink-0 text-faint" />
                     <div className="min-w-0">
                       <p className="truncate text-[13.5px] text-ink">{doc.title}</p>
-                      <p className="truncate font-mono text-[11px] text-faint">{doc.file}</p>
+                      <p className="truncate font-mono text-[11px] text-faint">
+                        {doc.body ? DOCUMENT_KIND_LABELS[doc.category as DocumentKind] ?? doc.category : doc.file}
+                      </p>
                     </div>
                   </button>
 
@@ -222,16 +259,23 @@ function DocumentTags({ id }: { id: number }): React.JSX.Element {
                         {expiry ? expiry.label : formatDate(doc.expiryAt)}
                       </span>
                     )}
-                    <Pill colour="#8a8a93">{doc.category}</Pill>
+                    {doc.body ? (
+                      <Pill colour={STATUS_COLOURS[doc.status]}>{STATUS_LABELS[doc.status]}</Pill>
+                    ) : (
+                      <Pill colour="#8a8a93">{doc.category}</Pill>
+                    )}
 
-                    <button
-                      type="button"
-                      aria-label="Show in Explorer"
-                      onClick={() => void window.solo.invoke('files:reveal', { path: doc.file })}
-                      className="rounded-control p-1.5 text-faint transition-colors hover:bg-hover hover:text-ink"
-                    >
-                      <FolderOpen size={13} strokeWidth={1.75} />
-                    </button>
+                    {/* Nothing to reveal for a document that is a row, not a file. */}
+                    {!doc.body && (
+                      <button
+                        type="button"
+                        aria-label="Show in Explorer"
+                        onClick={() => void window.solo.invoke('files:reveal', { path: doc.file })}
+                        className="rounded-control p-1.5 text-faint transition-colors hover:bg-hover hover:text-ink"
+                      >
+                        <FolderOpen size={13} strokeWidth={1.75} />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => setEditing({ ...doc })}
@@ -261,6 +305,16 @@ function DocumentTags({ id }: { id: number }): React.JSX.Element {
           })}
         </motion.div>
       </Swap>
+
+      <TemplatePicker
+        open={picking}
+        onClose={() => setPicking(false)}
+        // Straight into the editor. A document generated and then left in a
+        // list is a document nobody reads before sending.
+        onGenerated={setWriting}
+      />
+
+      <DocumentEditor document={writing} onClose={() => setWriting(null)} />
 
       <DocumentModal
         draft={editing}

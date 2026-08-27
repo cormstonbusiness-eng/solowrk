@@ -17,6 +17,13 @@ interface DocumentRow extends Row {
   notes: string
   expiry_at: string | null
   client_id: number | null
+  // Added in migration 28, when a document stopped being only a file on disk.
+  body: string
+  project_id: number | null
+  template_id: number | null
+  status: DocumentRecord['status']
+  status_at: string | null
+  status_note: string
   created_at: string
   updated_at: string
 }
@@ -38,6 +45,12 @@ function toDocument(row: DocumentRow, tags: string[] = []): DocumentRecord {
     notes: row.notes,
     expiryAt: row.expiry_at,
     clientId: row.client_id,
+    body: row.body,
+    projectId: row.project_id,
+    templateId: row.template_id,
+    status: row.status,
+    statusAt: row.status_at,
+    statusNote: row.status_note,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
@@ -63,6 +76,13 @@ function applyTags(db: Database, id: number, tags: string[]): void {
 function withTags(db: Database, rows: DocumentRow[]): DocumentRecord[] {
   const byId = tagsForMany(db, 'document', rows.map((row) => row.id))
   return rows.map((row) => toDocument(row, (byId[row.id] ?? []).map((one) => one.name)))
+}
+
+/** One document, with its tags. */
+export function getDocument(db: Database, id: number): DocumentRecord {
+  const row = db.get<DocumentRow>('SELECT * FROM documents WHERE id = ?', [id])
+  if (!row) throw new Error(`No document with id ${id}`)
+  return toDocument(row, tagsFor(db, { type: 'document', id }).map((one) => one.name))
 }
 
 export function listDocuments(

@@ -90,6 +90,7 @@ import {
 import {
   addDocument,
   expiringDocuments,
+  getDocument,
   listDocuments,
   updateDocument
 } from '../services/documents'
@@ -142,6 +143,21 @@ import {
 import { deleteOccurrence, editOccurrence } from '../services/recurrence'
 import { readReceiptImage } from '../services/ocr'
 import { agedDebtors } from '../services/debtors'
+import {
+  createDocTemplate,
+  deleteDocTemplate,
+  documentVersions,
+  generateDocument,
+  getDocTemplate,
+  listDocTemplates,
+  mergeContext,
+  restoreDocTemplate,
+  restoreDocumentVersion,
+  saveDocumentBody,
+  setDocumentStatus,
+  updateDocTemplate
+} from '../services/docTemplates'
+import { merge } from '@shared/merge'
 import {
   bankSummary,
   forgetSource,
@@ -819,6 +835,28 @@ const handlers: Handlers = {
   'expenses:readReceipt': (_g, { path }) => readReceiptImage(path),
 
   'debtors:aged': (_g, request) => agedDebtors(session.requireDb(), request?.asOf),
+
+  'docTemplates:list': () => listDocTemplates(session.requireDb()),
+  'docTemplates:get': (_g, { id }) => getDocTemplate(session.requireDb(), id),
+  'docTemplates:create': (_g, input) => createDocTemplate(session.requireDb(), input),
+  'docTemplates:update': (_g, { id, patch }) =>
+    updateDocTemplate(session.requireDb(), id, patch),
+  'docTemplates:delete': (_g, { id }) => deleteDocTemplate(session.requireDb(), id),
+  'docTemplates:restore': (_g, { id }) => restoreDocTemplate(session.requireDb(), id),
+  'docTemplates:preview': (_g, { id, clientId, projectId }) => {
+    const db = session.requireDb()
+    return merge(getDocTemplate(db, id).body, mergeContext(db, { clientId, projectId }))
+  },
+
+  'documents:generate': (_g, input) => generateDocument(session.requireDb(), input),
+  'documents:get': (_g, { id }) => getDocument(session.requireDb(), id),
+  'documents:save': (_g, { id, body, note }) =>
+    saveDocumentBody(session.requireDb(), id, body, note),
+  'documents:versions': (_g, { id }) => documentVersions(session.requireDb(), id),
+  'documents:restoreVersion': (_g, { id, versionId }) =>
+    restoreDocumentVersion(session.requireDb(), id, versionId),
+  'documents:setStatus': (_g, { id, status, note }) =>
+    setDocumentStatus(session.requireDb(), id, status, note),
 
   'bank:import': (_g, { path }) => importStatement(session.requireDb(), path),
   'bank:list': (_g, filter) => listTransactions(session.requireDb(), filter ?? {}),

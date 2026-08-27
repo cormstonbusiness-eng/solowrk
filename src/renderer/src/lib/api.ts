@@ -49,6 +49,7 @@ export type Domain =
   | 'notes'
   | 'templates'
   | 'documents'
+  | 'docTemplates'
   | 'files'
   | 'time'
   | 'invoices'

@@ -1670,5 +1670,69 @@ export const migrations: Migration[] = [
       CREATE INDEX idx_bank_status ON bank_transactions(status);
       CREATE INDEX idx_bank_date   ON bank_transactions(date);
     `
+  },
+  {
+    id: 28,
+    name: 'document_templates',
+    sql: `
+      -- Templates with merge fields.
+      --
+      -- The starter library is seeded from '@shared/starterTemplates' on first
+      -- run rather than written out here, so the prose lives somewhere it can
+      -- be read and edited rather than inside a SQL string. 'builtin' marks
+      -- the ones that shipped, only so the UI can offer to restore one; an
+      -- update never rewrites a row, because quietly reverting somebody's
+      -- amended contract would be unforgivable.
+      CREATE TABLE document_templates (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        name       TEXT    NOT NULL,
+        kind       TEXT    NOT NULL DEFAULT 'other',
+        summary    TEXT    NOT NULL DEFAULT '',
+        body       TEXT    NOT NULL DEFAULT '',
+        builtin    INTEGER NOT NULL DEFAULT 0 CHECK (builtin IN (0, 1)),
+        archived   INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0, 1)),
+        created_at TEXT    NOT NULL,
+        updated_at TEXT    NOT NULL
+      );
+
+      -- Documents gain a body.
+      --
+      -- Until now the table was a register of files on disk: a title, a
+      -- category and a path. A generated document is written *here*, so it can
+      -- be edited, versioned and re-rendered — 'file' stays for the ones that
+      -- are a scan of something somebody signed, and the two kinds live
+      -- together because to the user they are both paperwork.
+      ALTER TABLE documents ADD COLUMN body TEXT NOT NULL DEFAULT '';
+      ALTER TABLE documents ADD COLUMN project_id INTEGER
+        REFERENCES projects(id) ON DELETE SET NULL;
+      ALTER TABLE documents ADD COLUMN template_id INTEGER
+        REFERENCES document_templates(id) ON DELETE SET NULL;
+
+      -- Manual signature tracking. No e-signature integration: it adds cost
+      -- and complexity for marginal gain, and a date plus a note is what
+      -- people actually keep.
+      ALTER TABLE documents ADD COLUMN status TEXT NOT NULL DEFAULT 'draft'
+        CHECK (status IN ('draft','sent','signed','declined'));
+      ALTER TABLE documents ADD COLUMN status_at TEXT;
+      ALTER TABLE documents ADD COLUMN status_note TEXT NOT NULL DEFAULT '';
+
+      -- Version history.
+      --
+      -- A snapshot per save, not a diff chain: a contract is a few kilobytes
+      -- of text, and storing whole copies means restoring one can never
+      -- depend on replaying a sequence correctly.
+      CREATE TABLE document_versions (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        document_id INTEGER NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+        body        TEXT    NOT NULL,
+        -- What the user was told changed, when there is anything to say.
+        note        TEXT    NOT NULL DEFAULT '',
+        created_at  TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_doc_versions ON document_versions(document_id, id DESC);
+      CREATE INDEX idx_documents_project ON documents(project_id);
+      CREATE INDEX idx_documents_status  ON documents(status);
+    `
   }
 ]

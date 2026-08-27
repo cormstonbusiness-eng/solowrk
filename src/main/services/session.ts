@@ -4,6 +4,7 @@ import { readConfig, suggestedWorkspacePath, updateConfig } from './config'
 import { backupDatabase, backupIsDue } from './backup'
 import { databasePath, isWorkspace, scaffoldWorkspace } from './workspace'
 import { getSettings, updateSettings } from './settings'
+import { seedStarterTemplates } from './docTemplates'
 import { runRecurringInvoices } from './invoices'
 import { drainOutbox } from './chaseRun'
 
@@ -95,8 +96,26 @@ class Session {
     this.workspacePath = path
     await updateConfig({ workspacePath: path })
     await this.runDailyBackup()
+    this.seedTemplates()
     this.issueDueRetainers()
     this.sendWhatIsWaiting()
+  }
+
+  /**
+   * Put the shipped document templates in, if they are not already there.
+   *
+   * Runs on every open so a template added in a later release appears without
+   * anybody running anything, and never overwrites one the user has edited.
+   * A failure must not stop the workspace opening — a missing starter template
+   * is an inconvenience, a workspace that will not open is not.
+   */
+  private seedTemplates(): void {
+    try {
+      const added = seedStarterTemplates(this.requireDb())
+      if (added > 0) console.log(`Added ${added} starter document template(s)`)
+    } catch (error) {
+      console.error('Seeding document templates failed:', error)
+    }
   }
 
   /**

@@ -35,6 +35,10 @@ import type {
   CalendarSubscription,
   AgedDebtors,
   BankImportResult,
+  DocumentTemplate,
+  DocumentTemplateInput,
+  DocumentVersion,
+  GeneratedDocument,
   BankTransaction,
   BankTransactionWithMatches,
   MileageInput,
@@ -281,6 +285,50 @@ export interface IpcContract {
   'documents:update': { req: { id: number; patch: Partial<DocumentInput> }; res: DocumentRecord }
   'documents:delete': { req: { id: number }; res: void }
   'documents:expiring': { req: { days?: number } | void; res: DocumentRecord[] }
+
+  /**
+   * Templates with merge fields, and the documents they produce.
+   *
+   * Under `docTemplates:` rather than `templates:`, which is already taken by
+   * the folder-structure templates in Files. Two different things wanting the
+   * same word is worth one clumsy prefix.
+   */
+  'docTemplates:list': { req: void; res: DocumentTemplate[] }
+  'docTemplates:get': { req: { id: number }; res: DocumentTemplate }
+  'docTemplates:create': { req: DocumentTemplateInput; res: DocumentTemplate }
+  'docTemplates:update': {
+    req: { id: number; patch: DocumentTemplateInput }
+    res: DocumentTemplate
+  }
+  'docTemplates:delete': { req: { id: number }; res: void }
+  /** Put a shipped template back the way it came. */
+  'docTemplates:restore': { req: { id: number }; res: DocumentTemplate }
+  /**
+   * What a template would fill in for this project, without generating
+   * anything — so the picker can say what it knows before somebody commits.
+   */
+  'docTemplates:preview': {
+    req: { id: number; clientId?: number | null; projectId?: number | null }
+    res: { text: string; unresolved: string[]; filled: string[] }
+  }
+
+  /** Make a real document from a template, reporting what it could not fill. */
+  'documents:generate': {
+    req: { templateId: number; title?: string; clientId?: number | null; projectId?: number | null }
+    res: GeneratedDocument
+  }
+  'documents:get': { req: { id: number }; res: DocumentRecord }
+  'documents:save': { req: { id: number; body: string; note?: string }; res: DocumentRecord }
+  'documents:versions': { req: { id: number }; res: DocumentVersion[] }
+  'documents:restoreVersion': {
+    req: { id: number; versionId: number }
+    res: DocumentRecord
+  }
+  /** Draft / Sent / Signed / Declined, tracked by hand. No e-signature. */
+  'documents:setStatus': {
+    req: { id: number; status: DocumentRecord['status']; note?: string }
+    res: DocumentRecord
+  }
 
   /** Hands a pre-filled draft to the OS mail client. Never sends anything. */
   'shell:mailto': { req: { to: string; subject: string; body: string }; res: void }
@@ -944,6 +992,19 @@ export const IPC_CHANNELS = [
   'documents:update',
   'documents:delete',
   'documents:expiring',
+  'docTemplates:list',
+  'docTemplates:get',
+  'docTemplates:create',
+  'docTemplates:update',
+  'docTemplates:delete',
+  'docTemplates:restore',
+  'docTemplates:preview',
+  'documents:generate',
+  'documents:get',
+  'documents:save',
+  'documents:versions',
+  'documents:restoreVersion',
+  'documents:setStatus',
   'shell:mailto',
   'time:running',
   'time:start',

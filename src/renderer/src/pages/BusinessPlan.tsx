@@ -24,6 +24,7 @@ import {
   type PlanSection,
   type PlanSectionSpec
 } from '@shared/plan'
+import { Markdown } from '@/components/ui/Markdown'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
 import { Empty } from '@/components/ui/Empty'
@@ -461,91 +462,5 @@ function SectionCard({
         )}
       </AnimatePresence>
     </div>
-  )
-}
-
-/**
- * Just enough markdown for a business plan: paragraphs, bullets, numbered
- * lists and bold.
- *
- * A full markdown library would be a dependency, a bundle and an HTML-injection
- * question, for a document that is mostly prose. Anything not handled falls
- * through as its own text rather than disappearing, which is the property that
- * matters — nothing the user wrote is ever invisible on this page.
- */
-function Markdown({ text }: { text: string }): React.JSX.Element {
-  const blocks: React.JSX.Element[] = []
-  const lines = text.split('\n')
-
-  let index = 0
-  while (index < lines.length) {
-    const line = lines[index]!
-
-    if (line.trim() === '') {
-      index++
-      continue
-    }
-
-    const bullet = /^\s*([-*+]|\d+[.)])\s+/
-    if (bullet.test(line)) {
-      const items: string[] = []
-      const numbered = /^\s*\d/.test(line)
-
-      while (index < lines.length && bullet.test(lines[index]!)) {
-        items.push(lines[index]!.replace(bullet, ''))
-        index++
-      }
-
-      const List = numbered ? 'ol' : 'ul'
-      blocks.push(
-        <List
-          key={blocks.length}
-          className={cn(
-            'mb-2 flex list-outside flex-col gap-1 pl-4 text-[12.5px] leading-relaxed text-muted',
-            numbered ? 'list-decimal' : 'list-disc'
-          )}
-        >
-          {items.map((item, position) => (
-            <li key={position}>
-              <Inline text={item} />
-            </li>
-          ))}
-        </List>
-      )
-      continue
-    }
-
-    const paragraph: string[] = []
-    while (index < lines.length && lines[index]!.trim() !== '' && !bullet.test(lines[index]!)) {
-      paragraph.push(lines[index]!)
-      index++
-    }
-
-    blocks.push(
-      <p key={blocks.length} className="mb-2 text-[12.5px] leading-relaxed text-muted">
-        <Inline text={paragraph.join(' ')} />
-      </p>
-    )
-  }
-
-  return <div className="[&>*:last-child]:mb-0">{blocks}</div>
-}
-
-/** `**bold**` only, split rather than injected as HTML. */
-function Inline({ text }: { text: string }): React.JSX.Element {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g)
-
-  return (
-    <>
-      {parts.map((part, index) =>
-        part.startsWith('**') && part.endsWith('**') && part.length > 4 ? (
-          <strong key={index} className="font-medium text-ink">
-            {part.slice(2, -2)}
-          </strong>
-        ) : (
-          part
-        )
-      )}
-    </>
   )
 }

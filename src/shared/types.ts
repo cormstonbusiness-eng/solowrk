@@ -648,6 +648,19 @@ export interface DocumentRecord {
   /** Renewal date for insurance, certificates and licences. */
   expiryAt: string | null
   clientId: number | null
+  /**
+   * Markdown, for a document the app generated. Empty for one that is a file
+   * on disk — a register entry and a generated contract are both paperwork,
+   * so they live in one table rather than two the user would have to choose
+   * between.
+   */
+  body: string
+  projectId: number | null
+  templateId: number | null
+  status: DocumentStatus
+  /** When it reached that status. */
+  statusAt: string | null
+  statusNote: string
   createdAt: string
   updatedAt: string
 }
@@ -956,6 +969,76 @@ export interface Expense {
 
 export interface ExpenseWithContext extends Expense {
   projectName: string | null
+}
+
+/* Documents that are generated rather than filed */
+
+/**
+ * What a template produces. Loose on purpose: `other` exists so somebody can
+ * keep a template for something nobody thought of without it being wrong.
+ */
+export const DOCUMENT_KINDS = [
+  'proposal',
+  'scope',
+  'contract',
+  'terms',
+  'notice',
+  'variation',
+  'handover',
+  'brief',
+  'report',
+  'other'
+] as const
+
+export type DocumentKind = (typeof DOCUMENT_KINDS)[number]
+
+export const DOCUMENT_KIND_LABELS: Record<DocumentKind, string> = {
+  proposal: 'Proposal',
+  scope: 'Scope of work',
+  contract: 'Contract',
+  terms: 'Terms and conditions',
+  notice: 'Notice',
+  variation: 'Variation request',
+  handover: 'Handover',
+  brief: 'Brief',
+  report: 'Report',
+  other: 'Other'
+}
+
+export interface DocumentTemplate {
+  id: number
+  name: string
+  kind: DocumentKind
+  summary: string
+  /** Markdown, with merge fields in it. */
+  body: string
+  /** True for the ones that shipped with the app. */
+  builtin: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type DocumentTemplateInput = Partial<
+  Omit<DocumentTemplate, 'id' | 'builtin' | 'createdAt' | 'updatedAt'>
+>
+
+/** Manual signature tracking. No e-signature integration. */
+export type DocumentStatus = 'draft' | 'sent' | 'signed' | 'declined'
+
+export interface DocumentVersion {
+  id: number
+  documentId: number
+  body: string
+  note: string
+  createdAt: string
+}
+
+/** What generating a document from a template produced, and what it could not. */
+export interface GeneratedDocument {
+  document: DocumentRecord
+  /** Merge fields the records could not answer. Left visible in the text. */
+  unresolved: string[]
+  filled: string[]
 }
 
 /* Bank import */
