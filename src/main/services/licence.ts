@@ -40,10 +40,13 @@ let inFlight = false
 function signature(state: AuthState): string {
   return [
     state.signedIn,
-    state.readOnly,
-    state.lapsedReason,
+    // The tier rather than a lapsed flag: it is the thing the whole app reads
+    // off this state, so a change in it is exactly when the renderer must hear.
+    state.tier,
+    state.trial.daysLeft,
+    state.paymentFailed,
+    state.updatesEndedOn,
     state.account?.plan ?? '',
-    (state.account?.features ?? []).join(','),
     state.account?.expiresOn ?? ''
   ].join('|')
 }

@@ -9,8 +9,8 @@ import {
   type BrowserWindow,
   type OpenDialogOptions
 } from 'electron'
-import { allowedWhenReadOnly, type IpcChannel, type IpcContract } from '@shared/ipc'
-import { gateFor } from './gating'
+import { type IpcChannel, type IpcContract } from '@shared/ipc'
+import { gateFor, limitsFor } from './gating'
 import {
   chaseSchedule,
   draftChaser,
@@ -272,16 +272,8 @@ import { rangeFor } from '@shared/taxYear'
 import { updateSettings } from '../services/settings'
 import { getState, setState } from '../services/appState'
 import { check, installNow, updateState } from '../services/updates'
-import {
-  authState,
-  hasFeature,
-  isReadOnly,
-  setApiBaseUrl,
-  signIn,
-  signOut,
-  signUp,
-  verify
-} from '../services/auth'
+import { authState, setApiBaseUrl, signIn, signOut, signUp, verify } from '../services/auth'
+import { can, requireCapacity } from '../services/entitlements'
 
 type WindowGetter = () => BrowserWindow | null
 
@@ -1165,18 +1157,25 @@ function nextAttemptFor(db: ReturnType<typeof session.requireDb>, id: number): n
  * Enforced here rather than in the renderer for the obvious reason — a
  * disabled button is a suggestion, not a rule — and in one place rather than
  * per handler so that adding a channel cannot accidentally opt out of it.
+ *
+ * Two questions, in order. Does this tier include the feature at all, and is
+ * there room for one more of whatever is about to be created. Feature gates
+ * fail closed; limits refuse with enough detail for §5.1's modal to explain
+ * itself rather than leaving a dead button.
+ *
+ * **There is no read-only check any more.** §3.4 removed that state: a lapsed
+ * licence degrades to Free, fully editable, and a cancelled one keeps working
+ * forever under §3.5. Nothing the user has made is ever locked, so the verb
+ * classifier that used to decide which writes to block is gone with it.
  */
 async function guard(channel: IpcChannel): Promise<void> {
   const gate = gateFor(channel)
-  if (gate && !(await hasFeature(gate.feature))) {
+  if (gate && !(await can(gate.feature, session.dbOrNull()))) {
     throw new Error(gate.message)
   }
 
-  if (!allowedWhenReadOnly(channel) && (await isReadOnly())) {
-    const { lapsedReason } = await authState()
-    throw new Error(
-      `${lapsedReason} SoloWrk is read-only until it is renewed — everything is still here, and can still be exported.`
-    )
+  for (const limit of limitsFor(channel)) {
+    await requireCapacity(session.requireDb(), limit)
   }
 }
 

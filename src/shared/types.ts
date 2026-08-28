@@ -24,6 +24,8 @@ import type {
   Stage
 } from './pipeline'
 import type { ReceiptReading } from './receipts'
+import type { Tier } from './entitlements'
+import type { Trial } from './licence'
 
 export type { Platform }
 export type { Vehicle }
@@ -515,17 +517,32 @@ export interface AuthState {
    */
   offline: boolean
   /**
-   * The licence has lapsed, but the app still opens — read what is there,
-   * export it, print it, change nothing.
+   * What this machine may do today, licence and trial together.
    *
-   * A local-first app that goes dark when a card expires locks someone out of
-   * their own files, sitting on their own disk, which is the exact promise it
-   * was sold on. Read-only keeps that promise, and a working app they cannot
-   * type into is a better reminder to renew than one they cannot open.
+   * There is no read-only state any more. §3.4 replaced it: a licence that
+   * cannot be confirmed degrades to Free after its grace window, and a
+   * cancelled subscription keeps working forever under §3.5. Nothing the user
+   * has made is ever locked — only creating the *next* thing is refused, and
+   * only once a limit is full.
+   *
+   * That is a stronger version of the promise read-only was written to keep. A
+   * local-first app that goes dark when a card expires locks somebody out of
+   * their own files on their own disk; one that goes read-only still stops
+   * them billing for work they have already done.
    */
-  readOnly: boolean
-  /** Why, in the server's own words. Shown verbatim while read-only. */
-  lapsedReason: string
+  tier: Tier
+  /** How the trial stands, when there is no licence yet. */
+  trial: Trial
+  /**
+   * Set when a payment has failed but the tier is being held open anyway —
+   * Stripe's retry window plus five days (§3.4). Drives a banner, not a lock.
+   */
+  paymentFailed: boolean
+  /**
+   * The day updates stopped for a lapsed subscription (§3.5). Features carry
+   * on working; only the update feed refuses. Empty while updates continue.
+   */
+  updatesEndedOn: string
   error: string
 }
 

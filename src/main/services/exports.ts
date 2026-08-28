@@ -23,10 +23,11 @@ import { resolveInWorkspace } from './workspace'
 /**
  * Getting the work back out, as plain CSV.
  *
- * Free, in both tiers, and it stays that way. "Your work is yours" is the
- * whole argument for a local-first app, and an export behind a paywall makes
- * that a slogan — `/terms` also promises exports keep working on a lapsed
- * licence, and `allowedWhenReadOnly` classifies these as reads so they do.
+ * Free on every tier, and it stays that way. "Your work is yours" is the whole
+ * argument for a local-first app, and an export behind a paywall makes that a
+ * slogan — §2.1 puts export and import on Free for exactly that reason, and
+ * `/terms` promises the same. There is no gate on the `export:` prefix and
+ * `gating.test.ts` refuses to let one be added.
  *
  * One row per record with the joins already resolved, because a client id is
  * useless in a spreadsheet and a client name is not. Nothing here is a report:

@@ -12,6 +12,9 @@ import { createTask, listTasks, updateTask } from '../services/tasks'
 import { listCategories } from '../services/categories'
 import { createEntry, listEntries } from '../services/time'
 import { createInvoice, listInvoices } from '../services/invoices'
+import { requireCapacity } from '../services/entitlements'
+import { limitFactsFrom, limitSentence } from '@shared/limitError'
+import { TIER_NAMES } from '@shared/entitlements'
 import { listExpenses } from '../services/expenses'
 import { summary } from '../services/finance'
 import { BLOCK_TYPES, type BlockType } from '@shared/types'
@@ -307,8 +310,27 @@ export const soloTools = createSdkMcpServer({
           )
           .min(1)
       },
-      async (args) =>
-        asJson(
+      async (args) => {
+        /**
+         * The assistant's tools mutate through `canUseTool`, not through the
+         * IPC gate, so a limit enforced only there would have a side door: ask
+         * the assistant, and the fourth invoice of the month appears.
+         *
+         * Refused in words rather than by throwing. The error's message is a
+         * machine-readable envelope meant for the limit modal, and handing
+         * that to a language model would have it read the JSON out loud.
+         */
+        try {
+          await requireCapacity(db(), 'invoicesPerMonth')
+        } catch (cause) {
+          const facts = limitFactsFrom(cause)
+          if (!facts) throw cause
+          return ok(
+            `${limitSentence(facts)} Tell the user they will need ${TIER_NAMES[facts.needs]} to raise another this month, and that nothing already invoiced is affected.`
+          )
+        }
+
+        return asJson(
           createInvoice(db(), {
             clientId: args.clientId,
             projectId: args.projectId,
@@ -317,6 +339,7 @@ export const soloTools = createSdkMcpServer({
             lines: args.lines
           })
         )
+      }
     ),
 
     tool(

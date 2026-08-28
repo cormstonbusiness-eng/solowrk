@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { hostname } from 'node:os'
 import type { AuthAccount, AuthState } from '@shared/types'
 import { readConfig, updateConfig } from './config'
+import { entitlement } from './entitlements'
 
 /**
  * The account a licence belongs to.
@@ -18,10 +19,13 @@ import { readConfig, updateConfig } from './config'
  * their own invoices because a train went into a tunnel has done more damage
  * than piracy ever would. An unreachable server means "carry on", and the grace
  * window is generous.
+ *
+ * What a licence is *worth* is no longer decided here. `entitlements.ts` owns
+ * that, and this file owns talking to the server — the split matters because
+ * the entitlement has to be answerable with no server at all, for a trial, a
+ * Free user, or a lifetime licence that will never call home again.
  */
 
-/** How long a licence stays good without being re-confirmed. */
-const GRACE_DAYS = 14
 
 /** Long enough for a slow connection, short enough not to hang the sign-in. */
 const TIMEOUT_MS = 20_000
@@ -31,6 +35,15 @@ interface SignInResult {
   // `features` is optional so a server that predates tiers still works, and so
   // an early one can be built without it.
   account: Omit<AuthAccount, 'features'> & { features?: string[] }
+  /**
+   * The signed licence (§3.2), which is what actually grants anything.
+   *
+   * Optional for the same reason `features` is: the server issues it from the
+   * tier rework onwards, and a build that meets an older server should fall
+   * back to Free rather than fail to sign in. An absent licence is not an
+   * error — it is simply nothing granted.
+   */
+  licence?: string
 }
 
 /**
@@ -154,6 +167,12 @@ async function store(result: SignInResult): Promise<void> {
     accountPlan: result.account.plan,
     accountFeatures: (result.account.features ?? []).join(','),
     accountExpiresOn: result.account.expiresOn,
+    // Only overwritten when the server sent one. A response without a licence
+    // must not silently revoke the one already held — that is how a server
+    // hiccup would downgrade a paying customer.
+    ...(result.licence ? { licenceToken: result.licence } : {}),
+    // Paying again clears the banner on the very next check.
+    paymentFailedAt: null,
     // Any successful answer means the licence is good again, so a lapse that
     // has since been paid clears itself on the next check.
     lapsedReason: null,
@@ -161,49 +180,26 @@ async function store(result: SignInResult): Promise<void> {
   })
 }
 
-/** Whether the grace window since the last successful check has run out. */
-function graceExpired(verifiedAt: string | null): boolean {
-  if (!verifiedAt) return false
-  return Date.now() - new Date(verifiedAt).getTime() >= GRACE_DAYS * 24 * 60 * 60 * 1000
-}
-
 export async function authState(extra: Partial<AuthState> = {}): Promise<AuthState> {
   const config = await readConfig()
-  const signedIn = config.authToken !== null
-  const stale = graceExpired(config.verifiedAt)
+  const { tier, trial, updates } = await entitlement()
 
   return {
-    signedIn,
+    signedIn: config.authToken !== null,
     account: accountFrom(config),
     configured: config.apiBaseUrl.trim() !== '',
     verifiedAt: config.verifiedAt,
     offline: false,
-    // Both routes into read-only: the server said the licence has lapsed, or
-    // it has not been reachable long enough that we stop taking its silence
-    // as a yes. Neither is a reason to withhold someone's own work.
-    readOnly: signedIn && (config.lapsedReason !== null || stale),
-    lapsedReason:
-      config.lapsedReason ??
-      (signedIn && stale
-        ? 'SoloWrk has not been able to confirm your licence for two weeks.'
-        : ''),
+    // What they may do, rather than whether they may do anything. There is no
+    // read-only state to report any more — an unconfirmed licence degrades to
+    // Free once its grace window closes, and never to a wall.
+    tier,
+    trial,
+    paymentFailed: config.paymentFailedAt !== null,
+    updatesEndedOn: updates ? '' : (config.updatesEndedOn ?? ''),
     error: '',
     ...extra
   }
-}
-
-/** Whether the current plan unlocks something. Ungated when no server is set. */
-export async function hasFeature(name: string): Promise<boolean> {
-  const config = await readConfig()
-  if (config.apiBaseUrl.trim() === '') return true
-  return (config.accountFeatures ?? '').split(',').includes(name)
-}
-
-/** Whether writing is currently allowed. Cheap enough to ask on every call. */
-export async function isReadOnly(): Promise<boolean> {
-  const config = await readConfig()
-  if (config.apiBaseUrl.trim() === '' || !config.authToken) return false
-  return config.lapsedReason !== null || graceExpired(config.verifiedAt)
 }
 
 export async function signIn(email: string, password: string): Promise<AuthState> {
@@ -259,7 +255,15 @@ export async function signOut(): Promise<AuthState> {
     accountFeatures: null,
     accountExpiresOn: null,
     lapsedReason: null,
-    verifiedAt: null
+    verifiedAt: null,
+    // The licence goes too. It is what actually grants anything now, so
+    // leaving it behind would mean a signed-out machine kept Pro — and on a
+    // shared or handed-on computer that is the entitlement given away.
+    licenceToken: null,
+    paymentFailedAt: null,
+    updatesEndedOn: null,
+    foundingNumber: null,
+    referralCode: null
   })
 
   return authState()
@@ -289,16 +293,39 @@ export async function verify(): Promise<AuthState> {
       return authState({ offline: true })
     }
 
-    // Unpaid, not unwelcome. The session stays, the app goes read-only, and
-    // paying restores it on the next check without signing in again.
+    /**
+     * Unpaid, not unwelcome.
+     *
+     * §3.4 holds the tier open through Stripe's retry window plus five days
+     * rather than downgrading somebody whose card simply expired, so the
+     * licence token is deliberately **not** cleared here — it carries its own
+     * expiry, and letting that run out is what eventually drops them to Free.
+     * What this records is the banner.
+     *
+     * `verifiedAt` is no longer stamped on this path. It used to be, which
+     * meant a lapsed account refreshed its own grace clock on every check and
+     * the window never actually closed.
+     */
     if (cause instanceof Error && cause.name === 'LapsedError') {
-      await updateConfig({ lapsedReason: cause.message, verifiedAt: new Date().toISOString() })
+      const now = await readConfig()
+      await updateConfig({
+        lapsedReason: cause.message,
+        paymentFailedAt: now.paymentFailedAt ?? new Date().toISOString()
+      })
       return authState()
     }
 
     // A definite no — revoked, refunded, or a token that is no longer good.
-    // End the session so the next launch asks again.
-    await updateConfig({ authToken: null, verifiedAt: null, lapsedReason: null })
+    // End the session so the next launch asks again, and take the licence with
+    // it: a refund that left the entitlement behind would be a licence given
+    // away for nothing.
+    await updateConfig({
+      authToken: null,
+      verifiedAt: null,
+      lapsedReason: null,
+      licenceToken: null,
+      paymentFailedAt: null
+    })
     return authState({ error: cause instanceof Error ? cause.message : 'Licence check failed.' })
   }
 }
@@ -306,11 +333,12 @@ export async function verify(): Promise<AuthState> {
 /**
  * Whether the app should open at all.
  *
- * Deliberately generous, and deliberately not the same question as whether it
- * can be written to. An unpaid or unconfirmed licence still opens — read-only,
- * see `isReadOnly` — because the alternative is a person locked out of files
- * they own, on a machine they own, by an app that promised the opposite.
- * Only signing out, or a licence the server actively disowns, closes the door.
+ * Deliberately generous, and deliberately not the same question as what the
+ * licence is worth — that is `entitlement()`. An unpaid or unconfirmed licence
+ * still opens, at Free if it has to, because the alternative is a person
+ * locked out of files they own, on a machine they own, by an app that promised
+ * the opposite. Only signing out, or a licence the server actively disowns,
+ * closes the door.
  */
 export async function isEntitled(): Promise<boolean> {
   const config = await readConfig()

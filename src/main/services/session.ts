@@ -32,6 +32,17 @@ class Session {
     return this.db
   }
 
+  /**
+   * The database if there is one, for callers that must work before setup.
+   *
+   * The IPC gate is the reason this exists: it runs on every channel including
+   * the handful that fire before a workspace is open, and asking what tier the
+   * user is on must not throw on the way to the first-run wizard.
+   */
+  dbOrNull(): Database | null {
+    return this.db
+  }
+
   requirePath(): string {
     if (!this.workspacePath) throw new Error('No workspace is open')
     return this.workspacePath

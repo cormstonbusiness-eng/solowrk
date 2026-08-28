@@ -2,7 +2,7 @@ import type { BrowserWindow } from 'electron'
 import { dayFromDate, nowStamp, timeOf } from '@shared/calendar'
 import { PLATFORMS } from '@shared/social'
 import type { PostWithContext } from '@shared/types'
-import { hasFeature } from './auth'
+import { can } from './entitlements'
 import { duePosts, markNeedsAttention, runEvergreen } from './marketing'
 import { session } from './session'
 import { push } from './notifications'
@@ -68,11 +68,10 @@ async function tick(getWindow: () => BrowserWindow | null): Promise<void> {
    * Marketing is Pro.
    *
    * Checked here as well as at the IPC gate because this runs on a timer and
-   * never crosses the bridge — without it, a Basic licence would still be told
-   * a post was due, for a page it cannot open. `hasFeature` returns true when
-   * no account server is configured, so an ungated install is unaffected.
+   * never crosses the bridge — without it, a Free licence would still be told
+   * a post was due, for a page it cannot open.
    */
-  if (!(await hasFeature('marketing'))) return
+  if (!(await can('marketing', session.dbOrNull()))) return
 
   const db = session.requireDb()
   const now = nowStamp()

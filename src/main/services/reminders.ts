@@ -1,7 +1,7 @@
 import { rm } from 'node:fs/promises'
 import type { BrowserWindow } from 'electron'
 import { addDays, dayOf, nowStamp, timeOf } from '@shared/calendar'
-import { hasFeature } from './auth'
+import { can } from './entitlements'
 import { chaseDedupeKey, dueChasers } from './chasers'
 import { runChasers } from './chaseRun'
 import { runAutomations } from './automations'
@@ -246,11 +246,10 @@ async function runChaseSweep(
    *
    * Checked here as well as at the IPC gate because this runs on a timer and
    * never crosses the bridge — a lapsed or downgraded licence would otherwise
-   * keep drafting notes nothing could open. `hasFeature` returns true when no
-   * account server is configured, so an ungated install is unaffected, and the
-   * setting is off by default in any case.
+   * keep drafting notes nothing could open. The setting is off by default in
+   * any case.
    */
-  if (!(await hasFeature('chasing'))) return
+  if (!(await can('chasing', db))) return
 
   const due = dueChasers(db, day)
   if (due.length === 0) return

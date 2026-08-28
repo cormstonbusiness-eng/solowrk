@@ -153,8 +153,13 @@ export function App(): React.JSX.Element {
           configured: false,
           verifiedAt: null,
           offline: false,
-          readOnly: false,
-          lapsedReason: '',
+          // Free rather than Pro. An unreadable config is the one case where
+          // guessing generously would mean the app gives itself away, and
+          // guessing meanly costs somebody a restart.
+          tier: 'free',
+          trial: { active: false, daysLeft: 0, showCountdown: false },
+          paymentFailed: false,
+          updatesEndedOn: '',
           error: ''
         })
       )
@@ -162,9 +167,9 @@ export function App(): React.JSX.Element {
 
   /**
    * The background licence check only speaks up when the answer changed, so
-   * every one of these is worth taking: a lapse raises the read-only bar, and
-   * a payment lowers it again without anyone having to restart or go looking
-   * for a button in Settings.
+   * every one of these is worth taking: a failed payment raises the banner, and
+   * a successful one lowers it again without anyone having to restart or go
+   * looking for a button in Settings.
    */
   useEffect(() => {
     return window.solo.on('auth:changed', setAuth)
@@ -194,7 +199,7 @@ export function App(): React.JSX.Element {
           <ThemeContext.Provider value={theme}>
           <div className="flex h-full flex-col bg-ground">
             <TitleBar />
-            {auth?.readOnly && <ReadOnlyBar reason={auth.lapsedReason} />}
+            {auth?.paymentFailed && <PaymentFailedBar />}
 
             <AnimatePresence mode="wait">
               {error ? (
@@ -256,18 +261,22 @@ export function App(): React.JSX.Element {
 }
 
 /**
- * The strip that appears when a licence has lapsed.
+ * The strip that appears when a payment has failed.
  *
  * Its job is to be unmissable and not frightening, in that order. Someone
  * seeing this has had a card decline, not lost anything, and the sentence that
- * matters most to them is that their work is still there — so that sentence is
- * in the bar rather than in a dialog they have to open.
+ * matters most to them is that nothing has changed yet — so that sentence is in
+ * the bar rather than in a dialog they have to open.
  *
- * There is no dismiss button, because a persistent bar is the whole mechanism:
- * it is what makes a read-only app better at collecting a renewal than a locked
- * one. There is a way to act on it, which is the part that stops it being nagging.
+ * §3.4 holds the tier open through Stripe's retry window plus five days, so
+ * this really is only a message: nothing is locked, nothing is hidden, and the
+ * app behaves exactly as it did yesterday. It replaced a bar that announced the
+ * app had gone read-only, which said the opposite of all of that.
+ *
+ * No dismiss button, because a persistent line is the whole mechanism. There is
+ * a way to act on it, which is the part that stops it being a nag.
  */
-function ReadOnlyBar({ reason }: { reason: string }): React.JSX.Element {
+function PaymentFailedBar(): React.JSX.Element {
   const [checking, setChecking] = useState(false)
 
   async function recheck(): Promise<void> {
@@ -276,7 +285,7 @@ function ReadOnlyBar({ reason }: { reason: string }): React.JSX.Element {
       // A full reload rather than threading state back up: this runs after a
       // renewal, once, and every query in the app is now stale.
       const next = await window.solo.invoke('auth:verify')
-      if (!next.readOnly) window.location.reload()
+      if (!next.paymentFailed) window.location.reload()
     } finally {
       setChecking(false)
     }
@@ -286,10 +295,9 @@ function ReadOnlyBar({ reason }: { reason: string }): React.JSX.Element {
     <div className="flex items-center gap-3 border-b border-warning/25 bg-warning/10 px-4 py-2">
       <Lock size={13} strokeWidth={1.75} className="shrink-0 text-warning" />
       <p className="min-w-0 flex-1 text-[12px] leading-snug text-ink">
-        {reason}{' '}
+        We couldn’t take your last payment.{' '}
         <span className="text-muted">
-          Everything is still here and can still be exported — you just can’t make changes until
-          it’s renewed.
+          Nothing has changed and nothing is locked — update your card and this disappears.
         </span>
       </p>
       <button
@@ -298,7 +306,7 @@ function ReadOnlyBar({ reason }: { reason: string }): React.JSX.Element {
         disabled={checking}
         className="shrink-0 rounded-control px-2 py-1 text-[11.5px] font-medium text-warning underline-offset-2 hover:underline disabled:opacity-50"
       >
-        {checking ? 'Checking…' : 'I’ve renewed — check again'}
+        {checking ? 'Checking…' : 'I’ve paid — check again'}
       </button>
     </div>
   )
