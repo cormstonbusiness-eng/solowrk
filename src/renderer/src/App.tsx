@@ -20,6 +20,9 @@ import { WhatsNew } from '@/components/WhatsNew'
 import { Toasts } from '@/components/Toasts'
 import { SeasonalLayer } from '@/components/seasonal/SeasonalLayer'
 import { transition } from '@/lib/motion'
+import { raiseLimit } from '@/lib/limits'
+import { LimitModal } from '@/components/LimitModal'
+import { TrialBar } from '@/components/TrialBar'
 import {
   ArchivedProjects,
   ArchivedTasks,
@@ -47,7 +50,22 @@ import {
 const queryClient = new QueryClient({
   defaultOptions: {
     // Local SQLite over IPC — refetching on window focus buys nothing here.
-    queries: { refetchOnWindowFocus: false, staleTime: 30_000, retry: 1 }
+    queries: { refetchOnWindowFocus: false, staleTime: 30_000, retry: 1 },
+    /**
+     * Every creation in this app is a mutation, and every usage limit is
+     * refused by the main process as a structured error. Catching it here
+     * means one handler covers `clients:create`, `projects:create` and the
+     * rest, rather than thirty pages each remembering to look for it.
+     *
+     * It does not swallow the rejection: a page with its own `onError` still
+     * runs, and `raiseLimit` ignores anything that is not a limit, so an
+     * ordinary failure is untouched.
+     */
+    mutations: {
+      onError: (error) => {
+        raiseLimit(error)
+      }
+    }
   }
 })
 
@@ -117,6 +135,8 @@ function Shell(): React.JSX.Element {
             <WhatsNew />
             {/* Mounted once for the whole app: every list opens this one. */}
             <DetailDrawer />
+            {/* Likewise — any creation anywhere can raise it. */}
+            <LimitModal />
           </TourProvider>
         </UndoProvider>
       </DrawerProvider>
@@ -200,6 +220,7 @@ export function App(): React.JSX.Element {
           <div className="flex h-full flex-col bg-ground">
             <TitleBar />
             {auth?.paymentFailed && <PaymentFailedBar />}
+            <TrialBar />
 
             <AnimatePresence mode="wait">
               {error ? (

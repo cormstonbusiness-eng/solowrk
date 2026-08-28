@@ -38,8 +38,9 @@ export function Marketing(): React.JSX.Element {
     return (
       <Page title="Marketing" description="Plan what you post, and when.">
         <ProPanel
+          feature="marketing"
           title="Plan a month of posts in an afternoon"
-          blurb="Marketing is part of Pro. It plans and schedules — writing, dating and filing your posts, then telling you when one is due and putting the caption on your clipboard. It does not post for you: connecting social accounts is still being built."
+          blurb="It plans and schedules — writing, dating and filing your posts, then telling you when one is due and putting the caption on your clipboard. It does not post for you: connecting social accounts is still being built."
           does={[
             {
               title: 'A calendar of posts',

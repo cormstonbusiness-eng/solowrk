@@ -38,6 +38,7 @@ import { formatDate } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useFeature } from '@/lib/features'
+import { LIMIT_LABELS, TIER_NAMES } from '@shared/entitlements'
 import { useTour } from '@/tour/TourProvider'
 
 type Tab = 'business' | 'money' | 'automations' | 'account' | 'assistant' | 'appearance' | 'app'
@@ -877,6 +878,76 @@ function LogoCard({ logoFile }: { logoFile: string }): React.JSX.Element {
  * you can see it read the right thing rather than taking it on trust.
  */
 /**
+ * What has been used, against what is included (§4.4).
+ *
+ * Only shown where there is a cap to show. On a paid tier every number here
+ * would read "3 of unlimited", which is noise dressed as information — and on
+ * Free it is the one screen that answers "how much room have I got left"
+ * before somebody runs into a modal finding out.
+ *
+ * A limit already over its cap is shown in `warning` and never as an error.
+ * §4.3 is explicit: somebody who drops to Free with forty clients keeps all
+ * forty, and this is the app saying so rather than letting them discover it.
+ */
+function UsageCard(): React.JSX.Element {
+  const { data: meters } = useQuery({
+    queryKey: ['entitlements', 'meters'],
+    queryFn: () => window.solo.invoke('entitlements:meters')
+  })
+
+  const capped = (meters ?? []).filter(
+    (meter) => meter.cap !== null && meter.limit !== 'devices'
+  )
+
+  if (capped.length === 0) return <></>
+
+  return (
+    <Card>
+      <CardHeader title="What you're using" />
+      <p className="mb-3 text-[11.5px] leading-relaxed text-faint">
+        Everything you’ve already made stays yours — only adding more is capped.
+      </p>
+
+      <div className="flex flex-col gap-3">
+        {capped.map((meter) => {
+          const cap = meter.cap ?? 0
+          const share = cap === 0 ? 1 : Math.min(1, meter.used / cap)
+          const over = meter.used > cap
+
+          return (
+            <div key={meter.limit} className="flex flex-col gap-1.5">
+              <div className="flex items-baseline justify-between">
+                <span className="text-[12px] text-muted">{LIMIT_LABELS[meter.limit]}</span>
+                <span className="numeric text-[12px] text-ink">
+                  {meter.used} of {cap}
+                </span>
+              </div>
+              <div className="h-1 overflow-hidden rounded-full bg-raised">
+                <div
+                  className={cn(
+                    'h-full rounded-full',
+                    // Warning from 80%, per §4.4 — early enough to be a
+                    // heads-up rather than an announcement of a wall.
+                    share >= 0.8 ? 'bg-warning' : 'bg-accent'
+                  )}
+                  style={{ width: `${share * 100}%` }}
+                />
+              </div>
+              {over && (
+                <p className="text-[11px] text-muted">
+                  You can still use and edit all {meter.used} — you'll need a paid plan to add
+                  more.
+                </p>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </Card>
+  )
+}
+
+/**
  * The account a licence belongs to.
  *
  * Two cards rather than one, because they answer different questions: who is
@@ -945,8 +1016,16 @@ function AccountCard(): React.JSX.Element {
                   {auth.account?.name || auth.account?.email}
                 </p>
                 <p className="mt-0.5 truncate text-[11px] text-faint">
-                  {auth.account?.plan || 'Licensed'}
-                  {auth.account?.expiresOn && ` · renews ${formatDate(auth.account.expiresOn)}`}
+                  {auth.trial.active ? 'Trial' : TIER_NAMES[auth.tier]}
+                  {/*
+                    "renews" only for something that does. A lifetime licence
+                    has no expiry, and a lapsed one would otherwise read
+                    "renews" against a date three weeks in the past.
+                  */}
+                  {!auth.trial.active &&
+                    auth.account?.expiresOn &&
+                    ` · renews ${formatDate(auth.account.expiresOn)}`}
+                  {auth.trial.active && ` · ${auth.trial.daysLeft} days left`}
                   {auth.verifiedAt && ` · checked ${formatDate(auth.verifiedAt)}`}
                 </p>
               </div>
@@ -973,6 +1052,8 @@ function AccountCard(): React.JSX.Element {
           </p>
         )}
       </Card>
+
+      <UsageCard />
 
       <Card>
         <CardHeader title="Account server" />

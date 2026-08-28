@@ -140,7 +140,10 @@ function NavRow({ item, unlockIndex }: { item: NavItem; unlockIndex: number }): 
    * would wonder where Marketing went and conclude the app is broken rather
    * than that they are on Basic. The page behind it explains itself.
    */
-  const entitled = useFeature(item.feature ?? '')
+  // `marketing` stands in for "no gate at all" so the hook is called
+  // unconditionally; `locked` is what actually decides, and it checks for the
+  // absence of a feature first.
+  const entitled = useFeature(item.feature ?? 'marketing')
   const locked = item.feature !== undefined && !entitled
 
   return (

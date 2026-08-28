@@ -118,6 +118,7 @@ import type {
   YearEndPack
 } from './types'
 import type { Period } from './taxYear'
+import type { Limit } from './entitlements'
 
 export interface WindowState {
   isMaximized: boolean
@@ -168,6 +169,24 @@ export interface IpcContract {
   'auth:verify': { req: void; res: AuthState }
   /** Points the app at an account server. Empty turns licensing off. */
   'auth:setServer': { req: { url: string }; res: AuthState }
+
+  /**
+   * What has been used against each limit, for the meters on Settings →
+   * Account (§4.4) and the downgrade notice (§4.3).
+   *
+   * `cap` is null where there is none. `Infinity` does not survive JSON —
+   * `JSON.stringify` turns it into null anyway — so being explicit about it
+   * beats discovering the coercion in the renderer.
+   */
+  'entitlements:meters': {
+    req: void
+    res: { limit: Limit; used: number; cap: number | null }[]
+  }
+  /** Limits already over their cap, which are shown but never enforced. */
+  'entitlements:exceeded': {
+    req: void
+    res: { limit: Limit; used: number; cap: number }[]
+  }
 
   /** Current update state. Live changes arrive on the `updates:state` event. */
   'updates:get': { req: void; res: UpdateState }
@@ -1010,6 +1029,8 @@ export const IPC_CHANNELS = [
   'auth:signOut',
   'auth:verify',
   'auth:setServer',
+  'entitlements:meters',
+  'entitlements:exceeded',
   'updates:get',
   'updates:check',
   'updates:install',

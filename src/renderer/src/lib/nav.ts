@@ -18,6 +18,7 @@ import {
   Users,
   type LucideIcon
 } from 'lucide-react'
+import type { Feature } from '@shared/entitlements'
 
 export interface NavItem {
   label: string
@@ -30,7 +31,7 @@ export interface NavItem {
    * section is discoverable rather than hidden. The actual refusal happens in
    * the main process, and the page itself shows the upsell.
    */
-  feature?: string
+  feature?: Feature
 }
 
 export interface NavGroup {

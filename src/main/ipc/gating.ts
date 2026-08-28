@@ -1,4 +1,5 @@
 import type { IpcChannel } from '@shared/ipc'
+import { SITE_HOST } from '@shared/site'
 import {
   FEATURE_LABELS,
   TIER_NAMES,
@@ -38,7 +39,7 @@ export interface Gate {
 }
 
 /** Where the user goes to change what they are on. */
-export const ACCOUNT_URL = 'solo-wrk.com/account'
+export const ACCOUNT_URL = `${SITE_HOST}/account`
 
 /**
  * The sentence, built from the map.

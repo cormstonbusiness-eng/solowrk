@@ -273,7 +273,7 @@ import { updateSettings } from '../services/settings'
 import { getState, setState } from '../services/appState'
 import { check, installNow, updateState } from '../services/updates'
 import { authState, setApiBaseUrl, signIn, signOut, signUp, verify } from '../services/auth'
-import { can, requireCapacity } from '../services/entitlements'
+import { can, exceeded, meters, requireCapacity } from '../services/entitlements'
 
 type WindowGetter = () => BrowserWindow | null
 
@@ -1008,6 +1008,9 @@ const handlers: Handlers = {
     return state
   },
   'auth:setServer': (_g, { url }) => setApiBaseUrl(url),
+
+  'entitlements:meters': () => meters(session.requireDb()),
+  'entitlements:exceeded': () => exceeded(session.requireDb()),
 
   'updates:get': () => updateState(),
   'updates:check': () => check(),
