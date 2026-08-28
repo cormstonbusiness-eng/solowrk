@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'node:fs/promises'
+import { readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app } from 'electron'
 
@@ -35,6 +35,47 @@ export interface AppConfig {
   /** Identifies this installation to the seat count. Generated once. */
   deviceId: string | null
 
+  /* ---------------------------------------------------------------- *
+   * Licensing (Pricing spec §3)
+   * ---------------------------------------------------------------- */
+
+  /**
+   * The Ed25519-signed licence, verified offline against a key built into the
+   * app. Unlike `authToken` this is not opaque — it *is* the entitlement, and
+   * a token that does not verify is worth exactly nothing, which is what stops
+   * a hand-edited file from granting Pro.
+   */
+  licenceToken: string | null
+  /**
+   * When this installation first ran, as the trial's anchor.
+   *
+   * Mirrored into the workspace's `app_state`, so deleting this file alone
+   * does not hand out a second fortnight. A determined person can still reset
+   * it; a 14-day trial is a marketing decision, not a security boundary.
+   */
+  installedAt: string | null
+  /** Hashed motherboard serial and machine GUID. Never the MAC address (§8). */
+  fingerprint: string | null
+  /** Last successful licence check, for the 14-day grace window (§3.4). */
+  lastValidatedAt: string | null
+  /**
+   * Set when Stripe reports a failed payment. Keeps the tier alive through the
+   * retry window plus five days rather than downgrading somebody whose card
+   * expired (§3.4).
+   */
+  paymentFailedAt: string | null
+  /**
+   * The day updates stopped, for a subscription that lapsed.
+   *
+   * Its presence *is* the perpetual fallback (§3.5): features carry on working
+   * forever, and only the update feed refuses. Shown once, in About.
+   */
+  updatesEndedOn: string | null
+  /** Founding licence position, 1–200. Stored as text; see `parseConfig`. */
+  foundingNumber: string | null
+  /** This account's own referral code, for the ring on Settings. */
+  referralCode: string | null
+
   /**
    * The user's mail password, encrypted by the OS keychain.
    *
@@ -62,6 +103,14 @@ const DEFAULT_CONFIG: AppConfig = {
   lapsedReason: null,
   verifiedAt: null,
   deviceId: null,
+  licenceToken: null,
+  installedAt: null,
+  fingerprint: null,
+  lastValidatedAt: null,
+  paymentFailedAt: null,
+  updatesEndedOn: null,
+  foundingNumber: null,
+  referralCode: null,
   smtpPassword: null
 }
 
@@ -89,6 +138,13 @@ function legacyConfigPath(): string {
  * anything unexpected. It also means **a new field added above without a line
  * here is silently dropped on the next write**, which is the one trap in this
  * file worth knowing about.
+ *
+ * `text()` is the only coercer, so every field is a non-empty string or null.
+ * That is why `foundingNumber` is stored as text rather than as the number it
+ * obviously is: one coercer that cannot disagree with itself is worth more
+ * than the parse at the two places that read it. It also means an empty string
+ * cannot round-trip — it comes back as null — so nothing should ever depend on
+ * the difference between "" and unset.
  */
 function parseConfig(raw: string): AppConfig {
   const parsed = JSON.parse(raw) as Partial<AppConfig>
@@ -108,6 +164,14 @@ function parseConfig(raw: string): AppConfig {
     lapsedReason: text(parsed.lapsedReason),
     verifiedAt: text(parsed.verifiedAt),
     deviceId: text(parsed.deviceId),
+    licenceToken: text(parsed.licenceToken),
+    installedAt: text(parsed.installedAt),
+    fingerprint: text(parsed.fingerprint),
+    lastValidatedAt: text(parsed.lastValidatedAt),
+    paymentFailedAt: text(parsed.paymentFailedAt),
+    updatesEndedOn: text(parsed.updatesEndedOn),
+    foundingNumber: text(parsed.foundingNumber),
+    referralCode: text(parsed.referralCode),
     smtpPassword: text(parsed.smtpPassword)
   }
 }
@@ -124,8 +188,22 @@ export async function readConfig(): Promise<AppConfig> {
   return { ...DEFAULT_CONFIG }
 }
 
+/**
+ * Written to a temporary file and renamed over the real one.
+ *
+ * A plain write truncates before it fills, so a crash or a power cut in that
+ * window leaves an empty file — and `readConfig` swallows the parse failure
+ * and returns `DEFAULT_CONFIG`, which silently forgets the workspace, signs
+ * the user out and, now that a tier lives in here, drops them to Free. Rename
+ * is atomic on NTFS and replaces the target, so a reader sees the old file or
+ * the new one and never a half of either.
+ */
 export async function writeConfig(config: AppConfig): Promise<void> {
-  await writeFile(configPath(), JSON.stringify(config, null, 2), 'utf8')
+  const target = configPath()
+  const temporary = `${target}.tmp`
+
+  await writeFile(temporary, JSON.stringify(config, null, 2), 'utf8')
+  await rename(temporary, target)
 }
 
 export async function updateConfig(patch: Partial<AppConfig>): Promise<AppConfig> {

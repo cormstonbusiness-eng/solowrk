@@ -20,5 +20,14 @@ export function setState(db: Database, key: string, value: string): void {
 
 /** Keys in use, so they are greppable rather than scattered as string literals. */
 export const STATE_KEYS = {
-  tourCompleted: 'tour.completed'
+  tourCompleted: 'tour.completed',
+  /**
+   * When this installation first ran, mirroring the same field in the config.
+   *
+   * Here as well as there because the config lives in `userData` and the trial
+   * is anchored to it — deleting one file would otherwise hand out a fresh
+   * fortnight of Pro. Whichever copy is older wins, so restoring an old
+   * workspace cannot extend a trial either.
+   */
+  installedAt: 'licence.installedAt'
 } as const
