@@ -152,6 +152,13 @@ const COUNTS: Record<Limit, (db: Database) => number> = {
       [today().slice(0, 7)]
     ),
 
+  /**
+   * Active channels only. Retiring one gives the allowance back, which is the
+   * honest reading of a cap on how many you are running — a channel you have
+   * stopped posting to is not one of the three.
+   */
+  channels: (db) => count(db, 'SELECT COUNT(*) AS n FROM marketing_channels WHERE is_active = 1'),
+
   // Counted by the licence server, which is the only thing that can see the
   // other computers. Nothing local can answer it, and answering zero here is
   // honest rather than a hole: the seat check happens at activation.
@@ -188,7 +195,7 @@ export async function meters(db: Database): Promise<{ limit: Limit; used: number
   return LIMITS.map((limit) => {
     const cap = limitOf(tier, limit)
     return { limit, used: usage(db, limit), cap: isUnlimited(cap) ? null : cap }
-  })
+  }).filter((meter) => meter.cap !== 0)
 }
 
 /* ------------------------------------------------------------------ *

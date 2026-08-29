@@ -156,13 +156,22 @@ export const SUGGESTED_CHANNELS: MarketingChannelInput[] = [
   { name: 'Directories', type: 'directory', colour: '#8a8a93' }
 ]
 
-/** Puts the suggested set in, once, if there are none at all. */
-export function seedChannels(db: Database): number {
+/**
+ * Puts the suggested set in, once, if there are none at all.
+ *
+ * `max` is how many the tier still has room for. Basic+ is capped at three
+ * (§12) and the suggested set is six, so seeding blind would hand somebody
+ * twice their allowance and then refuse the next thing they did. It takes the
+ * first `max` instead, in the order above — which is why that order is not
+ * arbitrary.
+ */
+export function seedChannels(db: Database, max = SUGGESTED_CHANNELS.length): number {
   const existing = db.get<Row & { n: number }>('SELECT COUNT(*) AS n FROM marketing_channels')
   if ((existing?.n ?? 0) > 0) return 0
 
-  for (const channel of SUGGESTED_CHANNELS) createChannel(db, channel)
-  return SUGGESTED_CHANNELS.length
+  const wanted = SUGGESTED_CHANNELS.slice(0, Math.max(0, max))
+  for (const channel of wanted) createChannel(db, channel)
+  return wanted.length
 }
 
 /* ------------------------------------------------------------------ *

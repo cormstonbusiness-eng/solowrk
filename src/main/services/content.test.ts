@@ -48,6 +48,14 @@ describe('channels', () => {
     expect(seedChannels(db)).toBe(0)
   })
 
+  it('seeds no more than the tier has room for', () => {
+    // Basic+ is capped at three (§12) and the suggested set is six. Seeding
+    // blind would hand somebody twice their allowance and then refuse the
+    // next thing they did.
+    expect(seedChannels(db, 3)).toBe(3)
+    expect(listChannels(db)).toHaveLength(3)
+  })
+
   it('commits to nothing until asked', () => {
     // Guessing a cadence would either set a bar nobody agreed to, or teach
     // somebody to ignore the gaps on their first day.

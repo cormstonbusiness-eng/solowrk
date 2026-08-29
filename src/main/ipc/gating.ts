@@ -232,7 +232,8 @@ const LIMITED: Partial<Record<string, Limit>> = {
   'invoices:create': 'invoicesPerMonth',
   'goals:create': 'goals',
   'time:start': 'activeTimers',
-  'ai:send': 'assistantMessages'
+  'ai:send': 'assistantMessages',
+  'channels:create': 'channels'
 }
 
 /**

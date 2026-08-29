@@ -218,6 +218,7 @@ export const LIMITS = [
   'goals',
   'activeTimers',
   'assistantMessages',
+  'channels',
   'devices'
 ] as const
 
@@ -242,6 +243,7 @@ export const LIMIT_LABELS: Record<Limit, string> = {
   goals: 'Goals',
   activeTimers: 'Running timers',
   assistantMessages: 'Assistant messages this month',
+  channels: 'Marketing channels',
   devices: 'Computers'
 }
 
@@ -263,6 +265,15 @@ export const TIER_LIMITS: Record<Tier, Record<Limit, number>> = {
     goals: 1,
     activeTimers: 1,
     assistantMessages: 20,
+    /**
+     * Zero, because Free has no Marketing module at all.
+     *
+     * A cap of zero is this map's way of saying "not on this tier", which is
+     * different from a cap somebody can reach. The meters skip it for exactly
+     * that reason: the feature lock already explains it, and a meter reading
+     * "0 of 0" would explain it again, worse.
+     */
+    channels: 0,
     devices: 1
   },
   basicPlus: {
@@ -272,6 +283,9 @@ export const TIER_LIMITS: Record<Tier, Record<Limit, number>> = {
     goals: UNLIMITED,
     activeTimers: UNLIMITED,
     assistantMessages: UNLIMITED,
+    // §12. Three is enough to commit to properly and few enough that a
+    // freelancer running six channels badly is the one being sold Pro.
+    channels: 3,
     devices: 2
   },
   pro: {
@@ -281,6 +295,7 @@ export const TIER_LIMITS: Record<Tier, Record<Limit, number>> = {
     goals: UNLIMITED,
     activeTimers: UNLIMITED,
     assistantMessages: UNLIMITED,
+    channels: UNLIMITED,
     devices: 2
   }
 }

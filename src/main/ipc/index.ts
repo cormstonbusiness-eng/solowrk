@@ -279,7 +279,14 @@ import { updateSettings } from '../services/settings'
 import { getState, setState } from '../services/appState'
 import { check, installNow, updateState } from '../services/updates'
 import { authState, setApiBaseUrl, signIn, signOut, signUp, verify } from '../services/auth'
-import { can, currentTier, exceeded, meters, requireCapacity } from '../services/entitlements'
+import {
+  can,
+  currentTier,
+  exceeded,
+  meters,
+  remaining,
+  requireCapacity
+} from '../services/entitlements'
 import { FeatureLockedError } from '@shared/limitError'
 import { requires } from '@shared/entitlements'
 
@@ -872,7 +879,10 @@ const handlers: Handlers = {
   'channels:create': (_g, input) => createChannel(session.requireDb(), input),
   'channels:update': (_g, { id, patch }) => updateChannel(session.requireDb(), id, patch),
   'channels:deactivate': (_g, { id }) => deactivateChannel(session.requireDb(), id),
-  'channels:seed': () => seedChannels(session.requireDb()),
+  'channels:seed': async () => {
+    const db = session.requireDb()
+    return seedChannels(db, await remaining(db, 'channels'))
+  },
 
   'plan:get': () => getPlan(session.requireDb()),
   'plan:update': (_g, patch) => updatePlan(session.requireDb(), patch),

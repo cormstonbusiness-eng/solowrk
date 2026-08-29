@@ -16,7 +16,8 @@ import {
   limitOf,
   rank,
   requires,
-  requiresFor
+  requiresFor,
+  type Limit
 } from './entitlements'
 
 /**
@@ -142,12 +143,35 @@ describe("Free's numbers", () => {
     })
   })
 
-  it('lets a paid tier past every count', () => {
+  /**
+   * Two limits survive a paid tier, and both are deliberate. Devices is a
+   * seat count. Channels is §12's Basic+ cap. Everything else is a Free
+   * limit and must lift the moment somebody pays — a paid tier that still
+   * counted invoices would be the bug this test exists to catch.
+   */
+  const PAID_CAPS = new Set<Limit>(['devices', 'channels'])
+
+  it('lets a paid tier past every count that is only there for Free', () => {
     for (const limit of LIMITS) {
-      if (limit === 'devices') continue
+      if (PAID_CAPS.has(limit)) continue
       expect(isUnlimited(limitOf('basicPlus', limit))).toBe(true)
       expect(isUnlimited(limitOf('pro', limit))).toBe(true)
     }
+  })
+
+  it('caps Basic+ at three marketing channels, and Pro at none', () => {
+    // §12. The one place a paid tier is deliberately narrower than the tier
+    // above it for something other than seats.
+    expect(limitOf('basicPlus', 'channels')).toBe(3)
+    expect(isUnlimited(limitOf('pro', 'channels'))).toBe(true)
+  })
+
+  it('says nothing about channels on Free, rather than saying zero', () => {
+    // Free has no Marketing module at all, so a cap of zero here is the map
+    // saying "not on this tier" — never a number somebody could reach.
+    expect(limitOf('free', 'channels')).toBe(0)
+    expect(requiresFor('channels', 1)).toBe('basicPlus')
+    expect(requiresFor('channels', 4)).toBe('pro')
   })
 })
 
