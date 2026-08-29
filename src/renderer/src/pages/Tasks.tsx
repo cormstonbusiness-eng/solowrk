@@ -435,7 +435,7 @@ export function Tasks(): React.JSX.Element {
 
           <DragOverlay>
             {dragging && (
-              <div className="w-[280px] rotate-1 opacity-90">
+              <div className="w-[240px] rotate-1 opacity-90">
                 <BoardCard task={dragging} onToggle={() => {}} onOpen={() => {}} />
               </div>
             )}
@@ -569,6 +569,7 @@ function BoardCard({
         onOpen={onOpen}
         onArchive={onArchive}
         showProject
+        stacked
       />
     </div>
   )

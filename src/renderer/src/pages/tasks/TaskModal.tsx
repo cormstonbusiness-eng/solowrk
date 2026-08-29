@@ -237,7 +237,7 @@ export function TaskModal({
                       size={15}
                       onToggle={() => toggleSubtask.mutate(subtask)}
                     />
-                    <StruckText done={subtask.status === 'done'} className="flex-1 text-[12.5px]">
+                    <StruckText done={subtask.status === 'done'} className="min-w-0 flex-1 text-[12.5px]">
                       {subtask.title}
                     </StruckText>
                     <button
