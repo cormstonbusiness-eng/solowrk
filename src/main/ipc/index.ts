@@ -146,6 +146,23 @@ import { agedDebtors } from '../services/debtors'
 import { fileWeeklyReview, weeklyReview } from '../services/review'
 import { capacityDefaults } from '../services/capacity'
 import {
+  createChannel,
+  deactivateChannel,
+  getPlan,
+  listChannels,
+  seedChannels,
+  updateChannel,
+  updatePlan
+} from '../services/channels'
+import {
+  contentMonth,
+  createContent,
+  deleteContent,
+  getContent,
+  listContent,
+  updateContent
+} from '../services/content'
+import {
   applyRename,
   checkAllProjects,
   checkProject,
@@ -849,6 +866,23 @@ const handlers: Handlers = {
   'debtors:aged': (_g, request) => agedDebtors(session.requireDb(), request?.asOf),
 
   'capacity:defaults': () => capacityDefaults(session.requireDb()),
+
+  'channels:list': (_g, request) =>
+    listChannels(session.requireDb(), request?.includeInactive),
+  'channels:create': (_g, input) => createChannel(session.requireDb(), input),
+  'channels:update': (_g, { id, patch }) => updateChannel(session.requireDb(), id, patch),
+  'channels:deactivate': (_g, { id }) => deactivateChannel(session.requireDb(), id),
+  'channels:seed': () => seedChannels(session.requireDb()),
+
+  'plan:get': () => getPlan(session.requireDb()),
+  'plan:update': (_g, patch) => updatePlan(session.requireDb(), patch),
+
+  'content:month': (_g, { from, to }) => contentMonth(session.requireDb(), from, to),
+  'content:list': (_g, filter) => listContent(session.requireDb(), filter ?? {}),
+  'content:get': (_g, { id }) => getContent(session.requireDb(), id),
+  'content:create': (_g, input) => createContent(session.requireDb(), input),
+  'content:update': (_g, { id, patch }) => updateContent(session.requireDb(), id, patch),
+  'content:delete': (_g, { id }) => deleteContent(session.requireDb(), id),
 
   'structure:check': (_g, { projectId, templateId }) =>
     checkProject(session.requireDb(), session.requirePath(), projectId, templateId),

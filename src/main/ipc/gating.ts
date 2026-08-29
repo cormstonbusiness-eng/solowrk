@@ -61,6 +61,30 @@ export const GATES: Gate[] = [
   },
   {
     /**
+     * The rest of Marketing: channels, the plan and content.
+     *
+     * Basic+ rather than Pro (§12). Content planning is the module somebody
+     * touches most days, and habitual use is most of what makes a subscription
+     * feel worth renewing — locking the whole thing away left Basic+ with no
+     * daily reason to open the app. What stays behind Pro is the measurement
+     * layer, which is a cleaner line than all-or-nothing.
+     */
+    prefix: 'channels:',
+    feature: 'marketing',
+    message: messageFor('marketing', 'Your clients, projects and invoices are unaffected.')
+  },
+  {
+    prefix: 'content:',
+    feature: 'marketing',
+    message: messageFor('marketing', 'Your clients, projects and invoices are unaffected.')
+  },
+  {
+    prefix: 'plan:',
+    feature: 'marketing',
+    message: messageFor('marketing', 'Your business plan and its figures are somewhere else entirely.')
+  },
+  {
+    /**
      * The schedule that runs itself, not the act of chasing.
      *
      * `invoices:chaser` — the button on an overdue invoice that writes one note

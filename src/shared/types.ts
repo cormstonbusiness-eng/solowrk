@@ -15,6 +15,7 @@ import type { Review } from './review'
 import type { CapacityInput } from './capacity'
 import type { RenamePreview, StructureReport } from './structure'
 import type { ReceiptReading } from './receipts'
+import type { CadencePeriod } from './cadence'
 import type { Tier } from './entitlements'
 import type { Trial } from './licence'
 
@@ -295,6 +296,102 @@ export const CLIENT_STAGES: {
   { value: 'dormant', label: 'Dormant', colour: '#6E56CF', hint: 'Gone quiet, might return' },
   { value: 'former', label: 'Former', colour: '#E5484D', hint: 'Finished, or said no' }
 ]
+
+/* ------------------------------------------------------------------ *
+ * Marketing
+ * ------------------------------------------------------------------ */
+
+export const CHANNEL_TYPES = [
+  'social',
+  'content',
+  'paid',
+  'direct',
+  'directory',
+  'referral',
+  'event'
+] as const
+
+export type ChannelType = (typeof CHANNEL_TYPES)[number]
+
+/**
+ * Somewhere work comes from, and how often you have promised to show up there.
+ *
+ * The cadence pair is the important part. A channel with no commitment is
+ * still a channel — a directory listing does not need posting to — so zero is
+ * a real answer rather than an unset one.
+ */
+export interface MarketingChannel {
+  id: number
+  name: string
+  type: ChannelType
+  handleOrUrl: string
+  colour: string
+  isActive: boolean
+  cadenceCount: number
+  cadencePeriod: CadencePeriod
+  /** Null means no limit. Per-channel, so no table of platform limits to maintain. */
+  characterLimit: number | null
+  sortOrder: number
+}
+
+export type MarketingChannelInput = Partial<Omit<MarketingChannel, 'id'>>
+
+export const CONTENT_STATUSES = [
+  'idea',
+  'drafting',
+  'ready',
+  'scheduled',
+  'published',
+  'parked'
+] as const
+
+export type ContentStatus = (typeof CONTENT_STATUSES)[number]
+
+export interface ContentItem {
+  id: number
+  title: string
+  /**
+   * The first line, in a field of its own.
+   *
+   * It decides whether anything else gets read, and giving it its own box
+   * makes somebody think about it deliberately rather than typing past it.
+   */
+  hook: string
+  body: string
+  channelId: number | null
+  campaignId: number | null
+  status: ContentStatus
+  /** Local wall-clock, `yyyy-mm-ddThh:mm`, exactly as calendar blocks are. */
+  scheduledFor: string | null
+  publishedAt: string | null
+  linkUrl: string
+  assetPaths: string
+  sourceProjectId: number | null
+  parentContentId: number | null
+  notes: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ContentItemWithContext extends ContentItem {
+  channelName: string
+  channelColour: string
+  campaignName: string
+}
+
+export type ContentItemInput = Partial<
+  Omit<ContentItem, 'id' | 'createdAt' | 'updatedAt'>
+>
+
+/** The strategy, as a short document rather than a form. */
+export interface MarketingPlan {
+  audience: string
+  quarterlyFocus: string
+  annualBudget: Pence
+  updatedAt: string
+}
+
+export type MarketingPlanInput = Partial<Omit<MarketingPlan, 'updatedAt'>>
 
 export interface Client {
   id: number

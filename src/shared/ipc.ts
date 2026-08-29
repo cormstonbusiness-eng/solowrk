@@ -35,6 +35,12 @@ import type {
   CalendarSubscription,
   AgedDebtors,
   CapacityDefaults,
+  ContentItemInput,
+  ContentItemWithContext,
+  MarketingChannel,
+  MarketingChannelInput,
+  MarketingPlan,
+  MarketingPlanInput,
   ProjectStructure,
   ProjectUsage,
   RenamePreview,
@@ -710,6 +716,43 @@ export interface IpcContract {
    * In 3D and design work a folder structure is file paths, not tidiness — a
    * missing `02-Assets` breaks every texture reference in a scene.
    */
+  /**
+   * Marketing: channels, the plan, and content.
+   *
+   * `content:month` returns the gaps alongside the items. They are computed on
+   * read from each channel's commitment and never stored — a gap is the
+   * absence of something, and storing absences would mean reconciling them
+   * every time a real item moved.
+   */
+  'channels:list': { req: { includeInactive?: boolean } | void; res: MarketingChannel[] }
+  'channels:create': { req: MarketingChannelInput; res: MarketingChannel }
+  'channels:update': {
+    req: { id: number; patch: MarketingChannelInput }
+    res: MarketingChannel
+  }
+  /** Retires a channel. Never deletes: the consistency strip keeps its history. */
+  'channels:deactivate': { req: { id: number }; res: MarketingChannel }
+  'channels:seed': { req: void; res: number }
+
+  'plan:get': { req: void; res: MarketingPlan }
+  'plan:update': { req: MarketingPlanInput; res: MarketingPlan }
+
+  'content:month': {
+    req: { from: string; to: string }
+    res: { items: ContentItemWithContext[]; ghosts: { day: string; channelId: number }[] }
+  }
+  'content:list': {
+    req: { from?: string; to?: string; undated?: boolean; campaignId?: number } | void
+    res: ContentItemWithContext[]
+  }
+  'content:get': { req: { id: number }; res: ContentItemWithContext }
+  'content:create': { req: ContentItemInput; res: ContentItemWithContext }
+  'content:update': {
+    req: { id: number; patch: ContentItemInput }
+    res: ContentItemWithContext
+  }
+  'content:delete': { req: { id: number }; res: void }
+
   'structure:check': {
     req: { projectId: number; templateId?: number }
     res: ProjectStructure
@@ -1155,6 +1198,19 @@ export const IPC_CHANNELS = [
   'expenses:delete',
   'debtors:aged',
   'capacity:defaults',
+  'channels:list',
+  'channels:create',
+  'channels:update',
+  'channels:deactivate',
+  'channels:seed',
+  'plan:get',
+  'plan:update',
+  'content:month',
+  'content:list',
+  'content:get',
+  'content:create',
+  'content:update',
+  'content:delete',
   'structure:check',
   'structure:checkAll',
   'structure:repair',
