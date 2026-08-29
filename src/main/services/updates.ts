@@ -4,6 +4,8 @@ import { app, type BrowserWindow } from 'electron'
 import electronUpdater from 'electron-updater'
 import type { UpdateState } from '@shared/types'
 import { session } from './session'
+import { readConfig } from './config'
+import { UPDATE_FEED } from '@shared/site'
 import { push } from './notifications'
 
 /**
@@ -162,9 +164,24 @@ export function startUpdates(windowGetter: () => BrowserWindow | null): void {
     // Being offline is the common case and is not worth alarming anyone about,
     // so it is recorded but the status goes back to idle rather than to error.
     const offline = /net::|ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ETIMEDOUT/i.test(error.message)
+
+    /**
+     * A licence that no longer receives updates (§3.5).
+     *
+     * The feed answers 204 with an empty body, which electron-updater reaches
+     * as a parse failure rather than as an answer. It is reported as "current"
+     * — which is true, as far as this installation is concerned — because the
+     * perpetual fallback takes away updates and nothing else, and an error
+     * banner would tell somebody their app was broken when it is working
+     * exactly as they were promised.
+     */
+    const noUpdatesForYou = /HTTP 204|Cannot parse|ENOENT.*latest\.yml|status 204/i.test(
+      error.message
+    )
+
     publish({
-      status: offline ? 'idle' : 'error',
-      error: offline ? '' : error.message,
+      status: noUpdatesForYou ? 'current' : offline ? 'idle' : 'error',
+      error: noUpdatesForYou || offline ? '' : error.message,
       percent: 0
     })
   })
@@ -173,12 +190,40 @@ export function startUpdates(windowGetter: () => BrowserWindow | null): void {
   timer = setInterval(() => void check(), CHECK_INTERVAL_MS)
 }
 
+/**
+ * Point the updater at our own manifest, carrying the licence.
+ *
+ * §3.5's perpetual fallback needs the *server* to decide who still gets
+ * updates: a lapsed subscription keeps every feature working forever and
+ * stops receiving new versions. That decision cannot live in the client —
+ * "do not disable features in the client" is the whole point — and it cannot
+ * live in a static GitHub feed either, because static hosting cannot read a
+ * licence.
+ *
+ * So the feed becomes a route we control, and the licence rides along as a
+ * bearer token. The route serves the manifest or answers 204, and the
+ * installer bytes themselves still come from GitHub via a redirect, which
+ * keeps installer bandwidth off Vercel.
+ */
+async function aimFeed(): Promise<void> {
+  const { licenceToken } = await readConfig()
+
+  autoUpdater.setFeedURL({ provider: 'generic', url: UPDATE_FEED })
+
+  // Cleared rather than left stale when there is no licence: a signed-out
+  // machine asking with somebody else's old token would be given their answer.
+  autoUpdater.requestHeaders = licenceToken
+    ? { Authorization: `Bearer ${licenceToken}` }
+    : {}
+}
+
 /** Ask now. Safe to call repeatedly; a check already running is left alone. */
 export async function check(): Promise<UpdateState> {
   if (!app.isPackaged) return state
   if (state.status === 'downloading' || state.status === 'checking') return state
 
   try {
+    await aimFeed()
     await autoUpdater.checkForUpdates()
   } catch (error) {
     publish({

@@ -54,3 +54,13 @@ export function foundingCheckoutUrl(options: { referral?: string } = {}): string
 
   return `${SITE}/api/checkout?${query.toString()}`
 }
+
+/**
+ * The update manifest, which is ours rather than GitHub's.
+ *
+ * §3.5 needs the server to decide who still receives updates, and static
+ * hosting cannot read a licence. The route checks the token and either serves
+ * the manifest or answers 204; the installer bytes it points at still live on
+ * GitHub, so installer bandwidth stays off Vercel.
+ */
+export const UPDATE_FEED = `${SITE}/api/updates/`

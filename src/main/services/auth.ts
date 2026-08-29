@@ -3,6 +3,7 @@ import { hostname } from 'node:os'
 import type { AuthAccount, AuthState } from '@shared/types'
 import { readConfig, updateConfig } from './config'
 import { entitlement } from './entitlements'
+import { fingerprint } from './fingerprint'
 
 /**
  * The account a licence belongs to.
@@ -49,15 +50,23 @@ interface SignInResult {
 /**
  * Whether an account server is configured.
  *
- * Empty means no backend exists yet, and the app runs completely ungated. That
- * is the honest state today: gating the app against a server that does not
- * exist would lock everyone out, including the person who wrote it.
+ * Empty no longer means "ungated" — it means nobody has signed in, and an
+ * installation with no licence is on the trial and then on Free. That changed
+ * with the pricing rework and it is the single most important line of it: when
+ * empty meant ungated, deleting one JSON file was free Pro forever.
  */
 export async function isConfigured(): Promise<boolean> {
   return (await readConfig()).apiBaseUrl.trim() !== ''
 }
 
-/** Stable per installation, so seats can be counted without a fingerprint. */
+/**
+ * Stable per installation.
+ *
+ * Kept alongside the hardware fingerprint rather than replaced by it: this is
+ * what the seat list on the website is keyed on, and it survives a motherboard
+ * that will not give its serial. The fingerprint is what the *licence* is
+ * bound to.
+ */
 async function deviceId(): Promise<string> {
   const config = await readConfig()
   if (config.deviceId) return config.deviceId
@@ -78,12 +87,24 @@ async function deviceId(): Promise<string> {
  * `name` is the machine's own name, so the account page can offer "release
  * this seat" against something recognisable. A list of four UUIDs is not a
  * list anyone can choose from.
+ *
+ * `fingerprint` is the hashed motherboard serial and machine GUID (§8), which
+ * the signed licence is bound to. It is a one-way hash and never the serials
+ * themselves — the sign-in screen promises that only the licence, the email
+ * and the computer's name are sent, and a raw motherboard serial would make
+ * that untrue.
  */
-async function device(): Promise<{ deviceId: string; platform: string; deviceName: string }> {
+async function device(): Promise<{
+  deviceId: string
+  platform: string
+  deviceName: string
+  fingerprint: string
+}> {
   return {
     deviceId: await deviceId(),
     platform: process.platform === 'win32' ? 'windows' : process.platform,
-    deviceName: hostname()
+    deviceName: hostname(),
+    fingerprint: await fingerprint()
   }
 }
 
@@ -127,7 +148,8 @@ async function call<T>(
 
     // 402 is the payment case, and it is the one status that does not end the
     // session: the account is real, the subscription simply is not paid. It
-    // drops the app into read-only instead of shutting the door.
+    // raises a banner and changes nothing else — §3.4 holds the tier open
+    // through Stripe's retry window plus five days.
     if (response.status === 402) {
       const lapsed = new Error(detail?.message ?? 'This account does not have an active licence.')
       lapsed.name = 'LapsedError'
