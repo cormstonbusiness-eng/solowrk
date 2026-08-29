@@ -11,7 +11,7 @@ vi.mock('electron', () => ({
 
 const { readConfig, updateConfig } = await import('./config')
 const { setApiBaseUrl, signIn } = await import('./auth')
-const { checkLicence } = await import('./licence')
+const { checkLicence, startLicenceChecks, stopLicenceChecks } = await import('./licence')
 
 const SERVER = 'https://example.com/api'
 
@@ -156,5 +156,71 @@ describe('the background licence check', () => {
     )
 
     await expect(checkLicence()).resolves.toBeUndefined()
+  })
+})
+describe('a tier that changes with no server involved', () => {
+  /**
+   * The regression this exists for.
+   *
+   * `checkLicence` used to return early whenever no account server was
+   * configured — reasonable when a licence could only ever come from one. But
+   * a trial expires from a date in the config and needs no network at all, so
+   * the early return meant the main process quietly began refusing while the
+   * renderer carried on showing Pro: no padlocks, Marketing still in the
+   * sidebar, and a raw IPC error the moment anybody clicked it.
+   */
+  function watchPushes(): { sent: unknown[] } {
+    const sent: unknown[] = []
+    startLicenceChecks(
+      () => ({ webContents: { send: (_e: string, payload: unknown) => sent.push(payload) } }) as never
+    )
+    // The timers are not the thing under test, and a 15s first check would
+    // outlive the test either way.
+    stopLicenceChecks()
+    return { sent }
+  }
+
+  it('tells the renderer when the trial runs out', async () => {
+    const { sent } = watchPushes()
+
+    // Mid-trial: the app has already told the renderer it is Pro.
+    await updateConfig({ installedAt: new Date(Date.now() - 3 * 864e5).toISOString() })
+    await checkLicence()
+    sent.length = 0
+
+    // The clock moves past day fourteen while the app is left open.
+    await updateConfig({ installedAt: new Date(Date.now() - 20 * 864e5).toISOString() })
+    await checkLicence()
+
+    expect(sent).toHaveLength(1)
+    expect(sent[0]).toMatchObject({ tier: 'free' })
+  })
+
+  it('says nothing when nothing moved', async () => {
+    // It runs every six hours forever. Pushing on every tick would re-render
+    // the app four times a day for no reason.
+    const { sent } = watchPushes()
+
+    await updateConfig({ installedAt: new Date(Date.now() - 3 * 864e5).toISOString() })
+    await checkLicence()
+    sent.length = 0
+
+    await checkLicence()
+    expect(sent).toHaveLength(0)
+  })
+
+  it('reports the countdown ticking down', async () => {
+    // The trial bar reads `daysLeft`, so a day passing has to reach it.
+    const { sent } = watchPushes()
+
+    await updateConfig({ installedAt: new Date(Date.now() - 10 * 864e5).toISOString() })
+    await checkLicence()
+    sent.length = 0
+
+    await updateConfig({ installedAt: new Date(Date.now() - 11 * 864e5).toISOString() })
+    await checkLicence()
+
+    expect(sent).toHaveLength(1)
+    expect(sent[0]).toMatchObject({ trial: { daysLeft: 3, showCountdown: true } })
   })
 })

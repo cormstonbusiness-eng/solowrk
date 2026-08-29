@@ -4,7 +4,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { registerIpcHandlers } from './ipc'
 import { broadcastWindowState } from './ipc/window'
 import { session } from './services/session'
-import { startLicenceChecks, stopLicenceChecks } from './services/licence'
+import { checkLicenceOnFocus, startLicenceChecks, stopLicenceChecks } from './services/licence'
 import { startReminders, stopReminders } from './services/reminders'
 import { startScheduler, stopScheduler } from './services/scheduler'
 import { startUpdates, stopUpdates } from './services/updates'
@@ -51,6 +51,10 @@ function createWindow(): BrowserWindow {
   window.on('unmaximize', sync)
   window.on('focus', sync)
   window.on('blur', sync)
+
+  // Coming back to the app is when a tier is most likely to have moved under
+  // it — an upgrade bought in the browser, or a trial that ran out overnight.
+  window.on('focus', checkLicenceOnFocus)
 
   // External links open in the user's browser, never inside the app shell.
   window.webContents.setWindowOpenHandler(({ url }) => {
