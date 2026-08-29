@@ -124,6 +124,21 @@ class Session {
   }
 
   private async openNow(path: string): Promise<void> {
+    /**
+     * Already open here: nothing to do.
+     *
+     * Serialising alone was not enough. The second caller waited its turn and
+     * then ran a whole second open — which starts by closing the database that
+     * was working perfectly well, so every query landing in that window came
+     * back "No workspace is open". Three of them did, on the first run after
+     * the change.
+     *
+     * Re-scaffolding on each open is deliberate and still happens; it heals a
+     * folder the user has deleted from. It just does not need doing twice in
+     * the same second by two calls that wanted the same thing.
+     */
+    if (this.db && this.workspacePath === path) return
+
     this.close()
 
     // Re-scaffold on every open, not only on create. Every mkdir is recursive
