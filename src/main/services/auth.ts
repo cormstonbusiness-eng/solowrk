@@ -204,7 +204,7 @@ async function store(result: SignInResult): Promise<void> {
 
 export async function authState(extra: Partial<AuthState> = {}): Promise<AuthState> {
   const config = await readConfig()
-  const { tier, trial, updates } = await entitlement()
+  const { tier, trial, updates, licence } = await entitlement()
 
   return {
     signedIn: config.authToken !== null,
@@ -219,6 +219,7 @@ export async function authState(extra: Partial<AuthState> = {}): Promise<AuthSta
     trial,
     paymentFailed: config.paymentFailedAt !== null,
     updatesEndedOn: updates ? '' : (config.updatesEndedOn ?? ''),
+    foundingNumber: licence?.foundingNumber ?? 0,
     error: '',
     ...extra
   }

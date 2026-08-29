@@ -165,8 +165,8 @@ export function App(): React.JSX.Element {
       .invoke('auth:state')
       .then(setAuth)
       .catch(() =>
-        // An unreadable config must not be a locked door. Treat it as "no
-        // account server", which is how the app behaves for everyone today.
+        // An unreadable config must not be a locked door. Nothing is locked
+        // either way — the worst this costs is a restart.
         setAuth({
           signedIn: false,
           account: null,
@@ -180,6 +180,7 @@ export function App(): React.JSX.Element {
           trial: { active: false, daysLeft: 0, showCountdown: false },
           paymentFailed: false,
           updatesEndedOn: '',
+          foundingNumber: 0,
           error: ''
         })
       )

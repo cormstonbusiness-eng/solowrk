@@ -543,6 +543,13 @@ export interface AuthState {
    * on working; only the update feed refuses. Empty while updates continue.
    */
   updatesEndedOn: string
+  /**
+   * Founding licence position, 1–200, or 0 for everyone else.
+   *
+   * Surfaced in About because it costs nothing and it is most of what somebody
+   * is buying at that price — §3.2 says so in as many words.
+   */
+  foundingNumber: number
   error: string
 }
 

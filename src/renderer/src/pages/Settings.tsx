@@ -37,7 +37,7 @@ import { currentTaxYear, today as todayString } from '@shared/taxYear'
 import { formatDate } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { useWorkspace } from '@/hooks/useWorkspace'
-import { useFeature } from '@/lib/features'
+import { useAuthState, useFeature } from '@/lib/features'
 import { LIMIT_LABELS, TIER_NAMES } from '@shared/entitlements'
 import { useTour } from '@/tour/TourProvider'
 
@@ -1396,11 +1396,33 @@ function VersionFooter(): React.JSX.Element {
     queryKey: ['app', 'version'],
     queryFn: () => window.solo.invoke('app:version')
   })
+  const auth = useAuthState()
 
   return (
-    <p className="py-2 text-center text-[11px] text-white/25">
-      SoloWrk v{version ?? '—'}
-    </p>
+    <div className="flex flex-col items-center gap-1 py-2">
+      <p className="text-[11px] text-white/25">SoloWrk v{version ?? '—'}</p>
+
+      {/*
+        §3.2 asks for this and it is worth the two lines. It costs nothing and
+        it is most of what somebody is buying at that price — a number that
+        says they were early, in the place they look when they want to know
+        what they have got.
+      */}
+      {auth && auth.foundingNumber > 0 && (
+        <p className="text-[11px] text-accent/70">Founding licence #{auth.foundingNumber}</p>
+      )}
+
+      {/*
+        The one line the perpetual fallback owes somebody (§3.5). Their app
+        works and will carry on working; what stopped is new versions, and
+        saying so plainly here is what stops it looking like neglect.
+      */}
+      {auth?.updatesEndedOn && (
+        <p className="text-[11px] text-faint">
+          Updates ended {formatDate(auth.updatesEndedOn)}. Resubscribe to continue receiving them.
+        </p>
+      )}
+    </div>
   )
 }
 
