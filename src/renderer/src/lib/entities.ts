@@ -3,6 +3,7 @@ import {
   FileText,
   FolderKanban,
   ListChecks,
+  Megaphone,
   Receipt,
   ScrollText,
   StickyNote,
@@ -56,7 +57,13 @@ export const ENTITY_META: Record<EntityType, EntityMeta> = {
   // something, and half of them are nobody's meeting.
   // No route: a link to /calendar cannot know which week the block is in, and
   // landing on today with the block off screen is worse than not offering it.
-  block: { noun: 'block', plural: 'Calendar', icon: CalendarClock }
+  block: { noun: 'block', plural: 'Calendar', icon: CalendarClock },
+  campaign: {
+    noun: 'campaign',
+    plural: 'Campaigns',
+    icon: Megaphone,
+    route: (id) => `/marketing?campaign=${id}`
+  }
 }
 
 /** `client:12`, the form a ref takes in a URL. */

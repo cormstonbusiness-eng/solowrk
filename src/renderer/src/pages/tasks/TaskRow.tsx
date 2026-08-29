@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'motion/react'
-import { Archive, Check, ChevronRight, GripVertical, Trash2 } from 'lucide-react'
+import { Archive, Check, ChevronRight, GripVertical, Megaphone, Trash2 } from 'lucide-react'
 import type { EntityRef, TaskWithContext } from '@shared/types'
 import { PRIORITIES } from '@shared/types'
 import { Dot } from '@/components/ui/Empty'
@@ -181,6 +181,16 @@ export function TaskRow({
         <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-faint">
           <Dot colour={task.projectColour ?? '#8a8a93'} size={6} />
           <span className="truncate">{task.projectName}</span>
+        </span>
+      )}
+
+      {/* A campaign owns tasks the same way a project does, so a task from one
+          says where it came from rather than reading as an orphan in the list.
+          Both can show: a campaign run for a client has both. */}
+      {showProject && task.campaignName && (
+        <span className="flex min-w-0 items-center gap-1.5 text-[11px] text-faint">
+          <Megaphone size={10} strokeWidth={1.75} className="shrink-0" />
+          <span className="truncate">{task.campaignName}</span>
         </span>
       )}
 

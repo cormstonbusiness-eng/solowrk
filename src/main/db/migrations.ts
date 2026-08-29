@@ -2040,5 +2040,45 @@ export const migrations: Migration[] = [
 
       CREATE INDEX idx_library_type ON library_assets(type, archived);
     `
+  },
+  {
+    id: 31,
+    name: 'campaign_work',
+    sql: `
+      -- A campaign is a thing you do, not just a thing you record. It already
+      -- gathers content through content_items.campaign_id; this gives it the
+      -- other two halves of real work: the jobs that have to happen, and the
+      -- files they produce.
+
+      /* ---------------------------------------------------------------- *
+       * Tasks that belong to a campaign
+       * ---------------------------------------------------------------- */
+
+      -- A column rather than a row in \`links\`, because this is ownership and
+      -- not association. Every existing task surface — the list, the board,
+      -- the project filter, what is due on the dashboard — reads a task's
+      -- owner from a column. A campaign task reached only through the link
+      -- table would exist and be invisible everywhere somebody looks for work.
+      --
+      -- SET NULL, unlike project_id's CASCADE. Deleting a campaign must not
+      -- delete the work somebody did for it: an orphaned task in the list is
+      -- recoverable, and a silently deleted one is not.
+      ALTER TABLE tasks ADD COLUMN campaign_id INTEGER
+        REFERENCES marketing_campaigns(id) ON DELETE SET NULL;
+
+      CREATE INDEX idx_tasks_campaign ON tasks(campaign_id);
+
+      /* ---------------------------------------------------------------- *
+       * Somewhere for a campaign's files to live
+       * ---------------------------------------------------------------- */
+
+      -- Workspace-relative, exactly as clients and projects hold theirs, so
+      -- the Files module lists a campaign folder without knowing campaigns
+      -- exist. Empty for campaigns made before this ran; the service makes the
+      -- folder on first use rather than this migration touching the disk,
+      -- because a migration that half-writes to the filesystem cannot be
+      -- rolled back with the transaction it runs in.
+      ALTER TABLE marketing_campaigns ADD COLUMN folder TEXT NOT NULL DEFAULT '';
+    `
   }
 ]

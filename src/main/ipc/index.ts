@@ -146,6 +146,21 @@ import { agedDebtors } from '../services/debtors'
 import { fileWeeklyReview, weeklyReview } from '../services/review'
 import { capacityDefaults } from '../services/capacity'
 import {
+  applyToMarketing,
+  buildPlanFromAnswers,
+  currentMarketingAudience,
+  marketingFromPlan,
+  prefillAnswers
+} from '../ai/planInterview'
+import {
+  archiveCampaign,
+  campaignWork,
+  createCampaign,
+  getCampaign,
+  listCampaigns,
+  updateCampaign
+} from '../services/campaigns'
+import {
   createChannel,
   deactivateChannel,
   getPlan,
@@ -223,18 +238,18 @@ import {
 } from '../services/subscriptions'
 import { nowStamp } from '@shared/calendar'
 import {
-  createCampaign,
+  createCampaign as createPostCampaign,
   createPillar,
   createPost,
-  deleteCampaign,
+  deleteCampaign as deletePostCampaign,
   deletePillar,
   deletePost,
   getPost,
-  listCampaigns,
+  listCampaigns as listPostCampaigns,
   listPillars,
   listPosts,
   marketingSummary,
-  updateCampaign,
+  updateCampaign as updatePostCampaign,
   updatePillar,
   updatePost
 } from '../services/marketing'
@@ -256,6 +271,7 @@ import {
   attachPlan,
   detachPlan,
   planStatus,
+  readPlan,
   startPlan,
   writePlan
 } from '../ai/businessPlan'
@@ -874,6 +890,16 @@ const handlers: Handlers = {
 
   'capacity:defaults': () => capacityDefaults(session.requireDb()),
 
+  'campaigns:list': (_g, filter) => listCampaigns(session.requireDb(), filter ?? {}),
+  'campaigns:get': (_g, { id }) => getCampaign(session.requireDb(), id),
+  'campaigns:create': (_g, input) =>
+    createCampaign(session.requireDb(), session.requirePath(), input),
+  'campaigns:update': (_g, { id, patch }) => updateCampaign(session.requireDb(), id, patch),
+  'campaigns:archive': (_g, { id, archived }) =>
+    archiveCampaign(session.requireDb(), id, archived ?? true),
+  'campaigns:work': (_g, { id }) =>
+    campaignWork(session.requireDb(), session.requirePath(), id),
+
   'channels:list': (_g, request) =>
     listChannels(session.requireDb(), request?.includeInactive),
   'channels:create': (_g, input) => createChannel(session.requireDb(), input),
@@ -883,6 +909,17 @@ const handlers: Handlers = {
     const db = session.requireDb()
     return seedChannels(db, await remaining(db, 'channels'))
   },
+
+  'ai:planPrefill': () => prefillAnswers(session.requireDb()),
+  'ai:buildBusinessPlan': (_g, { answers }) =>
+    buildPlanFromAnswers(session.requireDb(), session.requirePath(), answers),
+
+  'plan:suggestFromBusiness': async () => {
+    const db = session.requireDb()
+    const text = (await readPlan(db, session.requirePath())) ?? ''
+    return { ...marketingFromPlan(db, text), currentAudience: currentMarketingAudience(db) }
+  },
+  'plan:applyFromBusiness': (_g, request) => applyToMarketing(session.requireDb(), request),
 
   'plan:get': () => getPlan(session.requireDb()),
   'plan:update': (_g, patch) => updatePlan(session.requireDb(), patch),
@@ -1110,12 +1147,12 @@ const handlers: Handlers = {
   'ai:startBusinessPlan': () => startPlan(session.requireDb(), session.requirePath()),
 
   'marketing:campaigns': (_g, args) =>
-    listCampaigns(session.requireDb(), args?.includeArchived ?? false),
-  'marketing:createCampaign': (_g, input) => createCampaign(session.requireDb(), input),
+    listPostCampaigns(session.requireDb(), args?.includeArchived ?? false),
+  'marketing:createCampaign': (_g, input) => createPostCampaign(session.requireDb(), input),
   'marketing:updateCampaign': (_g, { id, patch }) =>
-    updateCampaign(session.requireDb(), id, patch),
+    updatePostCampaign(session.requireDb(), id, patch),
   'marketing:deleteCampaign': (_g, { id }) => {
-    deleteCampaign(session.requireDb(), id)
+    deletePostCampaign(session.requireDb(), id)
   },
 
   'marketing:pillars': () => listPillars(session.requireDb()),

@@ -109,3 +109,20 @@ export function formatDuration(seconds: number): string {
 export function toDateInput(iso: string | null): string {
   return iso ? iso.slice(0, 10) : ''
 }
+
+/**
+ * A file size, in the largest unit that leaves a number worth reading.
+ *
+ * Zero is an em dash rather than "0 B", because an empty file is a fact about
+ * the file and "0 B" reads as a failed measurement.
+ *
+ * 1024 rather than 1000: this reports what Explorer reports, and a size that
+ * disagreed with the one beside it in the same folder would be the wrong kind
+ * of correct.
+ */
+export function formatSize(bytes: number): string {
+  if (bytes === 0) return '—'
+  const units = ['B', 'KB', 'MB', 'GB', 'TB']
+  const power = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+  return `${(bytes / 1024 ** power).toFixed(power === 0 ? 0 : 1)} ${units[power]}`
+}

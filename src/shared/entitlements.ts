@@ -219,6 +219,7 @@ export const LIMITS = [
   'activeTimers',
   'assistantMessages',
   'channels',
+  'campaigns',
   'devices'
 ] as const
 
@@ -244,6 +245,7 @@ export const LIMIT_LABELS: Record<Limit, string> = {
   activeTimers: 'Running timers',
   assistantMessages: 'Assistant messages this month',
   channels: 'Marketing channels',
+  campaigns: 'Campaigns on the go',
   devices: 'Computers'
 }
 
@@ -274,6 +276,7 @@ export const TIER_LIMITS: Record<Tier, Record<Limit, number>> = {
      * "0 of 0" would explain it again, worse.
      */
     channels: 0,
+    campaigns: 0,
     devices: 1
   },
   basicPlus: {
@@ -286,6 +289,12 @@ export const TIER_LIMITS: Record<Tier, Record<Limit, number>> = {
     // §12. Three is enough to commit to properly and few enough that a
     // freelancer running six channels badly is the one being sold Pro.
     channels: 3,
+    /**
+     * §12's "3 active". Counted as campaigns still in play — one that is
+     * complete or abandoned has stopped costing anything and should not hold
+     * a slot against you forever.
+     */
+    campaigns: 3,
     devices: 2
   },
   pro: {
@@ -296,6 +305,7 @@ export const TIER_LIMITS: Record<Tier, Record<Limit, number>> = {
     activeTimers: UNLIMITED,
     assistantMessages: UNLIMITED,
     channels: UNLIMITED,
+    campaigns: UNLIMITED,
     devices: 2
   }
 }

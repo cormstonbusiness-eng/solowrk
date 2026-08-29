@@ -7,6 +7,7 @@
  * here, it isn't reachable from the renderer.
  */
 
+import type { PrefillKey } from './planInterview'
 import type {
   AutomationRule,
   AutomationRuleInput,
@@ -35,6 +36,9 @@ import type {
   CalendarSubscription,
   AgedDebtors,
   CapacityDefaults,
+  CampaignInput,
+  CampaignWithCounts,
+  CampaignWork,
   ContentItemInput,
   ContentItemWithContext,
   MarketingChannel,
@@ -59,8 +63,8 @@ import type {
   ReceiptReading,
   DerivedMarker,
   EditScope,
-  Campaign,
-  CampaignWithCounts,
+  PostCampaign,
+  PostCampaignWithCounts,
   Category,
   ChatMessage,
   ContentPillar,
@@ -228,6 +232,17 @@ export interface IpcContract {
    * Starts an editable markdown plan and attaches it — from the blank template,
    * or carrying across the text of a PDF or Word plan already attached.
    */
+  /**
+   * The guided plan.
+   *
+   * `ai:planPrefill` is the handful of answers the app can take from the
+   * workspace; `ai:buildBusinessPlan` turns a full set of answers into the
+   * same kind of markdown document attaching a file produces, so there is no
+   * second class of plan.
+   */
+  'ai:planPrefill': { req: void; res: Partial<Record<PrefillKey, string>> }
+  'ai:buildBusinessPlan': { req: { answers: Record<string, string> }; res: BusinessPlanStatus }
+
   'ai:startBusinessPlan': { req: void; res: BusinessPlanStatus }
 
   /** Small workspace-scoped UI flags — see app_state in the database. */
@@ -724,6 +739,24 @@ export interface IpcContract {
    * absence of something, and storing absences would mean reconciling them
    * every time a real item moved.
    */
+  /**
+   * Campaigns: the push, and the work that goes into it.
+   *
+   * `campaigns:work` gathers the three things that hang off one — content,
+   * tasks and the files in its folder — in a single call, because a record
+   * that fetched them separately would draw itself in three stages.
+   */
+  'campaigns:list': {
+    req: { includeArchived?: boolean; templates?: boolean } | void
+    res: CampaignWithCounts[]
+  }
+  'campaigns:get': { req: { id: number }; res: CampaignWithCounts }
+  'campaigns:create': { req: CampaignInput; res: CampaignWithCounts }
+  'campaigns:update': { req: { id: number; patch: CampaignInput }; res: CampaignWithCounts }
+  /** Never deletes: content, tasks and the folder all keep pointing at it. */
+  'campaigns:archive': { req: { id: number; archived?: boolean }; res: CampaignWithCounts }
+  'campaigns:work': { req: { id: number }; res: CampaignWork }
+
   'channels:list': { req: { includeInactive?: boolean } | void; res: MarketingChannel[] }
   'channels:create': { req: MarketingChannelInput; res: MarketingChannel }
   'channels:update': {
@@ -733,6 +766,24 @@ export interface IpcContract {
   /** Retires a channel. Never deletes: the consistency strip keeps its history. */
   'channels:deactivate': { req: { id: number }; res: MarketingChannel }
   'channels:seed': { req: void; res: number }
+
+  /**
+   * What the business plan says that the marketing plan should know.
+   *
+   * Under `plan:` rather than `ai:` deliberately — these write to Marketing,
+   * and `plan:` is the prefix the feature gate already covers. Suggesting is
+   * separate from applying because Marketing may hold an audience the user
+   * wrote by hand, and replacing it without asking is how somebody stops
+   * trusting a document.
+   */
+  'plan:suggestFromBusiness': {
+    req: void
+    res: { audience: string; newChannels: string[]; empty: boolean; currentAudience: string }
+  }
+  'plan:applyFromBusiness': {
+    req: { audience?: string; channels?: string[] }
+    res: { audience: boolean; channelsCreated: number }
+  }
 
   'plan:get': { req: void; res: MarketingPlan }
   'plan:update': { req: MarketingPlanInput; res: MarketingPlan }
@@ -944,9 +995,18 @@ export interface IpcContract {
     res: string | null
   }
 
-  'marketing:campaigns': { req: { includeArchived?: boolean } | void; res: CampaignWithCounts[] }
-  'marketing:createCampaign': { req: Partial<Campaign> & { name: string }; res: Campaign }
-  'marketing:updateCampaign': { req: { id: number; patch: Partial<Campaign> }; res: Campaign }
+  'marketing:campaigns': {
+    req: { includeArchived?: boolean } | void
+    res: PostCampaignWithCounts[]
+  }
+  'marketing:createCampaign': {
+    req: Partial<PostCampaign> & { name: string }
+    res: PostCampaign
+  }
+  'marketing:updateCampaign': {
+    req: { id: number; patch: Partial<PostCampaign> }
+    res: PostCampaign
+  }
   'marketing:deleteCampaign': { req: { id: number }; res: void }
 
   'marketing:pillars': { req: void; res: ContentPillar[] }
@@ -1063,6 +1123,8 @@ export const IPC_CHANNELS = [
   'ai:detachBusinessPlan',
   'ai:openBusinessPlan',
   'ai:writeBusinessPlan',
+  'ai:planPrefill',
+  'ai:buildBusinessPlan',
   'ai:startBusinessPlan',
   'state:get',
   'state:set',
@@ -1198,11 +1260,19 @@ export const IPC_CHANNELS = [
   'expenses:delete',
   'debtors:aged',
   'capacity:defaults',
+  'campaigns:list',
+  'campaigns:get',
+  'campaigns:create',
+  'campaigns:update',
+  'campaigns:archive',
+  'campaigns:work',
   'channels:list',
   'channels:create',
   'channels:update',
   'channels:deactivate',
   'channels:seed',
+  'plan:suggestFromBusiness',
+  'plan:applyFromBusiness',
   'plan:get',
   'plan:update',
   'content:month',

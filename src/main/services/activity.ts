@@ -91,7 +91,8 @@ const NOUNS: Record<EntityType, string> = {
   note: 'note',
   document: 'document',
   expense: 'expense',
-  block: 'block'
+  block: 'block',
+  campaign: 'campaign'
 }
 
 /**

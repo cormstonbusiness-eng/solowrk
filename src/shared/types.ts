@@ -336,6 +336,71 @@ export interface MarketingChannel {
 
 export type MarketingChannelInput = Partial<Omit<MarketingChannel, 'id'>>
 
+export const CAMPAIGN_TYPES = [
+  'content',
+  'paid_ads',
+  'outreach',
+  'launch',
+  'event',
+  'always_on'
+] as const
+
+export type CampaignType = (typeof CAMPAIGN_TYPES)[number]
+
+export const CAMPAIGN_STATUSES = ['planning', 'active', 'complete', 'abandoned'] as const
+
+export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number]
+
+/**
+ * A time-boxed push with a goal, and the work that goes into it.
+ *
+ * Three things hang off one: the content written for it, the tasks that have
+ * to happen, and a folder for the files they produce. That is the difference
+ * between a campaign and a label on some posts.
+ */
+export interface Campaign {
+  id: number
+  name: string
+  objective: string
+  campaignType: CampaignType
+  status: CampaignStatus
+  startsOn: string | null
+  endsOn: string | null
+  budget: Pence
+  targetMetric: string
+  targetValue: number | null
+  brief: string
+  /**
+   * Written at completion, which is the only time it will ever be written.
+   * It is the mechanism by which somebody stops repeating a costly mistake.
+   */
+  retrospective: string
+  /** A saved campaign that exists to be copied, not run. */
+  isTemplate: boolean
+  /** Workspace-relative. Empty until the campaign first needs somewhere. */
+  folder: string
+  archived: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type CampaignInput = Partial<Omit<Campaign, 'id' | 'createdAt' | 'updatedAt' | 'folder'>>
+
+/** A campaign with the counts a list row needs, so no page counts for itself. */
+export interface CampaignWithCounts extends Campaign {
+  contentCount: number
+  publishedCount: number
+  taskCount: number
+  taskDoneCount: number
+}
+
+/** Everything a campaign gathers, for its record. */
+export interface CampaignWork {
+  content: ContentItemWithContext[]
+  tasks: TaskWithContext[]
+  files: FileEntry[]
+}
+
 export const CONTENT_STATUSES = [
   'idea',
   'drafting',
@@ -488,6 +553,16 @@ export const PRIORITIES: { value: number; label: string; colour: string }[] = [
 export interface Task {
   id: number
   projectId: number | null
+  /**
+   * The campaign this belongs to, when it is marketing work rather than
+   * client work.
+   *
+   * A second owner rather than a replacement: a task has a project or a
+   * campaign or neither, and nothing stops it having both if somebody is
+   * running a campaign for a client. Ownership lives in a column because
+   * every surface that shows work reads it from one.
+   */
+  campaignId: number | null
   categoryId: number | null
   parentId: number | null
   title: string
@@ -525,6 +600,7 @@ export interface Task {
 export interface TaskWithContext extends Task {
   projectName: string | null
   projectColour: string | null
+  campaignName: string | null
   categoryName: string | null
   categoryColour: string | null
   subtaskCount: number
@@ -799,6 +875,8 @@ export type TaskInput = Partial<Omit<Task, 'id' | 'createdAt' | 'updatedAt'>> & 
 
 export interface TaskFilter {
   projectId?: number | null
+  /** Null asks for tasks belonging to no campaign, as `projectId` does. */
+  campaignId?: number | null
   categoryId?: number | null
   status?: TaskStatus
   /** Only top-level tasks when true — subtasks come back nested with their parent. */
@@ -1845,16 +1923,31 @@ export interface SocialAccount {
   updatedAt: string
 }
 
-export type CampaignStatus = 'planned' | 'active' | 'finished' | 'archived'
+/**
+ * The campaigns that group *posts*, from the scheduler this module is
+ * replacing.
+ *
+ * Renamed rather than deleted. The Marketing specification's campaign is a
+ * different thing living in a different table — it carries a brief, a budget,
+ * tasks and a folder — and it has the plain name because it is the one
+ * staying. These keep the `Post` prefix so the two cannot be confused while
+ * the old post scheduler is still wired up, and so whoever removes it can see
+ * at a glance what belongs to it.
+ */
+export type PostCampaignStatus = 'planned' | 'active' | 'finished' | 'archived'
 
-export const CAMPAIGN_STATUSES: { value: CampaignStatus; label: string; colour: string }[] = [
+export const POST_CAMPAIGN_STATUSES: {
+  value: PostCampaignStatus
+  label: string
+  colour: string
+}[] = [
   { value: 'planned', label: 'Planned', colour: '#8a8a93' },
   { value: 'active', label: 'Active', colour: '#3B82F6' },
   { value: 'finished', label: 'Finished', colour: '#30A46C' },
   { value: 'archived', label: 'Archived', colour: '#5a5a63' }
 ]
 
-export interface Campaign {
+export interface PostCampaign {
   id: number
   name: string
   description: string
@@ -1862,12 +1955,12 @@ export interface Campaign {
   colour: string
   startsOn: string | null
   endsOn: string | null
-  status: CampaignStatus
+  status: PostCampaignStatus
   createdAt: string
   updatedAt: string
 }
 
-export interface CampaignWithCounts extends Campaign {
+export interface PostCampaignWithCounts extends PostCampaign {
   postCount: number
   publishedCount: number
 }
@@ -2153,7 +2246,8 @@ export const ENTITY_TYPES = [
   'note',
   'document',
   'expense',
-  'block'
+  'block',
+  'campaign'
 ] as const
 
 export type EntityType = (typeof ENTITY_TYPES)[number]

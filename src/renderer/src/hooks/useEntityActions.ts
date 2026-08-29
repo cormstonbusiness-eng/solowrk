@@ -23,7 +23,9 @@ const DOMAINS: Record<EntityType, Domain[]> = {
   note: ['notes'],
   document: ['documents'],
   expense: ['expenses', 'finance'],
-  block: ['calendar']
+  block: ['calendar'],
+  // A campaign owns content and tasks, so removing one restages both.
+  campaign: ['marketing', 'tasks']
 }
 
 const NOUNS: Record<EntityType, string> = {
@@ -35,7 +37,8 @@ const NOUNS: Record<EntityType, string> = {
   note: 'Note',
   document: 'Document',
   expense: 'Expense',
-  block: 'Block'
+  block: 'Block',
+  campaign: 'Campaign'
 }
 
 export interface EntityActions {

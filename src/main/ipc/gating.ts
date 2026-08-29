@@ -74,6 +74,11 @@ export const GATES: Gate[] = [
     message: messageFor('marketing', 'Your clients, projects and invoices are unaffected.')
   },
   {
+    prefix: 'campaigns:',
+    feature: 'marketing',
+    message: messageFor('marketing', 'Your clients, projects and invoices are unaffected.')
+  },
+  {
     prefix: 'content:',
     feature: 'marketing',
     message: messageFor('marketing', 'Your clients, projects and invoices are unaffected.')
@@ -233,7 +238,8 @@ const LIMITED: Partial<Record<string, Limit>> = {
   'goals:create': 'goals',
   'time:start': 'activeTimers',
   'ai:send': 'assistantMessages',
-  'channels:create': 'channels'
+  'channels:create': 'channels',
+  'campaigns:create': 'campaigns'
 }
 
 /**

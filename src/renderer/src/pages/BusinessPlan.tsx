@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import {
-  BookOpen,
   Check,
+  RotateCcw,
   FileText,
   Pencil,
   Plus,
@@ -25,10 +25,12 @@ import {
   type PlanSectionSpec
 } from '@shared/plan'
 import { Capacity } from './plan/Capacity'
+import { Interview } from './plan/Interview'
+import { ToMarketing } from './plan/ToMarketing'
 import { Markdown } from '@/components/ui/Markdown'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
-import { Empty } from '@/components/ui/Empty'
+import { ConfirmModal } from '@/components/ui/Modal'
 import { formatDate } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
@@ -50,6 +52,8 @@ export function BusinessPlan(): React.JSX.Element {
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
+  const [building, setBuilding] = useState(false)
+  const [resetting, setResetting] = useState(false)
   const anchors = useRef(new Map<string, HTMLDivElement>())
 
   const { data: plan, isPending } = useQuery({
@@ -79,6 +83,24 @@ export function BusinessPlan(): React.JSX.Element {
   const start = useMutation({
     mutationFn: () => window.solo.invoke('ai:startBusinessPlan'),
     onSuccess: settle,
+    onError: fail
+  })
+
+  /**
+   * Forget this plan and go back to the two ways in.
+   *
+   * Deliberately not a delete. The markdown stays in `Documents\Business`,
+   * because somebody who wrote a plan through the interview and then pressed
+   * reset may have no other copy of it — and a button that quietly destroyed
+   * the only copy of a document somebody spent an evening on would be
+   * indefensible whatever the label said.
+   */
+  const reset = useMutation({
+    mutationFn: () => window.solo.invoke('ai:detachBusinessPlan'),
+    onSuccess: (status) => {
+      settle(status)
+      setEditing(null)
+    },
     onError: fail
   })
 
@@ -126,8 +148,13 @@ export function BusinessPlan(): React.JSX.Element {
       title="Business plan"
       description="The standing brief for your business — yours to follow, and what the assistant reads before every answer."
       actions={
-        attached && (
+        attached &&
+        !building && (
           <>
+            <Button variant="ghost" onClick={() => setResetting(true)}>
+              <RotateCcw size={14} strokeWidth={1.75} />
+              Start again
+            </Button>
             <Button variant="ghost" onClick={() => navigate('/assistant')}>
               <Sparkles size={14} strokeWidth={1.75} />
               Ask the assistant
@@ -147,23 +174,21 @@ export function BusinessPlan(): React.JSX.Element {
         </div>
       )}
 
-      {isPending ? null : !attached ? (
-        <Empty
-          icon={BookOpen}
-          title="No business plan yet"
-          body="Start one from a standard outline and fill it in as you go, or attach the plan you already have. Either way it becomes the brief the assistant works from."
-          action={
-            <div className="flex items-center gap-2">
-              <Button variant="primary" onClick={() => start.mutate()} disabled={start.isPending}>
-                <Plus size={14} strokeWidth={1.75} />
-                {start.isPending ? 'Starting…' : 'Start a plan'}
-              </Button>
-              <Button variant="ghost" onClick={() => attach.mutate()} disabled={attach.isPending}>
-                <Upload size={14} strokeWidth={1.75} />
-                {attach.isPending ? 'Reading…' : 'Attach a document'}
-              </Button>
-            </div>
-          }
+      {isPending ? null : building ? (
+        <Interview
+          onDone={(status) => {
+            settle(status)
+            setBuilding(false)
+          }}
+          onCancel={() => setBuilding(false)}
+        />
+      ) : !attached ? (
+        <Choice
+          onBuild={() => setBuilding(true)}
+          onAttach={() => attach.mutate()}
+          onBlank={() => start.mutate()}
+          attaching={attach.isPending}
+          starting={start.isPending}
         />
       ) : (
         <div className="flex gap-5">
@@ -190,6 +215,8 @@ export function BusinessPlan(): React.JSX.Element {
               what most of the plan is arguing with, and a freelancer who
               reads it first writes different sections.
             */}
+            <ToMarketing />
+
             <Capacity />
 
             <div className="flex flex-col gap-3">
@@ -213,7 +240,93 @@ export function BusinessPlan(): React.JSX.Element {
           </div>
         </div>
       )}
+
+      <ConfirmModal
+        open={resetting}
+        onClose={() => setResetting(false)}
+        onConfirm={() => reset.mutate()}
+        title="Start the business plan again?"
+        body={`SoloWrk will forget this plan and offer you the two ways in again. ${plan?.name ?? 'The file'} stays in your workspace under Documents\Business, so nothing you wrote is lost — you can attach it again at any point.`}
+        confirmLabel="Start again"
+      />
     </Page>
+  )
+}
+
+/**
+ * The two ways in, as two real choices rather than a button and an afterthought.
+ *
+ * Almost everybody arriving here is in one of exactly two states: they have a
+ * plan in a Word file somewhere, or they have never written one. Those need
+ * different things, and a single "Start a plan" button served neither — it
+ * gave the first group a blank document to paste into and the second group a
+ * blank document to stare at.
+ *
+ * The blank outline survives as a third, quieter option, because somebody who
+ * knows exactly what they want to write should not have to sit through
+ * twenty-odd questions to get a file.
+ */
+function Choice({
+  onBuild,
+  onAttach,
+  onBlank,
+  attaching,
+  starting
+}: {
+  onBuild: () => void
+  onAttach: () => void
+  onBlank: () => void
+  attaching: boolean
+  starting: boolean
+}): React.JSX.Element {
+  return (
+    <div className="max-w-[720px]">
+      <h2 className="mb-1 text-[15px] font-medium text-ink">No business plan yet</h2>
+      <p className="mb-4 text-[12.5px] leading-relaxed text-muted">
+        However it gets here, it becomes the standing brief for your business — and what the
+        assistant reads before every answer.
+      </p>
+
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          type="button"
+          onClick={onBuild}
+          className="flex flex-col items-start gap-1.5 rounded-card border border-line bg-surface p-4 text-left transition-colors hover:border-accent/50 hover:bg-surface-hover"
+        >
+          <Sparkles size={16} strokeWidth={1.75} className="text-accent" />
+          <span className="text-[13px] font-medium text-ink">Build one with me</span>
+          <span className="text-[11.5px] leading-relaxed text-faint">
+            Plain questions about your business, one section at a time. Your answers become the
+            plan — skip anything you would rather not say.
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={onAttach}
+          disabled={attaching}
+          className="flex flex-col items-start gap-1.5 rounded-card border border-line bg-surface p-4 text-left transition-colors hover:border-accent/50 hover:bg-surface-hover disabled:opacity-50"
+        >
+          <Upload size={16} strokeWidth={1.75} className="text-muted" />
+          <span className="text-[13px] font-medium text-ink">
+            {attaching ? 'Reading…' : 'I already have one'}
+          </span>
+          <span className="text-[11.5px] leading-relaxed text-faint">
+            Word, PDF, markdown or plain text. SoloWrk reads it, lays out its contents, and shows
+            you what a plan usually covers that yours does not.
+          </span>
+        </button>
+      </div>
+
+      <button
+        type="button"
+        onClick={onBlank}
+        disabled={starting}
+        className="mt-3 text-[11.5px] text-faint transition-colors hover:text-ink disabled:opacity-50"
+      >
+        {starting ? 'Starting…' : 'Or just give me a blank outline to fill in myself'}
+      </button>
+    </div>
   )
 }
 

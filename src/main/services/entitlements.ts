@@ -159,6 +159,18 @@ const COUNTS: Record<Limit, (db: Database) => number> = {
    */
   channels: (db) => count(db, 'SELECT COUNT(*) AS n FROM marketing_channels WHERE is_active = 1'),
 
+  /**
+   * Campaigns still in play. Complete and abandoned ones are history rather
+   * than work, and a cap that counted them would eventually refuse somebody
+   * their fourth campaign because of three they finished last year.
+   */
+  campaigns: (db) =>
+    count(
+      db,
+      `SELECT COUNT(*) AS n FROM marketing_campaigns
+        WHERE archived = 0 AND is_template = 0 AND status IN ('planning','active')`
+    ),
+
   // Counted by the licence server, which is the only thing that can see the
   // other computers. Nothing local can answer it, and answering zero here is
   // honest rather than a hole: the seat check happens at activation.

@@ -28,6 +28,11 @@ export const keys = {
   // All under `marketing`, so `invalidate(['marketing'])` still reaches every
   // one of them and no caller has to remember the new names.
   channels: ['marketing', 'channels'] as const,
+  campaignRecords: (filter?: unknown) =>
+    filter
+      ? (['marketing', 'campaignRecords', filter] as const)
+      : (['marketing', 'campaignRecords'] as const),
+  campaignWork: (id: number) => ['marketing', 'campaignWork', id] as const,
   marketingPlan: ['marketing', 'plan'] as const,
   contentMonth: (from: string, to: string) =>
     ['marketing', 'content', 'month', { from, to }] as const,

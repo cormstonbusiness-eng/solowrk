@@ -116,6 +116,11 @@ function Body({
     setBody(item.body)
   }, [item.id, item.title, item.hook, item.body])
 
+  const { data: campaigns = [] } = useQuery({
+    queryKey: keys.campaignRecords(),
+    queryFn: () => window.solo.invoke('campaigns:list')
+  })
+
   const channel = channels.find((one) => one.id === item.channelId)
   const composed = composePost({ hook, body })
   const limit = channel?.characterLimit ?? null
@@ -198,6 +203,15 @@ function Body({
         </div>
 
         <div className="grid grid-cols-2 gap-3">
+          <Field label="Campaign" hint="Optional. A post can stand on its own.">
+            <Select
+              value={item.campaignId}
+              placeholder="No campaign"
+              onChange={(campaignId) => onSave({ campaignId })}
+              options={campaigns.map((one) => ({ value: one.id, label: one.name }))}
+            />
+          </Field>
+
           <Field label="Channel">
             <Select
               value={item.channelId}

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { Empty } from '@/components/ui/Empty'
 import { Modal } from '@/components/ui/Modal'
 import { useInvalidate } from '@/lib/api'
-import { formatDate } from '@/lib/format'
+import { formatDate, formatSize } from '@/lib/format'
 import { listItemVariants, listVariants } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
@@ -24,13 +24,6 @@ import { cn } from '@/lib/utils'
  * buried in a note, because somebody is about to press it on a folder holding
  * a year of work.
  */
-
-function formatSize(bytes: number): string {
-  if (bytes === 0) return '—'
-  const units = ['B', 'KB', 'MB', 'GB', 'TB']
-  const power = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
-  return `${(bytes / 1024 ** power).toFixed(power === 0 ? 0 : 1)} ${units[power]}`
-}
 
 export function Health(): React.JSX.Element {
   const invalidate = useInvalidate()

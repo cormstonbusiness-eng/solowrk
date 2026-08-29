@@ -2,9 +2,9 @@ import { copyFile, mkdir, readdir } from 'node:fs/promises'
 import { basename, isAbsolute, join } from 'node:path'
 import type { Database, Row } from '../db'
 import type {
-  Campaign,
-  CampaignStatus,
-  CampaignWithCounts,
+  PostCampaign,
+  PostCampaignStatus,
+  PostCampaignWithCounts,
   ContentPillar,
   MarketingSummary,
   PillarShare,
@@ -44,7 +44,7 @@ interface CampaignRow extends Row {
   updated_at: string
 }
 
-function toCampaign(row: CampaignRow): Campaign {
+function toCampaign(row: CampaignRow): PostCampaign {
   return {
     id: row.id,
     name: row.name,
@@ -53,13 +53,13 @@ function toCampaign(row: CampaignRow): Campaign {
     colour: row.colour,
     startsOn: row.starts_on,
     endsOn: row.ends_on,
-    status: row.status as CampaignStatus,
+    status: row.status as PostCampaignStatus,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   }
 }
 
-export function listCampaigns(db: Database, includeArchived = false): CampaignWithCounts[] {
+export function listCampaigns(db: Database, includeArchived = false): PostCampaignWithCounts[] {
   const where = includeArchived ? '' : "WHERE c.status != 'archived'"
 
   return db
@@ -80,8 +80,8 @@ export function listCampaigns(db: Database, includeArchived = false): CampaignWi
 
 export function createCampaign(
   db: Database,
-  input: Partial<Campaign> & { name: string }
-): Campaign {
+  input: Partial<PostCampaign> & { name: string }
+): PostCampaign {
   db.run(
     `INSERT INTO campaigns (name, description, goal, colour, starts_on, ends_on, status,
                             created_at, updated_at)
@@ -99,7 +99,7 @@ export function createCampaign(
   return getCampaign(db, lastId(db))
 }
 
-export function getCampaign(db: Database, id: number): Campaign {
+export function getCampaign(db: Database, id: number): PostCampaign {
   const row = db.get<CampaignRow>('SELECT * FROM campaigns WHERE id = ?', [id])
   if (!row) throw new Error(`No campaign with id ${id}`)
   return toCampaign(row)
@@ -115,7 +115,11 @@ const CAMPAIGN_COLUMNS: Record<string, string> = {
   status: 'status'
 }
 
-export function updateCampaign(db: Database, id: number, patch: Partial<Campaign>): Campaign {
+export function updateCampaign(
+  db: Database,
+  id: number,
+  patch: Partial<PostCampaign>
+): PostCampaign {
   applyPatch(db, 'campaigns', CAMPAIGN_COLUMNS, id, patch)
   return getCampaign(db, id)
 }

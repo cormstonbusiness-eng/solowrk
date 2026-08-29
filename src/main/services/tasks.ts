@@ -4,6 +4,7 @@ import type { Task, TaskFilter, TaskInput, TaskStatus, TaskWithContext } from '@
 interface TaskRow extends Row {
   id: number
   project_id: number | null
+  campaign_id: number | null
   category_id: number | null
   parent_id: number | null
   title: string
@@ -25,6 +26,7 @@ interface TaskRow extends Row {
 type ContextRow = TaskRow & {
   project_name: string | null
   project_colour: string | null
+  campaign_name: string | null
   category_name: string | null
   category_colour: string | null
   subtask_count: number
@@ -35,6 +37,7 @@ function toTask(row: TaskRow): Task {
   return {
     id: row.id,
     projectId: row.project_id,
+    campaignId: row.campaign_id,
     categoryId: row.category_id,
     parentId: row.parent_id,
     title: row.title,
@@ -59,6 +62,7 @@ function toTaskWithContext(row: ContextRow): TaskWithContext {
     ...toTask(row),
     projectName: row.project_name,
     projectColour: row.project_colour,
+    campaignName: row.campaign_name,
     categoryName: row.category_name,
     categoryColour: row.category_colour,
     subtaskCount: row.subtask_count,
@@ -70,6 +74,7 @@ const SELECT_WITH_CONTEXT = `
   SELECT t.*,
          p.name   AS project_name,
          p.colour AS project_colour,
+         mc.name  AS campaign_name,
          c.name   AS category_name,
          c.colour AS category_colour,
          (SELECT COUNT(*) FROM tasks s WHERE s.parent_id = t.id) AS subtask_count,
@@ -78,6 +83,7 @@ const SELECT_WITH_CONTEXT = `
     FROM tasks t
     LEFT JOIN projects   p ON p.id = t.project_id
     LEFT JOIN categories c ON c.id = t.category_id
+    LEFT JOIN marketing_campaigns mc ON mc.id = t.campaign_id
 `
 
 export function listTasks(db: Database, filter: TaskFilter = {}): TaskWithContext[] {
@@ -90,6 +96,15 @@ export function listTasks(db: Database, filter: TaskFilter = {}): TaskWithContex
     } else {
       conditions.push('t.project_id = ?')
       params.push(filter.projectId)
+    }
+  }
+
+  if (filter.campaignId !== undefined) {
+    if (filter.campaignId === null) {
+      conditions.push('t.campaign_id IS NULL')
+    } else {
+      conditions.push('t.campaign_id = ?')
+      params.push(filter.campaignId)
     }
   }
 
@@ -158,12 +173,13 @@ export function createTask(db: Database, input: TaskInput): TaskWithContext {
   const projectId = input.projectId ?? null
 
   db.run(
-    `INSERT INTO tasks (project_id, category_id, parent_id, title, notes, status, priority,
-                        due_at, estimate_minutes, colour, sort_order, completed_at,
-                        created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+    `INSERT INTO tasks (project_id, campaign_id, category_id, parent_id, title, notes,
+                        status, priority, due_at, estimate_minutes, colour, sort_order,
+                        completed_at, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
     [
       projectId,
+      input.campaignId ?? null,
       input.categoryId ?? null,
       input.parentId ?? null,
       input.title,
@@ -185,6 +201,7 @@ export function createTask(db: Database, input: TaskInput): TaskWithContext {
 
 const UPDATABLE: Record<string, string> = {
   projectId: 'project_id',
+  campaignId: 'campaign_id',
   categoryId: 'category_id',
   parentId: 'parent_id',
   title: 'title',
