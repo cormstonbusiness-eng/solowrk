@@ -273,7 +273,9 @@ import { updateSettings } from '../services/settings'
 import { getState, setState } from '../services/appState'
 import { check, installNow, updateState } from '../services/updates'
 import { authState, setApiBaseUrl, signIn, signOut, signUp, verify } from '../services/auth'
-import { can, exceeded, meters, requireCapacity } from '../services/entitlements'
+import { can, currentTier, exceeded, meters, requireCapacity } from '../services/entitlements'
+import { FeatureLockedError } from '@shared/limitError'
+import { requires } from '@shared/entitlements'
 
 type WindowGetter = () => BrowserWindow | null
 
@@ -1181,8 +1183,20 @@ function nextAttemptFor(db: ReturnType<typeof session.requireDb>, id: number): n
  */
 async function guard(channel: IpcChannel): Promise<void> {
   const gate = gateFor(channel)
-  if (gate && !(await can(gate.feature, session.dbOrNull()))) {
-    throw new Error(gate.message)
+  if (gate) {
+    const db = session.dbOrNull()
+    if (!(await can(gate.feature, db))) {
+      // Structured, not a bare Error. A plain message has nowhere to go in the
+      // renderer: it either lands in whatever element the call site happens to
+      // have, or -- if there is no error handling at all -- nowhere, and the
+      // button appears to do nothing.
+      throw new FeatureLockedError({
+        feature: gate.feature,
+        tier: await currentTier(db),
+        needs: requires(gate.feature),
+        message: gate.message
+      })
+    }
   }
 
   for (const limit of limitsFor(channel)) {

@@ -37,6 +37,7 @@ import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { formatMoney, formatRate } from '@/lib/format'
 import { useFeature } from '@/lib/features'
+import { raiseLimit } from '@/lib/limits'
 import { listItemVariants, listVariants } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { DEFAULT_ENTITY_COLOUR } from '@shared/types'
@@ -624,7 +625,12 @@ function UpdatePackButton({ clientId }: { clientId: number }): React.JSX.Element
     void window.solo
       .invoke('clients:updatePack', { clientId, format })
       .then((path) => void window.solo.invoke('files:reveal', { path }))
-      .catch((cause: Error) => setError(cause.message))
+      // A refusal goes to the upgrade modal like every other one. Only a
+      // genuine failure -- a locked file, a full disk -- lands inline, and
+      // those are short enough to fit.
+      .catch((cause: Error) => {
+        if (!raiseLimit(cause)) setError(cause.message)
+      })
       .finally(() => setBusy(false))
   }
 
@@ -643,8 +649,13 @@ function UpdatePackButton({ clientId }: { clientId: number }): React.JSX.Element
       >
         PDF
       </Button>
+      {/*
+        Wraps, and bounded. It used to be `whitespace-nowrap`, which was fine
+        for "Could not write the file" and ran a gate message clean off the
+        side of the window.
+      */}
       {error && (
-        <span className="absolute top-full right-0 mt-1 text-[11.5px] whitespace-nowrap text-danger">
+        <span className="absolute top-full right-0 mt-1 max-w-[280px] text-right text-[11.5px] leading-snug text-danger">
           {error}
         </span>
       )}

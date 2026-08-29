@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { LimitReachedError, limitFactsFrom, limitSentence } from './limitError'
+import {
+  FeatureLockedError,
+  LimitReachedError,
+  limitFactsFrom,
+  limitSentence,
+  lockedFactsFrom,
+  refusalFrom
+} from './limitError'
 import type { LimitFacts } from './limitError'
 
 /**
@@ -68,5 +75,50 @@ describe('what it says', () => {
     expect(
       limitSentence({ ...FACTS, limit: 'invoicesPerMonth', used: 3, cap: 3 })
     ).toBe('You have used all 3 of your invoices for this month on Free.')
+  })
+})
+
+describe('the other kind of refusal', () => {
+  const LOCKED = {
+    feature: 'marketing',
+    tier: 'free',
+    needs: 'pro',
+    message:
+      'SoloWrk Pro includes the Marketing module. Upgrade at solo-wrk.com/account. Your clients, projects and invoices are unaffected.'
+  } as const
+
+  it('survives the wrapping Electron puts round it', () => {
+    const thrown = new FeatureLockedError({ ...LOCKED })
+    const delivered = new Error(
+      `Error invoking remote method 'marketing:posts': Error: ${thrown.message}`
+    )
+
+    expect(lockedFactsFrom(delivered)).toEqual(LOCKED)
+  })
+
+  it('reads as a sentence before it reads as an envelope', () => {
+    // Anywhere this does leak into a raw error string, the first thing on
+    // screen should be English rather than JSON.
+    expect(new FeatureLockedError({ ...LOCKED }).message).toMatch(/^SoloWrk Pro includes/)
+  })
+
+  it('is told apart from a limit', () => {
+    // Both land in the same modal and it renders them differently, so mixing
+    // them up would show a meter with no numbers behind it.
+    expect(refusalFrom(new FeatureLockedError({ ...LOCKED }))?.kind).toBe('locked')
+    expect(
+      refusalFrom(
+        new LimitReachedError({ limit: 'clients', used: 3, cap: 3, tier: 'free', needs: 'basicPlus' })
+      )?.kind
+    ).toBe('limit')
+  })
+
+  it('leaves an ordinary failure alone', () => {
+    expect(refusalFrom(new Error('EBUSY: resource busy or locked'))).toBeNull()
+    expect(lockedFactsFrom(null)).toBeNull()
+  })
+
+  it('refuses a half-written envelope', () => {
+    expect(lockedFactsFrom(new Error('@@solowrk/locked@@{"feature":"marketing"}'))).toBeNull()
   })
 })

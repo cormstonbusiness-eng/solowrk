@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { limitFactsFrom, type LimitFacts } from '@shared/limitError'
+import { refusalFrom, type Refusal } from '@shared/limitError'
 
 /**
  * The limit somebody has just run into.
@@ -20,7 +20,7 @@ import { limitFactsFrom, type LimitFacts } from '@shared/limitError'
  * entirely and has no provider to reach for.
  */
 
-let current: LimitFacts | null = null
+let current: Refusal | null = null
 const listeners = new Set<() => void>()
 
 function emit(): void {
@@ -33,21 +33,21 @@ function subscribe(listener: () => void): () => void {
 }
 
 /**
- * Show the modal, if this failure was a limit.
+ * Show the modal, if this failure was a refusal — either kind.
  *
  * Returns whether it was, so a call site that wants to suppress its own error
  * toast can ask. Anything else is left entirely alone — a disk error must not
  * be reported as a reason to upgrade.
  */
 export function raiseLimit(error: unknown): boolean {
-  const facts = limitFactsFrom(error)
-  if (!facts) return false
+  const refusal = refusalFrom(error)
+  if (!refusal) return false
 
   // The first one wins. Two mutations failing together is one wall, not two
   // modals fighting over the same corner of the screen.
   if (current) return true
 
-  current = facts
+  current = refusal
   emit()
   return true
 }
@@ -58,7 +58,7 @@ export function dismissLimit(): void {
   emit()
 }
 
-export function useLimitReached(): LimitFacts | null {
+export function useLimitReached(): Refusal | null {
   return useSyncExternalStore(
     subscribe,
     () => current,

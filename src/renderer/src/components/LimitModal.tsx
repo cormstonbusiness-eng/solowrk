@@ -30,25 +30,56 @@ import { cn } from '@/lib/utils'
  * fails, and this says why.
  */
 export function LimitModal(): React.JSX.Element {
-  const facts = useLimitReached()
+  const refusal = useLimitReached()
 
   // Annual preselected, everywhere, per §1.2. Monthly is a toggle away.
   const [period, setPeriod] = useState<BillingPeriod>('annual')
 
-  const needs = facts?.needs ?? 'basicPlus'
+  const needs = refusal?.facts.needs ?? 'basicPlus'
   const price = TIER_PRICES[needs]
+
+  /**
+   * The two refusals read differently and deserve to.
+   *
+   * A limit is a number they can see themselves against — so it leads with the
+   * count and shows the meter. A lock has no number: what it has is the
+   * sentence written beside the gate, whose second half says what still works
+   * without the feature. That half is the whole reason a paywall does not read
+   * as a hostage note, and it cannot be derived from anything.
+   */
+  const title =
+    refusal === null
+      ? ''
+      : refusal.kind === 'limit'
+        ? limitSentence(refusal.facts)
+        : `${TIER_NAMES[needs]} includes ${FEATURE_LABELS[refusal.facts.feature]}.`
 
   return (
     <Modal
-      open={facts !== null}
+      open={refusal !== null}
       onClose={dismissLimit}
-      title={facts ? limitSentence(facts) : ''}
-      description={`${TIER_NAMES[needs]} lifts it.`}
+      title={title}
+      description={refusal?.kind === 'limit' ? `${TIER_NAMES[needs]} lifts it.` : undefined}
       width={460}
     >
-      {facts && (
+      {refusal && (
         <div className="flex flex-col gap-5">
-          <Meter used={facts.used} cap={facts.cap} label={LIMIT_LABELS[facts.limit]} />
+          {refusal.kind === 'limit' ? (
+            <Meter
+              used={refusal.facts.used}
+              cap={refusal.facts.cap}
+              label={LIMIT_LABELS[refusal.facts.limit]}
+            />
+          ) : (
+            /*
+              The gate's own second sentence — what they keep. Dropped from the
+              modal it would be a paywall with nothing reassuring in it, which
+              is precisely the tone every gate message was written to avoid.
+            */
+            <p className="text-[12.5px] leading-relaxed text-muted">
+              {reassuranceFrom(refusal.facts.message)}
+            </p>
+          )}
 
           <ul className="flex flex-col gap-2">
             {benefitsFor(needs).map((line) => (
@@ -103,7 +134,7 @@ export function LimitModal(): React.JSX.Element {
                 dismissLimit()
               }}
             >
-              Upgrade to {TIER_NAMES[needs]}
+              {refusal.kind === 'limit' ? 'Upgrade to' : 'Get'} {TIER_NAMES[needs]}
             </Button>
             <button
               type="button"
@@ -180,6 +211,19 @@ function benefitsFor(tier: Tier): string[] {
 
 function sentenceCase(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+/**
+ * The part of a gate message worth repeating here.
+ *
+ * The message is three sentences: what the tier includes, where to upgrade,
+ * and what still works without it. The modal already says the first as its
+ * title and offers the second as a button, so showing all three would say
+ * everything twice. The third is the one nothing else carries.
+ */
+function reassuranceFrom(message: string): string {
+  const sentences = message.split(/(?<=\.)\s+/)
+  return sentences.slice(2).join(' ') || sentences[sentences.length - 1] || message
 }
 
 function money(pence: number): string {

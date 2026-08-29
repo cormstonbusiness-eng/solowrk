@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { LimitReachedError } from '@shared/limitError'
+import { FeatureLockedError, LimitReachedError } from '@shared/limitError'
 import { dismissLimit, raiseLimit, resetLimits } from './limits'
 
 /**
@@ -50,5 +50,31 @@ describe('two at once', () => {
     dismissLimit()
     // And dismissing clears the one that was showing, not a queue of them.
     expect(raiseLimit(new LimitReachedError({ ...FACTS }))).toBe(true)
+  })
+})
+
+describe('a feature this tier does not include', () => {
+  /**
+   * The regression this exists for.
+   *
+   * Only limits were structured to begin with, so a gate refusal fell through
+   * to whatever the call site did with it. The logo button had no error
+   * handling at all and failed in complete silence -- which is exactly the
+   * disabled-control-with-no-explanation that section 5.1 calls the worst
+   * possible outcome.
+   */
+  it('raises the modal, the same as a limit does', () => {
+    const locked = new FeatureLockedError({
+      feature: 'branding',
+      tier: 'free',
+      needs: 'basicPlus',
+      message: 'SoloWrk Basic+ includes your own logo and colours on documents. Upgrade at x. Y.'
+    })
+
+    expect(raiseLimit(locked)).toBe(true)
+  })
+
+  it('still ignores a genuine failure', () => {
+    expect(raiseLimit(new Error('EBUSY: resource busy or locked'))).toBe(false)
   })
 })
