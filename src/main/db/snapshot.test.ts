@@ -52,7 +52,7 @@ describe('before migrating', () => {
     const old = openAt(file, 15)
     old.run(
       `INSERT INTO clients (name, contact_name, folder, status, created_at, updated_at)
-       VALUES ('Acme Ltd', 'Dana', 'Clients/Acme', 'active', datetime('now'), datetime('now'))`
+     VALUES ('Acme Ltd', 'Dana', 'Clients/Acme', 'active', datetime('now'), datetime('now'))`
     )
     old.close()
 
@@ -69,7 +69,7 @@ describe('before migrating', () => {
     const old = openAt(file, 15)
     old.run(
       `INSERT INTO clients (name, contact_name, folder, status, created_at, updated_at)
-       VALUES ('Findable Ltd', 'Dana', 'Clients/F', 'active', datetime('now'), datetime('now'))`
+     VALUES ('Findable Ltd', 'Dana', 'Clients/F', 'active', datetime('now'), datetime('now'))`
     )
     old.close()
 

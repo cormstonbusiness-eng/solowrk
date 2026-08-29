@@ -34,26 +34,26 @@ function backdate(column: string, id: number, day: string): void {
   db.run(`UPDATE clients SET ${column} = ? WHERE id = ?`, [`${day} 12:00:00`, id])
 }
 
-describe('client status', () => {
+describe('a client’s relationship stage', () => {
   it('defaults a new client to active', async () => {
     const client = await createClient(db, root, { name: 'Acme' })
-    expect(client.status).toBe('active')
+    expect(client.relationshipStage).toBe('active')
     expect(client.becameActiveAt).not.toBeNull()
   })
 
-  it('records when a lead was marked interested, and not that they are active', async () => {
-    const client = await createClient(db, root, { name: 'Acme', status: 'interested' })
-    expect(client.status).toBe('interested')
+  it('records when somebody became a prospect, and not that they are active', async () => {
+    const client = await createClient(db, root, { name: 'Acme', relationshipStage: 'prospect' })
+    expect(client.relationshipStage).toBe('prospect')
     expect(client.interestedAt).not.toBeNull()
     expect(client.becameActiveAt).toBeNull()
   })
 
   it('stamps the transition when a lead is won', async () => {
-    const lead = await createClient(db, root, { name: 'Acme', status: 'interested' })
+    const lead = await createClient(db, root, { name: 'Acme', relationshipStage: 'prospect' })
     expect(lead.becameActiveAt).toBeNull()
 
-    const won = await updateClient(db, root, lead.id, { status: 'active' })
-    expect(won.status).toBe('active')
+    const won = await updateClient(db, root, lead.id, { relationshipStage: 'active' })
+    expect(won.relationshipStage).toBe('active')
     expect(won.becameActiveAt).not.toBeNull()
     // The lead stamp survives, so the period they enquired in still counts them.
     expect(won.interestedAt).toBe(lead.interestedAt)
@@ -65,24 +65,24 @@ describe('client status', () => {
     const client = await createClient(db, root, { name: 'Acme' })
     const first = client.becameActiveAt
 
-    await updateClient(db, root, client.id, { status: 'past' })
-    const back = await updateClient(db, root, client.id, { status: 'active' })
+    await updateClient(db, root, client.id, { relationshipStage: 'dormant' })
+    const back = await updateClient(db, root, client.id, { relationshipStage: 'active' })
 
     expect(back.becameActiveAt).toBe(first)
   })
 
-  it('saves the status at all', async () => {
+  it('saves the stage at all', async () => {
     // The boolean this replaced was missing from the update map entirely, so
     // the toggle in the client editor silently never saved.
     const client = await createClient(db, root, { name: 'Acme' })
-    await updateClient(db, root, client.id, { status: 'not_interested' })
-    expect(getClient(db, client.id).status).toBe('not_interested')
+    await updateClient(db, root, client.id, { relationshipStage: 'former' })
+    expect(getClient(db, client.id).relationshipStage).toBe('former')
   })
 
-  it('keeps every status in the directory', async () => {
-    await createClient(db, root, { name: 'A', status: 'active' })
-    await createClient(db, root, { name: 'B', status: 'interested' })
-    await createClient(db, root, { name: 'C', status: 'not_interested' })
+  it('keeps every stage in the directory', async () => {
+    await createClient(db, root, { name: 'A', relationshipStage: 'active' })
+    await createClient(db, root, { name: 'B', relationshipStage: 'prospect' })
+    await createClient(db, root, { name: 'C', relationshipStage: 'former' })
 
     // A client who said no is still a contact worth having the details of.
     expect(listClients(db)).toHaveLength(3)
@@ -94,9 +94,9 @@ describe('goals count the right clients', () => {
   const period = { period: 'year' as const, target: 5 }
 
   it('counts only clients who became active, not every row created', async () => {
-    await createClient(db, root, { name: 'Won', status: 'active' })
-    await createClient(db, root, { name: 'Still deciding', status: 'interested' })
-    await createClient(db, root, { name: 'Said no', status: 'not_interested' })
+    await createClient(db, root, { name: 'Won', relationshipStage: 'active' })
+    await createClient(db, root, { name: 'Still deciding', relationshipStage: 'prospect' })
+    await createClient(db, root, { name: 'Said no', relationshipStage: 'former' })
 
     createGoal(db, { name: 'New clients', kind: 'clients', ...period })
     const [goal] = listGoals(db)
@@ -107,16 +107,16 @@ describe('goals count the right clients', () => {
   })
 
   it('credits a won lead to the period it was won in, not created in', async () => {
-    const lead = await createClient(db, root, { name: 'Slow burner', status: 'interested' })
+    const lead = await createClient(db, root, { name: 'Slow burner', relationshipStage: 'prospect' })
     backdate('interested_at', lead.id, `${thisYear - 1}-01-15`)
-    await updateClient(db, root, lead.id, { status: 'active' })
+    await updateClient(db, root, lead.id, { relationshipStage: 'active' })
 
     createGoal(db, { name: 'New clients', kind: 'clients', ...period })
     expect(listGoals(db)[0]!.current).toBe(1)
   })
 
   it('does not count a client won in an earlier period', async () => {
-    const client = await createClient(db, root, { name: 'Old', status: 'active' })
+    const client = await createClient(db, root, { name: 'Old', relationshipStage: 'active' })
     backdate('became_active_at', client.id, `${thisYear - 2}-06-01`)
 
     createGoal(db, { name: 'New clients', kind: 'clients', ...period })
@@ -124,9 +124,9 @@ describe('goals count the right clients', () => {
   })
 
   it('counts leads separately from clients', async () => {
-    await createClient(db, root, { name: 'Lead one', status: 'interested' })
-    await createClient(db, root, { name: 'Lead two', status: 'interested' })
-    await createClient(db, root, { name: 'Straight in', status: 'active' })
+    await createClient(db, root, { name: 'Lead one', relationshipStage: 'prospect' })
+    await createClient(db, root, { name: 'Lead two', relationshipStage: 'prospect' })
+    await createClient(db, root, { name: 'Straight in', relationshipStage: 'active' })
 
     createGoal(db, { name: 'Interested', kind: 'leads', ...period })
     const [leads] = listGoals(db)
@@ -138,19 +138,19 @@ describe('goals count the right clients', () => {
   it('still counts a lead that has since been won or turned down', async () => {
     // Otherwise a good quarter's lead count shrinks as those leads convert,
     // which reads as the number going backwards for doing well.
-    const won = await createClient(db, root, { name: 'Won', status: 'interested' })
-    const lost = await createClient(db, root, { name: 'Lost', status: 'interested' })
+    const won = await createClient(db, root, { name: 'Won', relationshipStage: 'prospect' })
+    const lost = await createClient(db, root, { name: 'Lost', relationshipStage: 'prospect' })
 
-    await updateClient(db, root, won.id, { status: 'active' })
-    await updateClient(db, root, lost.id, { status: 'not_interested' })
+    await updateClient(db, root, won.id, { relationshipStage: 'active' })
+    await updateClient(db, root, lost.id, { relationshipStage: 'former' })
 
     createGoal(db, { name: 'Interested', kind: 'leads', ...period })
     expect(listGoals(db)[0]!.current).toBe(2)
   })
 
   it('counts a won lead towards both goals', async () => {
-    const lead = await createClient(db, root, { name: 'Acme', status: 'interested' })
-    await updateClient(db, root, lead.id, { status: 'active' })
+    const lead = await createClient(db, root, { name: 'Acme', relationshipStage: 'prospect' })
+    await updateClient(db, root, lead.id, { relationshipStage: 'active' })
 
     createGoal(db, { name: 'Clients', kind: 'clients', ...period })
     createGoal(db, { name: 'Leads', kind: 'leads', ...period })

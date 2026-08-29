@@ -17,8 +17,8 @@ import {
   Trash2,
   Users
 } from 'lucide-react'
-import type { ClientInput, ClientStatus } from '@shared/types'
-import { CLIENT_STATUSES } from '@shared/types'
+import type { ClientInput, RelationshipStage } from '@shared/types'
+import { CLIENT_STAGES } from '@shared/types'
 import { Page } from '@/components/Page'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -44,7 +44,7 @@ import { DEFAULT_ENTITY_COLOUR } from '@shared/types'
 
 const BLANK: ClientInput = {
   name: '',
-  status: 'interested',
+  relationshipStage: 'prospect',
   contactName: '',
   email: '',
   phone: '',
@@ -56,7 +56,13 @@ const BLANK: ClientInput = {
 }
 
 /** The directory columns, in reading order. */
-type SortKey = 'name' | 'contactName' | 'email' | 'defaultRate' | 'paymentTermsDays' | 'status'
+type SortKey =
+  | 'name'
+  | 'contactName'
+  | 'email'
+  | 'defaultRate'
+  | 'paymentTermsDays'
+  | 'relationshipStage'
 
 const COLUMNS: { key: SortKey; label: string; className?: string }[] = [
   { key: 'name', label: 'Client' },
@@ -64,7 +70,7 @@ const COLUMNS: { key: SortKey; label: string; className?: string }[] = [
   { key: 'email', label: 'Email' },
   { key: 'defaultRate', label: 'Rate', className: 'text-right' },
   { key: 'paymentTermsDays', label: 'Terms', className: 'text-right' },
-  { key: 'status', label: 'Status', className: 'text-right' }
+  { key: 'relationshipStage', label: 'Stage', className: 'text-right' }
 ]
 
 /** An empty cell, so a gap in the directory reads as blank rather than as broken. */
@@ -76,17 +82,17 @@ function Blank(): React.JSX.Element {
  * Where a client stands, as a coloured pill.
  *
  * The colour carries the meaning at a glance down a column, but the label is
- * always there too — status is not something to encode in colour alone.
+ * always there too — a stage is not something to encode in colour alone.
  */
-function StatusPill({ status }: { status: ClientStatus }): React.JSX.Element {
-  const entry = CLIENT_STATUSES.find((item) => item.value === status)
+function StagePill({ stage }: { stage: RelationshipStage }): React.JSX.Element {
+  const entry = CLIENT_STAGES.find((item) => item.value === stage)
 
   return (
     <span
       className="rounded-full border px-1.5 py-0.5 text-[10px] whitespace-nowrap"
       style={{ borderColor: `${entry?.colour}66`, color: entry?.colour }}
     >
-      {entry?.label ?? status}
+      {entry?.label ?? stage}
     </span>
   )
 }
@@ -110,14 +116,14 @@ export function Clients(): React.JSX.Element {
   })
 
   const search = list.one('q') ?? ''
-  const statuses = list.values('status')
+  const stages = list.values('relationshipStage')
 
   const rows = useMemo(() => {
     const needle = search.trim().toLowerCase()
 
     const matched = clients.filter((client) => {
       if (!tagFilter.keep(client.id)) return false
-      if (statuses.length > 0 && !statuses.includes(client.status)) return false
+      if (stages.length > 0 && !stages.includes(client.relationshipStage)) return false
       if (needle === '') return true
       // Every column is searchable, plus the phone number, which people
       // reach for far more often than they sort by it.
@@ -147,7 +153,7 @@ export function Clients(): React.JSX.Element {
 
       return String(left).localeCompare(String(right), 'en-GB') * direction
     })
-  }, [clients, search, statuses.join(','), sort, tagFilter.keep])
+  }, [clients, search, stages.join(','), sort, tagFilter.keep])
 
   const toggleSort = (key: SortKey): void =>
     setSort((current) =>
@@ -198,12 +204,13 @@ export function Clients(): React.JSX.Element {
             state={list}
             facets={[
               {
-                key: 'status',
-                options: CLIENT_STATUSES.map((entry) => ({
+                key: 'relationshipStage',
+                options: CLIENT_STAGES.map((entry) => ({
                   value: entry.value,
                   label: entry.label,
                   colour: entry.colour,
-                  count: clients.filter((client) => client.status === entry.value).length
+                  count: clients.filter((client) => client.relationshipStage === entry.value)
+                    .length
                 }))
               },
               tagFilter.facet
@@ -251,7 +258,7 @@ export function Clients(): React.JSX.Element {
                     className={cn(
                       'group cursor-pointer border-b border-line/60 transition-colors last:border-b-0',
                       'hover:bg-raised',
-                      client.status === 'not_interested' && 'opacity-60'
+                      client.relationshipStage === 'former' && 'opacity-60'
                     )}
                   >
                     <td className="px-3 py-2.5">
@@ -298,7 +305,7 @@ export function Clients(): React.JSX.Element {
 
                     <td className="px-3 py-2.5 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <StatusPill status={client.status} />
+                        <StagePill stage={client.relationshipStage} />
                         <Inspect
                           subject={{ type: 'client', id: client.id }}
                           siblings={rows.map((row) => ({ type: 'client' as const, id: row.id }))}
@@ -443,14 +450,14 @@ function ClientModal({
               hint="Only clients you mark active count towards your new-client goal."
             >
               <div className="grid grid-cols-2 gap-2">
-                {CLIENT_STATUSES.map((entry) => {
-                  const chosen = (draft.status ?? 'interested') === entry.value
+                {CLIENT_STAGES.map((entry) => {
+                  const chosen = (draft.relationshipStage ?? 'prospect') === entry.value
 
                   return (
                     <button
                       key={entry.value}
                       type="button"
-                      onClick={() => set('status', entry.value)}
+                      onClick={() => set('relationshipStage', entry.value)}
                       className={cn(
                         'rounded-control border px-3 py-2 text-left transition-colors',
                         chosen ? 'bg-raised' : 'border-line hover:border-line-strong'

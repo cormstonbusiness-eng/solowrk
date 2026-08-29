@@ -21,7 +21,9 @@ interface ClientRow extends Row {
   notes: string
   colour: string
   folder: string
-  status: string
+  relationship_stage: string
+  source_campaign_id: number | null
+  source_channel_id: number | null
   interested_at: string | null
   became_active_at: string | null
   archived: number
@@ -43,7 +45,9 @@ function toClient(row: ClientRow): Client {
     notes: row.notes,
     colour: row.colour,
     folder: row.folder,
-    status: row.status as Client['status'],
+    relationshipStage: row.relationship_stage as Client['relationshipStage'],
+    sourceCampaignId: row.source_campaign_id,
+    sourceChannelId: row.source_channel_id,
     interestedAt: row.interested_at,
     becameActiveAt: row.became_active_at,
     archived: row.archived === 1,
@@ -80,14 +84,15 @@ export async function createClient(
   // pointing at a directory that does not exist.
   await mkdir(resolveInWorkspace(workspacePath, join(folder, '_client')), { recursive: true })
 
-  const status = input.status ?? 'active'
+  const stage = input.relationshipStage ?? 'active'
 
   db.run(
     `INSERT INTO clients
        (name, contact_name, email, phone, address, vat_number, default_rate,
-        payment_terms_days, notes, colour, folder, status,
+        payment_terms_days, notes, colour, folder, relationship_stage,
+        source_campaign_id, source_channel_id,
         interested_at, became_active_at, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))`,
     [
       input.name,
       input.contactName ?? '',
@@ -100,11 +105,15 @@ export async function createClient(
       input.notes ?? '',
       input.colour ?? DEFAULT_ENTITY_COLOUR,
       folder,
-      status,
+      stage,
+      input.sourceCampaignId ?? null,
+      input.sourceChannelId ?? null,
       // Stamped on the way in as well as on transition, so a client added
       // straight in as active still counts towards the goal for this period.
-      status === 'interested' ? nowIso() : null,
-      status === 'active' ? nowIso() : null
+      // `lead` does not stamp it: a name written down is not an enquiry, and
+      // counting it as one would flatter every leads goal there is.
+      stage === 'prospect' ? nowIso() : null,
+      stage === 'active' ? nowIso() : null
     ]
   )
 
@@ -124,7 +133,9 @@ const UPDATABLE: Record<string, string> = {
   paymentTermsDays: 'payment_terms_days',
   notes: 'notes',
   colour: 'colour',
-  status: 'status',
+  relationshipStage: 'relationship_stage',
+  sourceCampaignId: 'source_campaign_id',
+  sourceChannelId: 'source_channel_id',
   archived: 'archived'
 }
 
@@ -152,18 +163,18 @@ export async function updateClient(
   }
 
   /**
-   * The first time they reach a status, record when.
+   * The first time they reach a stage, record when.
    *
    * `COALESCE` so it is only ever written once: these stamps are what the
    * goals count, and a client moved from active to past and back would
    * otherwise be counted as a new client twice.
    */
-  if (patch.status && patch.status !== current.status) {
-    if (patch.status === 'interested') {
+  if (patch.relationshipStage && patch.relationshipStage !== current.relationshipStage) {
+    if (patch.relationshipStage === 'prospect') {
       assignments.push('interested_at = COALESCE(interested_at, ?)')
       values.push(nowIso())
     }
-    if (patch.status === 'active') {
+    if (patch.relationshipStage === 'active') {
       assignments.push('became_active_at = COALESCE(became_active_at, ?)')
       values.push(nowIso())
     }

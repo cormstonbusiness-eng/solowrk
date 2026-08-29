@@ -9,7 +9,7 @@ import { ageOutstanding, buildStatement } from './statements'
  */
 function addClient(db: Database, name: string): number {
   db.run(
-    `INSERT INTO clients (name, folder, status, created_at, updated_at)
+    `INSERT INTO clients (name, folder, relationship_stage, created_at, updated_at)
      VALUES (?, ?, 'active', datetime('now'), datetime('now'))`,
     [name, `Clients\\${name}`]
   )

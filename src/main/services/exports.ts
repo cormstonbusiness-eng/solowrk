@@ -46,7 +46,7 @@ const CLIENTS: Column<Client>[] = [
   { header: 'VAT number', value: (row) => row.vatNumber },
   { header: 'Default rate', value: (row) => pounds(row.defaultRate) },
   { header: 'Payment terms (days)', value: (row) => row.paymentTermsDays },
-  { header: 'Status', value: (row) => row.status },
+  { header: 'Stage', value: (row) => row.relationshipStage },
   { header: 'Archived', value: (row) => yesNo(row.archived) },
   { header: 'Notes', value: (row) => row.notes }
 ]

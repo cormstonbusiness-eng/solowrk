@@ -34,7 +34,7 @@ const TODAY = '2026-08-25'
 
 function setUp(db: Database, options: { chaseSend?: string; email?: string } = {}): void {
   db.run(
-    `INSERT INTO clients (name, contact_name, email, folder, status, created_at, updated_at)
+    `INSERT INTO clients (name, contact_name, email, folder, relationship_stage, created_at, updated_at)
      VALUES ('Acme Ltd', 'Dana', ?, 'Clients\\Acme', 'active', datetime('now'), datetime('now'))`,
     [options.email ?? 'dana@acme.test']
   )

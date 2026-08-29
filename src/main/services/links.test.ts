@@ -28,7 +28,7 @@ function id(): number {
 
 function client(name = 'Acme Ltd'): number {
   db.run(
-    `INSERT INTO clients (name, contact_name, folder, status, created_at, updated_at)
+    `INSERT INTO clients (name, contact_name, folder, relationship_stage, created_at, updated_at)
      VALUES (?, 'Dana', ?, 'active', datetime('now'), datetime('now'))`,
     [name, `Clients\\${name}`]
   )

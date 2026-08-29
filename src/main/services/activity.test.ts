@@ -29,7 +29,7 @@ function id(): number {
 
 function client(name = 'Acme Ltd'): number {
   db.run(
-    `INSERT INTO clients (name, contact_name, folder, status, created_at, updated_at)
+    `INSERT INTO clients (name, contact_name, folder, relationship_stage, created_at, updated_at)
      VALUES (?, 'Dana', ?, 'active', datetime('now'), datetime('now'))`,
     [name, `Clients\\${name}`]
   )
@@ -98,8 +98,8 @@ describe('things record their own history', () => {
     // The point of doing this with triggers: raw SQL from the assistant, an
     // automation or a future importer is recorded the same as anything else.
     db.run(
-      `INSERT INTO clients (name, contact_name, folder, status, created_at, updated_at)
-       VALUES ('Straight to SQL', '', 'Clients\\S', 'active', datetime('now'), datetime('now'))`
+      `INSERT INTO clients (name, contact_name, folder, relationship_stage, created_at, updated_at)
+     VALUES ('Straight to SQL', '', 'Clients\\S', 'active', datetime('now'), datetime('now'))`
     )
     expect(recentActivity(db)[0]!.detail).toBe('Straight to SQL')
   })

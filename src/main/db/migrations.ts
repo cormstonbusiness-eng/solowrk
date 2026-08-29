@@ -1797,5 +1797,248 @@ export const migrations: Migration[] = [
 
       CREATE INDEX idx_lead_events ON lead_events(lead_id, id);
     `
+  },
+
+  {
+    id: 30,
+    name: 'marketing_rebuild',
+    sql: `
+      -- Marketing, corrected.
+      --
+      -- The module was built as a lead pipeline, which is a sales function.
+      -- Marketing is where a freelancer plans how work gets *found*: channels,
+      -- campaigns, content and the rhythm of publishing. Sales is what happens
+      -- after somebody puts their hand up.
+      --
+      -- The pipeline is not deleted. It moves to Clients, which already has a
+      -- relationship stage, so a person exists in one place instead of two.
+      -- The conversion itself runs in code rather than here: a client owns a
+      -- folder on disk, and \`createClient\` makes the directory *before* the
+      -- row so no row can point at a directory that does not exist. SQL cannot
+      -- do that. See \`migrateLeadsToClients\`.
+
+      /* ---------------------------------------------------------------- *
+       * Clients gain the full stage vocabulary
+       * ---------------------------------------------------------------- */
+
+      -- Added and back-filled rather than widened in place, and that is not a
+      -- style preference. Widening a CHECK in SQLite means rebuilding the
+      -- table, and rebuilding \`clients\` with foreign keys enforced runs an
+      -- implicit delete against every child row: projects, invoices, quotes
+      -- and time entries would all have their client_id quietly set to null.
+      -- It succeeds without an error and loses every link in the workspace.
+      ALTER TABLE clients ADD COLUMN relationship_stage TEXT NOT NULL DEFAULT 'active'
+        CHECK (relationship_stage IN ('lead','prospect','active','dormant','former'));
+
+      -- 'past' and 'not_interested' both become 'former'. The distinction they
+      -- carried -- finished versus never started -- is not lost: it is the
+      -- difference between a former client with invoices and one without, and
+      -- that is a truer test than a status somebody set once and forgot.
+      UPDATE clients SET relationship_stage = CASE status
+        WHEN 'interested'     THEN 'prospect'
+        WHEN 'not_interested' THEN 'former'
+        WHEN 'past'           THEN 'former'
+        ELSE 'active'
+      END;
+
+      DROP INDEX IF EXISTS idx_clients_status;
+      ALTER TABLE clients DROP COLUMN status;
+      CREATE INDEX idx_clients_stage ON clients(relationship_stage, archived);
+
+      /* ---------------------------------------------------------------- *
+       * Where a client came from
+       * ---------------------------------------------------------------- */
+
+      -- How attribution works with no tracking infrastructure at all: the user
+      -- says where somebody came from when they add them. Every figure in the
+      -- Results tab is built from these two columns and nothing else.
+      ALTER TABLE clients ADD COLUMN source_campaign_id INTEGER
+        REFERENCES marketing_campaigns(id) ON DELETE SET NULL;
+      ALTER TABLE clients ADD COLUMN source_channel_id INTEGER
+        REFERENCES marketing_channels(id) ON DELETE SET NULL;
+
+      /* ---------------------------------------------------------------- *
+       * The strategy
+       * ---------------------------------------------------------------- */
+
+      -- A single row, like settings. Positioning is deliberately absent as a
+      -- column: it lives in the business plan and is referenced there rather
+      -- than copied, because two copies of a positioning statement is how a
+      -- business ends up describing itself two different ways.
+      CREATE TABLE marketing_plan (
+        id              INTEGER PRIMARY KEY CHECK (id = 1),
+        audience        TEXT    NOT NULL DEFAULT '',
+        quarterly_focus TEXT    NOT NULL DEFAULT '',
+        annual_budget   INTEGER NOT NULL DEFAULT 0,
+        updated_at      TEXT    NOT NULL
+      );
+
+      INSERT INTO marketing_plan (id, updated_at) VALUES (1, datetime('now'));
+
+      /* ---------------------------------------------------------------- *
+       * Channels, and the commitment attached to each
+       * ---------------------------------------------------------------- */
+
+      -- cadence_count and cadence_period are the highest-value pair of columns
+      -- in this module. Freelance marketing fails on consistency, not on
+      -- strategy, and a commitment made visible is the only mechanism that
+      -- reliably fixes it. Zero means no commitment, which is a legitimate
+      -- answer for a channel somebody keeps but does not work at.
+      CREATE TABLE marketing_channels (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        name          TEXT    NOT NULL,
+        type          TEXT    NOT NULL DEFAULT 'social'
+                      CHECK (type IN ('social','content','paid','direct',
+                                      'directory','referral','event')),
+        handle_or_url TEXT    NOT NULL DEFAULT '',
+        colour        TEXT    NOT NULL DEFAULT '#6E56CF',
+        is_active     INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0,1)),
+        cadence_count INTEGER NOT NULL DEFAULT 0,
+        cadence_period TEXT   NOT NULL DEFAULT 'week'
+                      CHECK (cadence_period IN ('week','month')),
+        -- Per-channel rather than a maintained table of platform limits, which
+        -- would drift the moment a platform changed one. Null means no limit.
+        character_limit INTEGER,
+        sort_order    INTEGER NOT NULL DEFAULT 0,
+        created_at    TEXT    NOT NULL,
+        updated_at    TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_channels_active ON marketing_channels(is_active, sort_order);
+
+      /* ---------------------------------------------------------------- *
+       * Campaigns
+       * ---------------------------------------------------------------- */
+
+      CREATE TABLE marketing_campaigns (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        name          TEXT    NOT NULL,
+        objective     TEXT    NOT NULL DEFAULT '',
+        campaign_type TEXT    NOT NULL DEFAULT 'content'
+                      CHECK (campaign_type IN ('content','paid_ads','outreach',
+                                               'launch','event','always_on')),
+        status        TEXT    NOT NULL DEFAULT 'planning'
+                      CHECK (status IN ('planning','active','complete','abandoned')),
+        starts_on     TEXT,
+        ends_on       TEXT,
+        -- Pence, like every other money column here.
+        budget        INTEGER NOT NULL DEFAULT 0,
+        target_metric TEXT    NOT NULL DEFAULT '',
+        target_value  INTEGER,
+        brief         TEXT    NOT NULL DEFAULT '',
+        -- Written at completion, when it is the only time it will ever be
+        -- written. It is the mechanism by which somebody stops repeating an
+        -- expensive mistake.
+        retrospective TEXT    NOT NULL DEFAULT '',
+        -- Saved campaigns that exist to be copied, not run.
+        is_template   INTEGER NOT NULL DEFAULT 0 CHECK (is_template IN (0,1)),
+        archived      INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
+        archived_at   TEXT,
+        created_at    TEXT    NOT NULL,
+        updated_at    TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_campaigns_status ON marketing_campaigns(status, archived);
+
+      /* ---------------------------------------------------------------- *
+       * Content
+       * ---------------------------------------------------------------- */
+
+      -- 'hook' is its own column rather than the first line of the body, and
+      -- that is the point of it: the first line decides whether anything else
+      -- gets read, and giving it a field of its own makes somebody think about
+      -- it deliberately instead of typing past it.
+      CREATE TABLE content_items (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        title             TEXT    NOT NULL DEFAULT '',
+        hook              TEXT    NOT NULL DEFAULT '',
+        body              TEXT    NOT NULL DEFAULT '',
+        channel_id        INTEGER REFERENCES marketing_channels(id) ON DELETE SET NULL,
+        campaign_id       INTEGER REFERENCES marketing_campaigns(id) ON DELETE SET NULL,
+        status            TEXT    NOT NULL DEFAULT 'idea'
+                          CHECK (status IN ('idea','drafting','ready','scheduled',
+                                            'published','parked')),
+        -- Local wall-clock, 'yyyy-mm-ddThh:mm', exactly as calendar blocks are.
+        scheduled_for     TEXT,
+        published_at      TEXT,
+        -- The live post, asked for once when something is marked published.
+        link_url          TEXT    NOT NULL DEFAULT '',
+        -- References into Files, never copies.
+        asset_paths       TEXT    NOT NULL DEFAULT '',
+        source_project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+        -- A repurposed derivative points at what it came from, so one piece of
+        -- work can visibly become five.
+        parent_content_id INTEGER REFERENCES content_items(id) ON DELETE SET NULL,
+        notes             TEXT    NOT NULL DEFAULT '',
+        archived          INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
+        archived_at       TEXT,
+        created_at        TEXT    NOT NULL,
+        updated_at        TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_content_scheduled ON content_items(scheduled_for);
+      CREATE INDEX idx_content_status    ON content_items(status, archived);
+      CREATE INDEX idx_content_parent    ON content_items(parent_content_id);
+
+      /* ---------------------------------------------------------------- *
+       * Measurement, entered by hand
+       * ---------------------------------------------------------------- */
+
+      -- Every figure is nullable. Partial data is the normal case: somebody
+      -- knows they got two enquiries and has no idea how many impressions it
+      -- took, and a form that refuses that is a form nobody fills in twice.
+      CREATE TABLE content_metrics (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        content_id  INTEGER NOT NULL REFERENCES content_items(id) ON DELETE CASCADE,
+        recorded_at TEXT    NOT NULL,
+        impressions INTEGER,
+        engagements INTEGER,
+        clicks      INTEGER,
+        enquiries   INTEGER,
+        notes       TEXT    NOT NULL DEFAULT ''
+      );
+
+      CREATE INDEX idx_content_metrics ON content_metrics(content_id, recorded_at);
+
+      CREATE TABLE campaign_metrics (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        campaign_id INTEGER NOT NULL REFERENCES marketing_campaigns(id) ON DELETE CASCADE,
+        recorded_on TEXT    NOT NULL,
+        spend       INTEGER,
+        impressions INTEGER,
+        clicks      INTEGER,
+        enquiries   INTEGER,
+        notes       TEXT    NOT NULL DEFAULT ''
+      );
+
+      CREATE INDEX idx_campaign_metrics ON campaign_metrics(campaign_id, recorded_on);
+
+      /* ---------------------------------------------------------------- *
+       * The library
+       * ---------------------------------------------------------------- */
+
+      CREATE TABLE library_assets (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        type              TEXT    NOT NULL DEFAULT 'swipe'
+                          CHECK (type IN ('case_study','testimonial','image',
+                                          'template','swipe')),
+        title             TEXT    NOT NULL,
+        body              TEXT    NOT NULL DEFAULT '',
+        file_path         TEXT    NOT NULL DEFAULT '',
+        url               TEXT    NOT NULL DEFAULT '',
+        source_project_id INTEGER REFERENCES projects(id) ON DELETE SET NULL,
+        client_id         INTEGER REFERENCES clients(id) ON DELETE SET NULL,
+        -- Testimonials carry it explicitly, because using one without asking
+        -- is a thing somebody only does once.
+        may_use           INTEGER NOT NULL DEFAULT 0 CHECK (may_use IN (0,1)),
+        tags              TEXT    NOT NULL DEFAULT '',
+        archived          INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
+        archived_at       TEXT,
+        created_at        TEXT    NOT NULL,
+        updated_at        TEXT    NOT NULL
+      );
+
+      CREATE INDEX idx_library_type ON library_assets(type, archived);
+    `
   }
 ]

@@ -314,18 +314,40 @@ export interface FolderInspection {
  * work that finished — and folding that into `not_interested` would relabel
  * every completed client as a lost lead.
  */
-export type ClientStatus = 'active' | 'interested' | 'not_interested' | 'past'
+export const RELATIONSHIP_STAGES = [
+  'lead',
+  'prospect',
+  'active',
+  'dormant',
+  'former'
+] as const
 
-export const CLIENT_STATUSES: {
-  value: ClientStatus
+export type RelationshipStage = (typeof RELATIONSHIP_STAGES)[number]
+
+/**
+ * The five stages, in the order somebody moves through them.
+ *
+ * This replaced a four-value `status` when Marketing was corrected: the lead
+ * pipeline was a sales function sitting in the wrong module, and moving it here
+ * meant Clients had to be able to express the stages it carried. `lead` and
+ * `prospect` are the two that arrived with it.
+ *
+ * `dormant` and `former` are deliberately separate. Dormant is somebody who has
+ * gone quiet and may well come back; former is somebody who is finished. Folding
+ * them together would lose the distinction that decides whether it is worth
+ * getting in touch.
+ */
+export const CLIENT_STAGES: {
+  value: RelationshipStage
   label: string
   hint: string
   colour: string
 }[] = [
-  { value: 'interested', label: 'Interested', colour: '#F5A623', hint: 'Enquired, not decided' },
+  { value: 'lead', label: 'Lead', colour: '#8a8a93', hint: 'A name, nothing more yet' },
+  { value: 'prospect', label: 'Prospect', colour: '#F5A623', hint: 'Talking, not decided' },
   { value: 'active', label: 'Active', colour: '#30A46C', hint: 'Working with them now' },
-  { value: 'past', label: 'Past', colour: '#8a8a93', hint: 'Worked with them before' },
-  { value: 'not_interested', label: 'Not interested', colour: '#E5484D', hint: 'Said no' }
+  { value: 'dormant', label: 'Dormant', colour: '#6E56CF', hint: 'Gone quiet, might return' },
+  { value: 'former', label: 'Former', colour: '#E5484D', hint: 'Finished, or said no' }
 ]
 
 export interface Client {
@@ -344,8 +366,17 @@ export interface Client {
   /** Relative to the workspace root. */
   folder: string
   /** Where they stand. Distinct from `archived`, which hides the record. */
-  status: ClientStatus
-  /** When they were first marked interested, for the leads goal. Never cleared. */
+  relationshipStage: RelationshipStage
+  /**
+   * Where they came from, said by the user rather than tracked.
+   *
+   * This is the whole of attribution. There are no platform integrations and
+   * there will not be, so every figure in Marketing's Results tab is built from
+   * these two columns and nothing else.
+   */
+  sourceCampaignId: number | null
+  sourceChannelId: number | null
+  /** When they first became a prospect, for the leads goal. Never cleared. */
   interestedAt: string | null
   /** When they first became an active client, for the new-clients goal. */
   becameActiveAt: string | null
