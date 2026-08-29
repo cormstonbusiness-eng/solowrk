@@ -86,10 +86,38 @@ function notesFor(lead: LeadRow): string {
  * will not open is far worse than a lead that has not moved yet, and the next
  * open will try again.
  */
-export async function migrateLeadsToClients(
-  db: Database,
-  workspacePath: string
-): Promise<number> {
+let running: Promise<number> | null = null
+
+export function migrateLeadsToClients(db: Database, workspacePath: string): Promise<number> {
+  /**
+   * One run at a time, and concurrent callers join the one already going.
+   *
+   * Found on a real workspace: `workspace:status` reaches `restore()`, React
+   * runs its effects twice in development, and both calls entered `open()` and
+   * suspended at the first `await`. Both then read the same unconverted lead,
+   * and one lead became two clients. The only sign was the log line printing
+   * twice.
+   *
+   * `open()` serialises now too, which is the better fix — but this is the
+   * function that turns a read into a write, so it carries its own guard. Two
+   * separate *processes* on one workspace would still race; that is a wider
+   * problem than this, and the app does not support it in the first place.
+   */
+  if (running) return running
+
+  running = convert(db, workspacePath).finally(() => {
+    running = null
+  })
+
+  return running
+}
+
+/** Testing seam: one test's in-flight run must not leak into the next. */
+export function resetLeadMigration(): void {
+  running = null
+}
+
+async function convert(db: Database, workspacePath: string): Promise<number> {
   // The table is gone in a future schema; until then, absence is not an error.
   const pending = db.all<LeadRow>(
     `SELECT * FROM leads

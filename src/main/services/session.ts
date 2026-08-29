@@ -95,7 +95,35 @@ class Session {
     return { state: 'ready', path }
   }
 
-  private async open(path: string): Promise<void> {
+  /**
+   * Opens are serialised, and that is not a nicety.
+   *
+   * `workspace:status` reaches `restore()`, and React runs its effects twice
+   * in development — so two calls arrive at once, both enter `open()`, and
+   * both suspend at the first `await`. That was harmless while everything in
+   * here was idempotent on its own. It stopped being harmless the moment
+   * something read the database and then wrote to it: both runs of the lead
+   * conversion saw the same unconverted lead, and one lead became two clients.
+   *
+   * Chaining rather than short-circuiting, because the second caller still
+   * wants a settled workspace when its promise resolves, not an early return
+   * while the first is halfway through scaffolding.
+   */
+  private queue: Promise<unknown> = Promise.resolve()
+
+  private open(path: string): Promise<void> {
+    const next = this.queue.then(
+      () => this.openNow(path),
+      () => this.openNow(path)
+    )
+
+    // Swallowed on the queue only: a failed open must not poison every open
+    // after it. The caller still gets the rejection through `next`.
+    this.queue = next.catch(() => undefined)
+    return next
+  }
+
+  private async openNow(path: string): Promise<void> {
     this.close()
 
     // Re-scaffold on every open, not only on create. Every mkdir is recursive

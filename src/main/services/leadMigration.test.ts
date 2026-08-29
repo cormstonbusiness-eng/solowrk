@@ -11,7 +11,7 @@ vi.mock('electron', () => ({
 const { Database } = await import('../db')
 const { scaffoldWorkspace } = await import('./workspace')
 const { listClients } = await import('./clients')
-const { migrateLeadsToClients } = await import('./leadMigration')
+const { migrateLeadsToClients, resetLeadMigration } = await import('./leadMigration')
 
 /**
  * Moving the pipeline out of Marketing.
@@ -29,6 +29,7 @@ beforeEach(async () => {
   root = await mkdtemp(join(tmpdir(), 'solo-leadmig-'))
   await scaffoldWorkspace(root)
   db = new Database(':memory:')
+  resetLeadMigration()
 })
 
 afterEach(async () => {
@@ -177,5 +178,34 @@ describe('running it again', () => {
 
     expect(await migrateLeadsToClients(db, root)).toBe(0)
     expect(listClients(db)).toHaveLength(0)
+  })
+})
+
+describe('two of them at once', () => {
+  it('makes one client, not two', async () => {
+    /**
+     * The bug this caught, on a real workspace.
+     *
+     * `workspace:status` reaches `restore()`, React runs its effects twice in
+     * development, and both calls entered `open()` and suspended at the first
+     * `await`. Both then read the same unconverted lead and both created a
+     * client from it. One lead, two clients, and the only sign was the log
+     * line appearing twice.
+     *
+     * `open()` serialises now, which is the real fix. This holds the
+     * conversion itself to the same promise, because the next thing to call it
+     * concurrently will not be `open()`.
+     */
+    addLead()
+
+    await Promise.all([
+      migrateLeadsToClients(db, root),
+      migrateLeadsToClients(db, root)
+    ])
+
+    expect(listClients(db)).toHaveLength(1)
+    expect(db.get<{ client_id: number | null }>('SELECT client_id FROM leads')?.client_id).toBe(
+      listClients(db)[0]?.id
+    )
   })
 })
