@@ -250,11 +250,11 @@ export const QUESTIONS: Question[] = [
   {
     id: 'target',
     section: 'financials',
-    prompt: 'What does this need to earn in a year?',
-    hint: 'What has to land in your account, before tax. SoloWrk works the rest out from it.',
+    prompt: 'What do you need to take home in a year?',
+    hint: 'After costs and tax — the money that is actually yours. The calculator at the top of this page checks whether it is reachable at your rate.',
     kind: 'short',
-    placeholder: '£48,000',
-    lead: 'The business needs to turn over '
+    placeholder: '£36,000',
+    lead: 'The business needs to take home '
   },
   {
     id: 'costs',

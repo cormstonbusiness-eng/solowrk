@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { ArrowLeft, ArrowRight, Check, Sparkles, X } from 'lucide-react'
 import type { BusinessPlanStatus } from '@shared/types'
+import type { PlanFigures } from '@shared/planFigures'
 import {
   INTERVIEW_SECTIONS,
   QUESTIONS,
@@ -57,7 +58,7 @@ export function Interview({
   onDone,
   onCancel
 }: {
-  onDone: (status: BusinessPlanStatus) => void
+  onDone: (status: BusinessPlanStatus, applied: PlanFigures) => void
   onCancel: () => void
 }): React.JSX.Element {
   const [answers, setAnswers] = useState<Answers>(loadDraft)
@@ -99,13 +100,13 @@ export function Interview({
 
   const build = useMutation({
     mutationFn: () => window.solo.invoke('ai:buildBusinessPlan', { answers }),
-    onSuccess: (status) => {
+    onSuccess: (result) => {
       try {
         window.localStorage.removeItem(DRAFT_KEY)
       } catch {
         /* The plan is written; a stale draft is harmless. */
       }
-      onDone(status)
+      onDone(result.status, result.applied)
     },
     onError: (cause) =>
       setError(cause instanceof Error ? cause.message : 'The plan could not be written')

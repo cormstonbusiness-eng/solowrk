@@ -28,12 +28,21 @@ export function Capacity(): React.JSX.Element {
   })
 
   const [input, setInput] = useState<CapacityInput | null>(null)
-  const [target, setTarget] = useState(3_000_000)
+  /**
+   * Null until the defaults land, so the plan's stated take-home can seed it.
+   *
+   * It used to open on a hard-coded £30,000 every visit, which meant somebody
+   * whose plan said £36,000 was told a different answer here than three
+   * inches further down the page.
+   */
+  const [target, setTarget] = useState<number | null>(null)
 
   // Seeded once. Re-seeding on every refetch would pull the sliders back from
   // under somebody who is in the middle of trying a different rate.
   useEffect(() => {
     if (!defaults || input !== null) return
+    // £30,000 only where nobody has said. A stated target always wins.
+    setTarget((current) => current ?? (defaults.takeHomeTarget > 0 ? defaults.takeHomeTarget : 3_000_000))
     setInput({
       weeksPerYear: defaults.weeksPerYear,
       hoursPerWeek: defaults.hoursPerWeek,
@@ -44,7 +53,7 @@ export function Capacity(): React.JSX.Element {
     })
   }, [defaults, input])
 
-  if (!defaults || !input) return <></>
+  if (!defaults || !input || target === null) return <></>
 
   const result = ceiling(input)
   const answer = verdict(target, input)
@@ -118,7 +127,14 @@ export function Capacity(): React.JSX.Element {
         <Field label="Your hourly rate">
           <MoneyInput pence={input.rate} onChangePence={(pence) => set('rate', pence)} />
         </Field>
-        <Field label="Costs a year" hint="Software, insurance, hardware, accountant.">
+        <Field
+          label="Costs a year"
+          hint={
+            defaults.costsFromPlan
+              ? 'From your business plan — nothing recorded yet.'
+              : 'Software, insurance, hardware, accountant.'
+          }
+        >
           <MoneyInput
             pence={input.annualCosts}
             onChangePence={(pence) => set('annualCosts', pence)}

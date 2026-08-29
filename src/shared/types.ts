@@ -53,6 +53,14 @@ export interface ProjectUsage {
 export interface CapacityDefaults extends CapacityInput {
   /** True when utilisation came from tracked history rather than a default. */
   fromHistory: boolean
+  /**
+   * True when the costs figure came from the business plan because the
+   * workspace has no recorded expenses. Tracked reality always wins where it
+   * exists; this exists so the field can say when it did not.
+   */
+  costsFromPlan: boolean
+  /** What the plan says the user needs to take home. Zero when unset. */
+  takeHomeTarget: number
   trackedBillableHours: number
   trackedHours: number
   /** What an hour has really earned, which is often below the headline rate. */
@@ -126,6 +134,15 @@ export interface BusinessSettings {
 
   /** Share of income to hold back for tax, shown as a set-aside pot. */
   taxSetAsidePercent: number
+  /**
+   * Fixed costs a year, as stated in the business plan.
+   *
+   * Only used where the workspace has no recorded expenses to work from. Zero
+   * means nobody has said — never "the costs are nothing".
+   */
+  plannedAnnualCosts: Pence
+  /** What the user says they need to take home in a year. Zero means unset. */
+  takeHomeTarget: Pence
   /** UK default: 6 April. */
   taxYearStartDay: number
   taxYearStartMonth: number

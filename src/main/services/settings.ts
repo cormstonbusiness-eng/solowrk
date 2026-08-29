@@ -23,6 +23,8 @@ interface SettingsRow extends Row {
   default_hourly_rate: number
   payment_terms_days: number
   tax_set_aside_percent: number
+  planned_annual_costs: number
+  take_home_target: number
   tax_year_start_day: number
   tax_year_start_month: number
   invoice_prefix: string
@@ -63,6 +65,8 @@ function toSettings(row: SettingsRow): Settings {
     defaultHourlyRate: row.default_hourly_rate,
     paymentTermsDays: row.payment_terms_days,
     taxSetAsidePercent: row.tax_set_aside_percent,
+    plannedAnnualCosts: row.planned_annual_costs,
+    takeHomeTarget: row.take_home_target,
     taxYearStartDay: row.tax_year_start_day,
     taxYearStartMonth: row.tax_year_start_month,
     invoicePrefix: row.invoice_prefix,
@@ -104,6 +108,8 @@ const COLUMNS: {
   defaultHourlyRate: { column: 'default_hourly_rate', toDb: Number },
   paymentTermsDays: { column: 'payment_terms_days', toDb: Number },
   taxSetAsidePercent: { column: 'tax_set_aside_percent', toDb: Number },
+  plannedAnnualCosts: { column: 'planned_annual_costs', toDb: Number },
+  takeHomeTarget: { column: 'take_home_target', toDb: Number },
   taxYearStartDay: { column: 'tax_year_start_day', toDb: Number },
   taxYearStartMonth: { column: 'tax_year_start_month', toDb: Number },
   invoicePrefix: { column: 'invoice_prefix', toDb: String },

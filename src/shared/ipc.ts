@@ -8,6 +8,7 @@
  */
 
 import type { PrefillKey } from './planInterview'
+import type { PlanFigures } from './planFigures'
 import type {
   AutomationRule,
   AutomationRuleInput,
@@ -241,7 +242,16 @@ export interface IpcContract {
    * second class of plan.
    */
   'ai:planPrefill': { req: void; res: Partial<Record<PrefillKey, string>> }
-  'ai:buildBusinessPlan': { req: { answers: Record<string, string> }; res: BusinessPlanStatus }
+  'ai:buildBusinessPlan': {
+    req: { answers: Record<string, string> }
+    /**
+     * `applied` is what the plan's own figures set behind the capacity
+     * calculator. Returned rather than silently written so the page can say
+     * which numbers changed — a rate that moved without being mentioned is a
+     * surprise waiting to be found on an invoice.
+     */
+    res: { status: BusinessPlanStatus; applied: PlanFigures }
+  }
 
   'ai:startBusinessPlan': { req: void; res: BusinessPlanStatus }
 

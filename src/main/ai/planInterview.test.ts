@@ -6,9 +6,12 @@ vi.mock('electron', () => ({
 }))
 
 const { Database } = await import('../db')
-const { applyToMarketing, marketingFromPlan, prefillAnswers } = await import('./planInterview')
+const { applyFigures, applyToMarketing, marketingFromPlan, prefillAnswers } = await import(
+  './planInterview'
+)
 const { createChannel, getPlan, listChannels, updatePlan } = await import('../services/channels')
-const { updateSettings } = await import('../services/settings')
+const { getSettings, updateSettings } = await import('../services/settings')
+const { capacityDefaults } = await import('../services/capacity')
 
 /**
  * What the app can answer for you, and what it does with the plan afterwards.
@@ -172,5 +175,61 @@ describe('applying what was accepted', () => {
     applyToMarketing(db, { audience: '   ' })
 
     expect(getPlan(db).audience).toBe('Written by hand')
+  })
+})
+
+describe('the figures behind the capacity calculator', () => {
+  it('sets the rate, the costs and the target from the plan', () => {
+    applyFigures(db, { charge: '£65 an hour', costs: 'About £4,000', target: '£36,000' })
+
+    const settings = getSettings(db)
+    expect(settings.defaultHourlyRate).toBe(6500)
+    expect(settings.plannedAnnualCosts).toBe(400_000)
+    expect(settings.takeHomeTarget).toBe(3_600_000)
+  })
+
+  it('reaches the calculator, which is the whole point', () => {
+    // The join this change exists to make: what somebody typed into the
+    // interview is what the card at the top of the page works from.
+    applyFigures(db, { charge: '£65 an hour', costs: '£4,000', target: '£36,000' })
+
+    const defaults = capacityDefaults(db)
+    expect(defaults.rate).toBe(6500)
+    expect(defaults.annualCosts).toBe(400_000)
+    expect(defaults.costsFromPlan).toBe(true)
+    expect(defaults.takeHomeTarget).toBe(3_600_000)
+  })
+
+  it('leaves the rate alone when the plan quotes a day rate', () => {
+    updateSettings(db, { defaultHourlyRate: 5000 })
+    applyFigures(db, { charge: '£450 a day', costs: '£4,000' })
+
+    // Setting 45000 here would have re-priced every timer in the app.
+    expect(getSettings(db).defaultHourlyRate).toBe(5000)
+    expect(getSettings(db).plannedAnnualCosts).toBe(400_000)
+  })
+
+  it('writes nothing for a figure the plan does not state', () => {
+    updateSettings(db, { defaultHourlyRate: 5000, plannedAnnualCosts: 100_000 })
+    applyFigures(db, { target: '£36,000' })
+
+    expect(getSettings(db).defaultHourlyRate).toBe(5000)
+    expect(getSettings(db).plannedAnnualCosts).toBe(100_000)
+  })
+
+  it('lets real expenses beat the stated figure', () => {
+    // Tracked reality is the point of the calculator and always wins where it
+    // exists. The plan is only a fallback for somebody with no history yet.
+    applyFigures(db, { costs: '£4,000' })
+    db.run(
+      `INSERT INTO expenses
+         (date, vendor, description, net, vat, total, category, created_at, updated_at)
+       VALUES (date('now'), 'Someone', 'Insurance', 20000, 0, 20000, 'Insurance',
+               datetime('now'), datetime('now'))`
+    )
+
+    const defaults = capacityDefaults(db)
+    expect(defaults.annualCosts).toBe(20000)
+    expect(defaults.costsFromPlan).toBe(false)
   })
 })

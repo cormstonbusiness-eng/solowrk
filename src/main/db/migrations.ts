@@ -2080,5 +2080,31 @@ export const migrations: Migration[] = [
       -- rolled back with the transaction it runs in.
       ALTER TABLE marketing_campaigns ADD COLUMN folder TEXT NOT NULL DEFAULT '';
     `
+  },
+  {
+    id: 32,
+    name: 'stated_figures',
+    sql: `
+      -- What the business plan says about money, as opposed to what the
+      -- workspace has recorded happening.
+      --
+      -- The capacity calculator is seeded from tracked reality — expenses,
+      -- time, the working calendar — and that is the right default, because a
+      -- calculator run on optimism produces an optimistic answer and changes
+      -- nothing. But a new user has no tracked reality at all, and a plan that
+      -- says "fixed costs about £4,000" is far better than the zero those
+      -- queries return. These two hold the stated figures so the calculator
+      -- has something honest to fall back to, and so it never has to guess.
+      --
+      -- Both nullable-by-default rather than NOT NULL with a number: zero has
+      -- to keep meaning "nobody has said", because a plan that is silent about
+      -- costs must not set them to nothing.
+      ALTER TABLE settings ADD COLUMN planned_annual_costs INTEGER NOT NULL DEFAULT 0;
+
+      -- What the user says they need to take home in a year. The calculator
+      -- has always had this box; it has never had anywhere to keep it, so it
+      -- reset to a hard-coded £30,000 on every visit.
+      ALTER TABLE settings ADD COLUMN take_home_target INTEGER NOT NULL DEFAULT 0;
+    `
   }
 ]

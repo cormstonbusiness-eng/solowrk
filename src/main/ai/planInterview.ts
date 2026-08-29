@@ -1,8 +1,9 @@
 import type { Database, Row } from '../db'
 import type { BusinessPlanStatus } from '@shared/types'
 import { composePlan, type Answers, type PrefillKey } from '@shared/planInterview'
+import { figuresFrom, type PlanFigures } from '@shared/planFigures'
 import { classify, parsePlan } from '@shared/plan'
-import { getSettings } from '../services/settings'
+import { getSettings, updateSettings } from '../services/settings'
 import { getPlan, listChannels, updatePlan } from '../services/channels'
 import { startPlan, writePlan } from './businessPlan'
 
@@ -73,16 +74,42 @@ export async function buildPlanFromAnswers(
   db: Database,
   workspacePath: string,
   answers: Answers
-): Promise<BusinessPlanStatus> {
+): Promise<{ status: BusinessPlanStatus; applied: PlanFigures }> {
   const { businessName } = getSettings(db)
   const title =
     businessName.trim() === '' ? 'Business plan' : `${businessName.trim()} — business plan`
 
   // Creates the file and points settings at it, seeding from the template.
-  const started = await startPlan(db, workspacePath)
-  void started
+  await startPlan(db, workspacePath)
+  const status = await writePlan(db, workspacePath, composePlan(title, answers))
 
-  return writePlan(db, workspacePath, composePlan(title, answers))
+  return { status, applied: applyFigures(db, answers) }
+}
+
+/**
+ * Put the plan's own numbers behind the capacity calculator.
+ *
+ * The card at the top of the Business plan page asks what this business can
+ * earn, and it was answering from a rate nobody had chosen while the plan
+ * three inches below it said something different. Finishing the interview is
+ * a deliberate act on answers the user just typed, so this applies on
+ * completion rather than asking again — and the page says what it set.
+ *
+ * A figure the plan does not state is left alone. `null` means "the plan is
+ * silent", which must never be written as zero: costs of nothing is a claim,
+ * and it is one that makes the calculator flatter somebody.
+ */
+export function applyFigures(db: Database, answers: Answers): PlanFigures {
+  const figures = figuresFrom(answers)
+  const patch: Record<string, number> = {}
+
+  if (figures.rate !== null) patch.defaultHourlyRate = figures.rate
+  if (figures.annualCosts !== null) patch.plannedAnnualCosts = figures.annualCosts
+  if (figures.takeHome !== null) patch.takeHomeTarget = figures.takeHome
+
+  if (Object.keys(patch).length > 0) updateSettings(db, patch)
+
+  return figures
 }
 
 /* ------------------------------------------------------------------ *

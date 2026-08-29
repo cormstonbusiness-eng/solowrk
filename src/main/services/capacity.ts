@@ -1,5 +1,5 @@
 import type { Database, Row } from '../db'
-import type { CapacityInput } from '@shared/capacity'
+import type { CapacityDefaults } from '@shared/types'
 import { DEFAULT_UTILISATION, DEFAULT_WEEKS } from '@shared/capacity'
 import { addDays, today } from '@shared/taxYear'
 import { getCalendarSettings } from './calendarSettings'
@@ -21,16 +21,14 @@ import { getSettings } from './settings'
 /** Below this there is not enough tracked time to draw a conclusion from. */
 const ENOUGH_HOURS = 40
 
-export interface CapacityDefaults extends CapacityInput {
-  /** True when utilisation came from tracked history rather than a default. */
-  fromHistory: boolean
-  /** Billable hours actually tracked in the last year. */
-  trackedBillableHours: number
-  /** Everything tracked, billable or not. */
-  trackedHours: number
-  /** What an hour has really earned, across billed work. */
-  actualRate: number
-}
+/**
+ * Re-exported rather than redeclared.
+ *
+ * This shape used to exist twice — once here and once in `@shared/types` for
+ * the IPC contract — and the two had to be kept in step by hand. They are the
+ * same type, so now they are.
+ */
+export type { CapacityDefaults }
 
 export function capacityDefaults(db: Database, asOf: string = today()): CapacityDefaults {
   const settings = getSettings(db)
@@ -79,11 +77,23 @@ export function capacityDefaults(db: Database, asOf: string = today()): Capacity
       ? Math.round((earned!.value ?? 0) / ((earned!.seconds ?? 1) / 3600))
       : settings.defaultHourlyRate
 
-  const costs =
+  /**
+   * Recorded expenses first, and the plan's stated figure only when there are
+   * none.
+   *
+   * Tracked reality is the point of this calculator, so it always wins where
+   * it exists. But a new user has none, and answering "costs a year: £0" to
+   * somebody whose plan says £4,000 makes the whole card wrong in the one
+   * direction that flatters them.
+   */
+  const recorded =
     db.get<Row & { total: number | null }>(
       'SELECT SUM(total) AS total FROM expenses WHERE date >= ? AND date <= ?',
       [from, asOf]
     )?.total ?? 0
+
+  const costsFromPlan = recorded === 0 && settings.plannedAnnualCosts > 0
+  const costs = costsFromPlan ? settings.plannedAnnualCosts : recorded
 
   return {
     weeksPerYear: DEFAULT_WEEKS,
@@ -95,6 +105,8 @@ export function capacityDefaults(db: Database, asOf: string = today()): Capacity
     // tax page do not quietly disagree about what tax costs.
     taxBasisPoints: settings.taxSetAsidePercent * 100,
     fromHistory,
+    costsFromPlan,
+    takeHomeTarget: settings.takeHomeTarget,
     trackedBillableHours: billableHours,
     trackedHours,
     actualRate

@@ -15,6 +15,7 @@ import {
   X
 } from 'lucide-react'
 import type { BusinessPlanStatus } from '@shared/types'
+import type { PlanFigures } from '@shared/planFigures'
 import {
   appendSection,
   coverage,
@@ -31,7 +32,7 @@ import { Markdown } from '@/components/ui/Markdown'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
 import { ConfirmModal } from '@/components/ui/Modal'
-import { formatDate } from '@/lib/format'
+import { formatDate, formatMoney } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
@@ -54,6 +55,7 @@ export function BusinessPlan(): React.JSX.Element {
   const [editing, setEditing] = useState<string | null>(null)
   const [building, setBuilding] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [applied, setApplied] = useState<PlanFigures | null>(null)
   const anchors = useRef(new Map<string, HTMLDivElement>())
 
   const { data: plan, isPending } = useQuery({
@@ -176,9 +178,12 @@ export function BusinessPlan(): React.JSX.Element {
 
       {isPending ? null : building ? (
         <Interview
-          onDone={(status) => {
+          onDone={(status, figures) => {
             settle(status)
+            setApplied(figures)
             setBuilding(false)
+            // The calculator reads settings this just wrote.
+            void queryClient.invalidateQueries({ queryKey: ['capacity'] })
           }}
           onCancel={() => setBuilding(false)}
         />
@@ -215,6 +220,8 @@ export function BusinessPlan(): React.JSX.Element {
               what most of the plan is arguing with, and a freelancer who
               reads it first writes different sections.
             */}
+            <AppliedFigures figures={applied} onDismiss={() => setApplied(null)} />
+
             <ToMarketing />
 
             <Capacity />
@@ -325,6 +332,58 @@ function Choice({
         className="mt-3 text-[11.5px] text-faint transition-colors hover:text-ink disabled:opacity-50"
       >
         {starting ? 'Starting…' : 'Or just give me a blank outline to fill in myself'}
+      </button>
+    </div>
+  )
+}
+
+/**
+ * What finishing the plan changed behind the calculator.
+ *
+ * Shown once, dismissible, and naming every figure. The rate in particular is
+ * used by every timer, quote and estimate in the app, so it moving is the kind
+ * of thing somebody has to be told about at the moment it happens rather than
+ * discovering on an invoice three weeks later.
+ */
+function AppliedFigures({
+  figures,
+  onDismiss
+}: {
+  figures: PlanFigures | null
+  onDismiss: () => void
+}): React.JSX.Element | null {
+  if (!figures) return null
+
+  const changes: string[] = []
+  if (figures.rate !== null) changes.push(`your rate to ${formatMoney(figures.rate)} an hour`)
+  if (figures.annualCosts !== null) {
+    changes.push(`costs to ${formatMoney(figures.annualCosts)} a year`)
+  }
+  if (figures.takeHome !== null) {
+    changes.push(`your target to ${formatMoney(figures.takeHome)} take-home`)
+  }
+
+  if (changes.length === 0) return null
+
+  const list =
+    changes.length === 1
+      ? changes[0]
+      : `${changes.slice(0, -1).join(', ')} and ${changes.at(-1)}`
+
+  return (
+    <div className="mb-3 flex items-start gap-2.5 rounded-control border border-success/30 bg-success/8 px-3 py-2.5">
+      <Check size={14} strokeWidth={2} className="mt-px shrink-0 text-success" />
+      <p className="flex-1 text-[12px] leading-relaxed text-ink">
+        Your plan set {list}. The figures below are worked out from them, and your rate is what
+        new timers and quotes will use.
+      </p>
+      <button
+        type="button"
+        onClick={onDismiss}
+        aria-label="Dismiss"
+        className="shrink-0 text-faint transition-colors hover:text-ink"
+      >
+        <X size={13} strokeWidth={1.75} />
       </button>
     </div>
   )
