@@ -100,26 +100,41 @@ not a sign-out.
     "email": "alex@example.com",
     "name": "Alex Fisher",
     "plan": "Pro",                          // shown as-is in the UI
-    "features": ["assistant", "marketing"], // what the plan unlocks
+    "features": ["marketing", "chasing"],   // legacy; see below
     "expiresOn": "2027-01-01"               // yyyy-mm-dd, or ""
-  }
+  },
+  "licence": "eyJ2IjoxLC...Qw.7mK9...bA"    // Ed25519, and the part that counts
 }
 ```
 
 - `token` is opaque to the app. It is stored and sent back as a bearer token.
+  It authenticates the *session*; it grants nothing.
+- **`licence` is what actually grants anything.** An Ed25519-signed token the
+  app verifies offline against a public key compiled into the binary. Its
+  claims are in §3.2 of the Pricing spec. Absent means nothing granted, which
+  the app treats as Free rather than as an error.
 - `plan` is **display text, not an identifier** — write what you want the user
   to read, and reword it whenever you like.
-- `features` is **the part the app acts on.** Opaque names, server's choice.
-  Today only `assistant` means anything; `marketing` is reserved. Omit it or
-  send `[]` for Basic.
+- `features` is **legacy.** Builds before the signed licence read it; current
+  builds ignore it entirely and derive everything from the tier inside
+  `licence`, using the same entitlement map they ship with. Keep sending it
+  until those builds are gone.
 - `expiresOn` is shown as "renews …". `""` for a licence that never expires.
 
-**Keep `plan` and `features` separate even though they look redundant.** It is
-what lets pricing be restructured — a feature moved between tiers, a tier
-renamed, a promotion — without shipping an app release, and without every
-install that never updates disagreeing with you about what Pro includes.
+**Why the licence is signed.** The account-server URL is editable from the
+app's own Settings screen. While the feature list arrived as plain JSON,
+anybody could point SoloWrk at a server of their own and grant themselves Pro.
+Forging one now means breaking Ed25519. It is also what makes a lifetime
+licence possible: verification touches no network, so somebody who bought one
+can be offline for a decade and still be Pro.
 
-Every field except `features` must be present. The app reads them directly.
+**Keep `plan` and the tier separate even though they look redundant.** `plan`
+is a sentence for a human — "Pro · payment needed", "Trial", "Free" — and the
+tier is a fact the app acts on. Merging them means every wording change is a
+release.
+
+Every field except `features` and `licence` must be present. The app reads
+them directly.
 
 ---
 
@@ -166,7 +181,8 @@ Use `409` when the seat limit is reached, with a `message` naming which limit.
 
 | Plan | `windows` | mobile (`ios` / `android`) |
 |---|---|---|
-| Basic | **1** | — |
+| Free | **1** | — |
+| Basic+ | **2** | — |
 | Pro | **2** | **1**, once a mobile app exists |
 
 So a Pro licence allows two computers *and* a phone — not three devices. A
@@ -180,6 +196,15 @@ stored in `userData`, so it survives app updates and does not change between
 sign-ins. It is not a hardware fingerprint — reinstalling Windows produces a
 new one, so leave a way to release seats or expire them after inactivity.
 
+**`fingerprint` is the hardware one**, and is what the signed licence is bound
+to. Hashed motherboard serial and machine GUID, never the MAC address, which
+changes with a dock. It is a one-way hash: the serials themselves never leave
+the machine, because the sign-in screen promises only the licence, the email
+and the computer's name are sent. It can be **absent** — a virtual machine or
+an OEM board with a blank serial produces nothing usable — and a server that
+refuses those refuses paying customers on the strength of their BIOS. Fall
+back to `deviceId`.
+
 **`deviceName` is the machine's own name**, sent so the account page can offer
 "release this seat" against something recognisable. Nobody can choose between
 four UUIDs. Treat it as display text — it is not unique and not trustworthy.
@@ -191,10 +216,23 @@ of thing a customer can act on.
 
 **The app fails open, and it never fails shut.** If `/licence/status` cannot be
 reached, the app treats it as *offline*, keeps working, and retries later.
-After **14 days** without a successful check it drops to read-only — it does
-not close. Nothing this server can say will lock a signed-in user out of
-reading and exporting their own work; the strongest outcome is `403`, which
-returns them to the sign-in screen with their files untouched on disk.
+After **14 days** past the licence's own expiry it drops to **Free** — never to
+read-only, and never to a wall. Read-only was removed as a state entirely: a
+lapsed licence is a Free one, fully editable, and only *creating* past a Free
+limit is refused. Nothing this server can say will lock a signed-in user out of
+their own work; the strongest outcome is `403`, which returns them to the
+sign-in screen with their files untouched on disk.
+
+**`402` means "raise a banner", not "stop".** It is the failed-payment case.
+The app keeps the licence it already holds and shows a line saying the card
+needs updating — §3.4 holds the tier open through Stripe's retry window plus
+five days, because somebody whose card merely expired should not lose anything
+in the week they are least pleased with you.
+
+**A cancelled subscription answers `200`, not `402`.** It keeps the tier it
+paid for, forever, and loses only updates — issue it a licence with
+`expires_at: null` and `updates: false`. Sending an expiry would make "working
+forever" run out on its own a month later.
 
 **Requests time out after 20 seconds.**
 

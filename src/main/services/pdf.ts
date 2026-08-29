@@ -148,6 +148,9 @@ const STYLES = `
   .ageing td { padding: 7px 0; }
   .notes { margin-top: 34px; padding-top: 14px; border-top: 1px solid #f0f0f3; }
   .footer { margin-top: 26px; font-size: 8.5pt; color: #8a8a93; }
+  /* Deliberately quieter than the payment terms above it: this is our line,
+     not the customer's, and it must never compete with the amount owed. */
+  .mark { margin-top: 10px; font-size: 7.5pt; color: #b4b4bb; }
 `
 
 function businessBlock(settings: Settings): string {
@@ -170,7 +173,7 @@ function businessBlock(settings: Settings): string {
 }
 
 /** The columns of work, and the totals under them. */
-function lineItemBody(doc: LineItemDocument, settings: Settings): string {
+function lineItemBody(doc: LineItemDocument, settings: Settings, branded: boolean): string {
   const secondaryLabel =
     doc.kind === 'invoice' ? 'Payment due' : doc.kind === 'quote' ? 'Valid until' : 'Paid on'
 
@@ -251,7 +254,24 @@ function lineItemBody(doc: LineItemDocument, settings: Settings): string {
       : ''
   }
 
-  <div class="footer">${footer}</div>`
+  <div class="footer">${footer}</div>
+  ${mark(branded)}`
+}
+
+/**
+ * The line on an unbranded document.
+ *
+ * §2.2 sells "branding removal" as part of Basic+, which means there has to be
+ * something to remove — until now there was no mark on an invoice at all, so
+ * this is added rather than deleted.
+ *
+ * Kept small, grey and factual. It goes on a document somebody is sending to
+ * their own client to ask for money, and anything louder would be charging
+ * them for the privilege of not looking amateur. That is a fair thing to sell
+ * and an unfair thing to extract.
+ */
+function mark(branded: boolean): string {
+  return branded ? '' : '<div class="mark">Made with SoloWrk — solo-wrk.com</div>'
 }
 
 /** The invoices, what is left owing, and how long it has been owing. */
@@ -454,7 +474,16 @@ function summaryBody(doc: YearSummaryForPdf): string {
 export function renderHtml(
   doc: DocumentForPdf,
   settings: Settings,
-  logo: string | null = null
+  logo: string | null = null,
+  /**
+   * Whether this licence has paid to have our name off the page (§2.2).
+   *
+   * Defaults to true, so every caller that has no opinion produces a clean
+   * document. The mark is something a tier removes, not something the app
+   * adds by accident — getting that default the other way round would put our
+   * name on a paying customer's invoice.
+   */
+  branded = true
 ): string {
   return `<!doctype html>
 <html lang="en-GB">
@@ -483,7 +512,7 @@ ${
     ? statementBody(doc)
     : doc.kind === 'summary'
       ? summaryBody(doc)
-      : lineItemBody(doc, settings)
+      : lineItemBody(doc, settings, branded)
 }
 </body>
 </html>`
@@ -606,7 +635,9 @@ export async function writePdf(
   doc: DocumentForPdf,
   settings: Settings,
   /** Overrides the usual filing, for a year-end pack that gathers its own. */
-  into?: string
+  into?: string,
+  /** False adds the SoloWrk line. See `renderHtml`. */
+  branded = true
 ): Promise<string> {
   const year = doc.issueDate.slice(0, 4)
   const folderRelative = into ?? join(FOLDERS[doc.kind], year)
@@ -614,7 +645,7 @@ export async function writePdf(
 
   return writeHtmlPdf(
     workspacePath,
-    renderHtml(doc, settings, logo),
+    renderHtml(doc, settings, logo, branded),
     folderRelative,
     doc.number
   )

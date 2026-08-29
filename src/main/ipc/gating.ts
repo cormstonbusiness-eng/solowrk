@@ -123,6 +123,25 @@ export const GATES: Gate[] = [
   },
   {
     /**
+     * Putting your own logo on an invoice (§2.2).
+     *
+     * `settings:setLogo` only — reading one stays free, deliberately. Somebody
+     * who uploaded a logo before this line existed keeps it on their invoices;
+     * what a paid tier buys is *changing* it, and taking an existing one off
+     * a customer's documents to make a point would be indefensible.
+     *
+     * `settings:clearLogo` is free for the same reason in reverse: removing
+     * something of your own must never need a subscription.
+     */
+    prefix: 'settings:setLogo',
+    feature: 'branding',
+    message: messageFor(
+      'branding',
+      'Your invoices carry a small SoloWrk line until then, and nothing else changes.'
+    )
+  },
+  {
+    /**
      * One channel rather than a prefix, because it lives under `clients:` and
      * everything else there — the list, the record, the folder — stays free.
      * Longest-prefix-first is what makes that work.

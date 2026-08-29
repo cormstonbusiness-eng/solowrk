@@ -530,7 +530,9 @@ const handlers: Handlers = {
         gross: invoice.gross,
         notes: invoice.notes
       },
-      getSettings(db)
+      getSettings(db),
+      undefined,
+      await can('branding', db)
     )
 
     db.run('UPDATE invoices SET pdf_path = ? WHERE id = ?', [path, id])
@@ -571,7 +573,9 @@ const handlers: Handlers = {
         gross: invoice.gross,
         notes: invoice.notes
       },
-      getSettings(db)
+      getSettings(db),
+      undefined,
+      await can('branding', db)
     )
   },
 
@@ -725,7 +729,9 @@ const handlers: Handlers = {
     return writePdf(
       session.requirePath(),
       buildStatement(db, clientId, { from }),
-      getSettings(db)
+      getSettings(db),
+      undefined,
+      await can('branding', db)
     )
   },
 
@@ -773,7 +779,9 @@ const handlers: Handlers = {
         gross: quote.gross,
         notes: quote.notes
       },
-      getSettings(db)
+      getSettings(db),
+      undefined,
+      await can('branding', db)
     )
 
     db.run('UPDATE quotes SET pdf_path = ? WHERE id = ?', [path, id])

@@ -251,3 +251,33 @@ describe('safeFileName', () => {
     expect(safeFileName('X'.repeat(400)).length).toBeLessThanOrEqual(120)
   })
 })
+
+describe('the SoloWrk line', () => {
+  it('appears on an unbranded invoice', () => {
+    // §2.2 sells "branding removal", which means there has to be something to
+    // remove. There was no mark on an invoice before this, so it is added
+    // rather than deleted.
+    expect(renderHtml(lineDoc('invoice'), SETTINGS, null, false)).toContain('Made with SoloWrk')
+  })
+
+  it('is absent once it has been paid for', () => {
+    expect(renderHtml(lineDoc('invoice'), SETTINGS, null, true)).not.toContain('Made with SoloWrk')
+  })
+
+  it('defaults to absent', () => {
+    // The dangerous default is the other way round. Every caller that has no
+    // opinion should produce a clean document — getting this backwards puts
+    // our name on a paying customer's invoice.
+    expect(renderHtml(lineDoc('invoice'), SETTINGS)).not.toContain('Made with SoloWrk')
+  })
+
+  it('never covers the amount owed', () => {
+    // It goes on a document somebody is sending to their own client to ask for
+    // money. Anything louder would be charging them for the privilege of not
+    // looking amateur.
+    const html = renderHtml(lineDoc('invoice'), SETTINGS, null, false)
+
+    expect(html.indexOf('Made with SoloWrk')).toBeGreaterThan(html.indexOf('class="footer"'))
+    expect(html).toContain('class="mark"')
+  })
+})
