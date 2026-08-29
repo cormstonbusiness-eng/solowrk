@@ -5,6 +5,7 @@ import { backupDatabase, backupIsDue } from './backup'
 import { databasePath, isWorkspace, scaffoldWorkspace } from './workspace'
 import { getSettings, updateSettings } from './settings'
 import { seedStarterTemplates } from './docTemplates'
+import { migrateLeadsToClients } from './leadMigration'
 import { runRecurringInvoices } from './invoices'
 import { drainOutbox } from './chaseRun'
 
@@ -108,6 +109,9 @@ class Session {
     await updateConfig({ workspacePath: path })
     await this.runDailyBackup()
     this.seedTemplates()
+    // Before the retainers, so a lead won while the app was closed is a client
+    // by the time anything tries to invoice it.
+    await this.moveLeads()
     this.issueDueRetainers()
     this.sendWhatIsWaiting()
   }
@@ -126,6 +130,26 @@ class Session {
       if (added > 0) console.log(`Added ${added} starter document template(s)`)
     } catch (error) {
       console.error('Seeding document templates failed:', error)
+    }
+  }
+
+  /**
+   * Move any leads still sitting in the old Marketing pipeline into Clients.
+   *
+   * Runs on every open and does nothing once they have all moved. Marketing
+   * was built as a lead tracker, which is a sales function; the pipeline lives
+   * in Clients now so that a person exists in one place rather than two.
+   *
+   * Here rather than in a migration because a client owns a folder on disk and
+   * SQL cannot make one. A failure must not stop the workspace opening — an
+   * unconverted lead is an inconvenience and the next open tries again.
+   */
+  private async moveLeads(): Promise<void> {
+    try {
+      const moved = await migrateLeadsToClients(this.requireDb(), this.requirePath())
+      if (moved > 0) console.log(`Moved ${moved} lead(s) into Clients`)
+    } catch (error) {
+      console.error('Moving leads into Clients failed:', error)
     }
   }
 
