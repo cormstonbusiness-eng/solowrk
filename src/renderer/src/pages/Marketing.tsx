@@ -13,7 +13,6 @@ import { Empty } from '@/components/ui/Empty'
 import { Expand } from '@/components/ui/Expand'
 import { ProPanel } from '@/components/ProPanel'
 import { useFeature } from '@/lib/features'
-import { Pipeline } from './marketing/Pipeline'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { transition } from '@/lib/motion'
@@ -67,12 +66,7 @@ export function Marketing(): React.JSX.Element {
   return <MarketingBoard />
 }
 
-type Tab = 'pipeline' | 'calendar'
-
 function MarketingBoard(): React.JSX.Element {
-  // The pipeline first: a month of posts matters less than whether there
-  // is any work at the end of it.
-  const [tab, setTab] = useState<Tab>('pipeline')
   const invalidate = useInvalidate()
   const today = dayFromDate(new Date())
 
@@ -177,41 +171,15 @@ function MarketingBoard(): React.JSX.Element {
   return (
     <Page
       title="Marketing"
-      description={tab === 'calendar' ? monthLabel(anchor) : 'Where the next job is coming from.'}
+      description={monthLabel(anchor)}
       className="flex min-h-0 flex-col overflow-y-hidden"
       actions={
-        // The calendar's action. The pipeline carries its own, because "New
-        // post" on a board of leads is an offer to do the wrong thing.
-        tab === 'calendar' ? (
-          <Button variant="primary" onClick={() => setCreating({ day: today })}>
-            <Plus size={14} strokeWidth={1.75} />
-            New post
-          </Button>
-        ) : undefined
+        <Button variant="primary" onClick={() => setCreating({ day: today })}>
+          <Plus size={14} strokeWidth={1.75} />
+          New post
+        </Button>
       }
     >
-      <div className="mb-3 flex shrink-0 items-center gap-1 border-b border-line">
-        {(['pipeline', 'calendar'] as Tab[]).map((name) => (
-          <button
-            key={name}
-            type="button"
-            onClick={() => setTab(name)}
-            className="relative px-3 py-2 text-[13px] capitalize"
-          >
-            <span className={tab === name ? 'text-ink' : 'text-muted hover:text-ink'}>
-              {name}
-            </span>
-            {tab === name && (
-              <span className="absolute right-0 -bottom-px left-0 h-[2px] bg-accent" />
-            )}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'pipeline' ? (
-        <Pipeline />
-      ) : (
-        <>
         <div className="mb-3 flex shrink-0 items-center gap-1">
           <Button
             variant="ghost"
@@ -406,8 +374,6 @@ function MarketingBoard(): React.JSX.Element {
             setCreating(null)
           }}
         />
-        </>
-      )}
     </Page>
   )
 }

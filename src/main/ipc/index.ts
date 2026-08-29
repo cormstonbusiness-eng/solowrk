@@ -146,17 +146,6 @@ import { agedDebtors } from '../services/debtors'
 import { fileWeeklyReview, weeklyReview } from '../services/review'
 import { capacityDefaults } from '../services/capacity'
 import {
-  createLead,
-  deleteLead,
-  getLead,
-  leadsNeedingAttention,
-  listLeads,
-  moveLead,
-  pipelineReport,
-  updateLead,
-  winLead
-} from '../services/leads'
-import {
   applyRename,
   checkAllProjects,
   checkProject,
@@ -860,18 +849,6 @@ const handlers: Handlers = {
   'debtors:aged': (_g, request) => agedDebtors(session.requireDb(), request?.asOf),
 
   'capacity:defaults': () => capacityDefaults(session.requireDb()),
-
-  'leads:list': (_g, request) => listLeads(session.requireDb(), request?.asOf),
-  'leads:get': (_g, { id }) => getLead(session.requireDb(), id),
-  'leads:create': (_g, input) => createLead(session.requireDb(), input),
-  'leads:update': (_g, { id, patch }) => updateLead(session.requireDb(), id, patch),
-  'leads:move': (_g, { id, stage, lostReason, lostNote, sortOrder }) =>
-    moveLead(session.requireDb(), id, stage, { lostReason, lostNote, sortOrder }),
-  'leads:win': (_g, { id }) => winLead(session.requireDb(), session.requirePath(), id),
-  'leads:delete': (_g, { id }) => deleteLead(session.requireDb(), id),
-  'leads:report': (_g, request) => pipelineReport(session.requireDb(), request?.asOf),
-  'leads:attention': (_g, request) =>
-    leadsNeedingAttention(session.requireDb(), request?.asOf),
 
   'structure:check': (_g, { projectId, templateId }) =>
     checkProject(session.requireDb(), session.requirePath(), projectId, templateId),

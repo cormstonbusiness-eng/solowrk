@@ -105,8 +105,13 @@ describe('what unlocks what', () => {
     // something Pro is not needed for is how a pricing page loses trust.
     expect(requires('recurring')).toBe('basicPlus')
     expect(requires('chasing')).toBe('basicPlus')
-    expect(requires('marketing')).toBe('pro')
     expect(requires('tax')).toBe('pro')
+
+    // Marketing splits across the boundary rather than sitting on one side.
+    // Planning content is the thing somebody opens daily, so it comes down to
+    // Basic+; measuring what it produced is what Pro sells.
+    expect(requires('marketing')).toBe('basicPlus')
+    expect(requires('marketingresults')).toBe('pro')
   })
 
   it('names the cheapest tier that lifts a limit', () => {

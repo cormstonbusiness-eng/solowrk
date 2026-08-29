@@ -14,15 +14,6 @@ import type { Match } from './bankMatch'
 import type { Review } from './review'
 import type { CapacityInput } from './capacity'
 import type { RenamePreview, StructureReport } from './structure'
-import type {
-  Conversion,
-  LeadHealth,
-  LostBreakdown,
-  LostReason,
-  PipelineValue,
-  SourceTotal,
-  Stage
-} from './pipeline'
 import type { ReceiptReading } from './receipts'
 import type { Tier } from './entitlements'
 import type { Trial } from './licence'
@@ -34,51 +25,6 @@ export type { Match as BankMatch }
 export type { Review }
 export type { CapacityInput }
 export type { RenamePreview, StructureReport }
-export type { LeadHealth, LostReason, Stage as LeadStage }
-
-/* The lead pipeline */
-
-export interface Lead {
-  id: number
-  name: string
-  company: string
-  email: string
-  phone: string
-  /** Where they came from. Free text: a freelancer's sources are their own. */
-  source: string
-  stage: Stage
-  /** Estimated, in pence. Null when it is too early to say. */
-  value: Pence | null
-  nextAction: string
-  /** Null is a real state, and the one the board exists to make visible. */
-  nextActionOn: string | null
-  lostReason: LostReason | null
-  lostNote: string
-  notes: string
-  /** Set when the lead was won and turned into a client. */
-  clientId: number | null
-  projectId: number | null
-  closedAt: string | null
-  sortOrder: number
-  createdAt: string
-  updatedAt: string
-}
-
-export interface LeadWithHealth extends Lead {
-  health: LeadHealth
-}
-
-export type LeadInput = Partial<
-  Omit<Lead, 'id' | 'clientId' | 'projectId' | 'closedAt' | 'sortOrder' | 'createdAt' | 'updatedAt'>
->
-
-export interface PipelineReport {
-  asOf: string
-  value: PipelineValue
-  sources: SourceTotal[]
-  lost: LostBreakdown[]
-  conversion: Conversion
-}
 
 /** One project's folders, measured against the template it was built to. */
 export interface ProjectStructure extends StructureReport {

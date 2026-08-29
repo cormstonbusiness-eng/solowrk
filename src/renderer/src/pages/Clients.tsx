@@ -31,6 +31,7 @@ import { Inspect } from '@/components/detail/Inspect'
 import { Toolbar } from '@/components/list/Toolbar'
 import { SavedViews } from '@/components/list/SavedViews'
 import { useListState } from '@/hooks/useListState'
+import { StageBoard } from './clients/StageBoard'
 import { useTagFilter } from '@/hooks/useTagFilter'
 import { useEntityActions } from '@/hooks/useEntityActions'
 import { keys, useInvalidate } from '@/lib/api'
@@ -107,6 +108,14 @@ export function Clients(): React.JSX.Element {
     key: 'name',
     descending: false
   })
+  /**
+   * Table or board.
+   *
+   * The board is the pipeline that used to sit in Marketing. It is a view of
+   * the same clients rather than a separate place, which is the whole point of
+   * moving it: somebody exists once, and how you look at them is a choice.
+   */
+  const [view, setView] = useState<'table' | 'pipeline'>('table')
 
   useOpenParam('new', () => setEditing({ ...BLANK }))
 
@@ -219,6 +228,25 @@ export function Clients(): React.JSX.Element {
             <SavedViews page="clients" state={list} />
           </Toolbar>
 
+          <div className="flex shrink-0 items-center gap-1">
+            {(['table', 'pipeline'] as const).map((name) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => setView(name)}
+                className={cn(
+                  'rounded-control px-2.5 py-1 text-[12px] capitalize transition-colors',
+                  view === name ? 'bg-hover text-ink' : 'text-muted hover:text-ink'
+                )}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+
+          {view === 'pipeline' ? (
+            <StageBoard clients={rows} onOpen={(id) => navigate(`/clients/${id}`)} />
+          ) : (
           <div className="overflow-hidden rounded-card border border-line">
             <table className="w-full border-collapse text-left">
               <thead>
@@ -324,6 +352,7 @@ export function Clients(): React.JSX.Element {
               </p>
             )}
           </div>
+          )}
         </div>
       </Swap>
 

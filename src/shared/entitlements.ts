@@ -79,10 +79,11 @@ export const FEATURES = [
   'calendardrag',
   'taskrail',
   'autobackup',
+  'marketing',
 
   // Pro — the things that make a freelancer look like a bigger operation.
   'updatepack',
-  'marketing',
+  'marketingresults',
   'businessplan',
   'proposals',
   'expenses',
@@ -120,9 +121,10 @@ export const FEATURE_LABELS: Record<Feature, string> = {
   calendardrag: 'dragging and resizing in the calendar',
   taskrail: 'scheduling from the task rail',
   autobackup: 'automatic versioned backups',
+  marketing: 'the Marketing module',
 
   updatepack: 'client update packs',
-  marketing: 'the Marketing module',
+  marketingresults: 'marketing attribution and spend tracking',
   businessplan: 'the business plan assistant',
   proposals: 'proposals and contracts',
   expenses: 'expenses and receipt capture',
@@ -160,11 +162,21 @@ export const TIER_ADDS: Record<Tier, readonly Feature[]> = {
     'rates',
     'calendardrag',
     'taskrail',
-    'autobackup'
+    'autobackup',
+    /**
+     * Marketing moved down from Pro, and deliberately.
+     *
+     * Content planning is the module a freelancer touches most often, and
+     * habitual use is what makes a subscription feel worth renewing. Locking
+     * the whole thing away gave Basic+ no daily reason to open the app. What
+     * stays behind is the *measurement* layer — see `marketingresults` — which
+     * is a cleaner boundary than an all-or-nothing module.
+     */
+    'marketing'
   ],
   pro: [
     'updatepack',
-    'marketing',
+    'marketingresults',
     'businessplan',
     'proposals',
     'expenses',
