@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
+import { useFeature } from '@/lib/features'
 import { ArrowUpRight, NotebookPen } from 'lucide-react'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -20,9 +21,15 @@ export function WeeklyReview(): React.JSX.Element {
   const navigate = useNavigate()
   const invalidate = useInvalidate()
 
+  // Not fired at all when the tier does not include it: the main process
+  // would refuse, and a query that only ever returns a refusal is a query
+  // worth not making. The card simply does not appear.
+  const entitled = useFeature('aireview')
+
   const { data: review } = useQuery({
     queryKey: ['review', 'week'],
     queryFn: () => window.solo.invoke('review:week'),
+    enabled: entitled,
     // The week does not change while somebody is looking at it.
     staleTime: 10 * 60_000
   })
@@ -35,7 +42,7 @@ export function WeeklyReview(): React.JSX.Element {
     }
   })
 
-  if (!review) return <></>
+  if (!entitled || !review) return <></>
 
   return (
     <Card className="flex flex-col">

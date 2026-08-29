@@ -169,7 +169,17 @@ function benefitsFor(tier: Tier): string[] {
       ? 'Unlimited clients, projects, invoices and goals'
       : 'Everything in Basic+, with no limits of any kind'
 
-  return [headline, ...TIER_ADDS[tier].slice(0, 3).map((feature) => FEATURE_LABELS[feature])]
+  // The labels are written lower case, to be read as the object of "Pro
+  // includes ___". In a bulleted list they are the whole line, so they get
+  // their capital back.
+  return [
+    headline,
+    ...TIER_ADDS[tier].slice(0, 3).map((feature) => sentenceCase(FEATURE_LABELS[feature]))
+  ]
+}
+
+function sentenceCase(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1)
 }
 
 function money(pence: number): string {

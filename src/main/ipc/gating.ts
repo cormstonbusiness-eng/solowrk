@@ -50,7 +50,7 @@ export const ACCOUNT_URL = `${SITE_HOST}/account`
  */
 function messageFor(feature: Feature, reassurance: string): string {
   const tier = TIER_NAMES[requires(feature)]
-  return `${FEATURE_LABELS[feature]} is part of SoloWrk ${tier}. Upgrade at ${ACCOUNT_URL}. ${reassurance}`
+  return `SoloWrk ${tier} includes ${FEATURE_LABELS[feature]}. Upgrade at ${ACCOUNT_URL}. ${reassurance}`
 }
 
 export const GATES: Gate[] = [

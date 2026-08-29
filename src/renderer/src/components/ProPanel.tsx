@@ -1,5 +1,5 @@
 import { Lock } from 'lucide-react'
-import { FEATURE_LABELS, TIER_NAMES, requires, type Feature } from '@shared/entitlements'
+import { TIER_NAMES, requires, type Feature } from '@shared/entitlements'
 import { checkoutUrl } from '@shared/site'
 import { Card } from '@/components/ui/Card'
 
@@ -72,8 +72,7 @@ export function ProPanel({
           rel="noreferrer"
           className="mt-5 inline-block rounded-control bg-accent px-4 py-2 text-[12.5px] text-accent-ink transition-colors hover:bg-accent-hover"
         >
-          Get {FEATURE_LABELS[feature].replace(/^The /, '').toLowerCase()} with{' '}
-          {TIER_NAMES[tier]}
+          Get {TIER_NAMES[tier]}
         </a>
 
         <p className="mt-3 text-[11.5px] text-faint">

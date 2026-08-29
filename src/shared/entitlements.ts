@@ -104,35 +104,39 @@ export type Feature = (typeof FEATURES)[number]
 /**
  * How to name a feature in a sentence.
  *
- * Lower case and mid-sentence, because every one of these is read inside "X is
- * part of SoloWrk Pro" rather than on its own.
+ * Read as the object of "Pro includes ___", which is why they are lower case
+ * and why the phrasing avoids a verb. The obvious template — "X is part of
+ * Pro" — forces subject-verb agreement on a string, and half of these are
+ * plural: "Recurring invoices is part of Pro" is the sort of sentence that
+ * makes somebody trust the software slightly less for no reason they could
+ * name. Making the feature the object sidesteps it entirely.
  */
 export const FEATURE_LABELS: Record<Feature, string> = {
-  branding: 'Your own logo and colours',
-  recurring: 'Recurring invoices',
-  chasing: 'The automatic chaser schedule',
-  paymentlinks: 'Payment links on invoices',
-  rates: 'Per-client and per-project rates',
-  calendardrag: 'Dragging and resizing in the calendar',
-  taskrail: 'Scheduling from the task rail',
-  autobackup: 'Automatic versioned backups',
+  branding: 'your own logo and colours on documents',
+  recurring: 'recurring invoices',
+  chasing: 'the automatic chaser schedule',
+  paymentlinks: 'payment links on invoices',
+  rates: 'per-client and per-project rates',
+  calendardrag: 'dragging and resizing in the calendar',
+  taskrail: 'scheduling from the task rail',
+  autobackup: 'automatic versioned backups',
 
-  updatepack: 'Client update packs',
-  marketing: 'Marketing',
-  businessplan: 'The business plan assistant',
-  proposals: 'Proposals and contracts',
-  expenses: 'Expenses and receipt capture',
-  profitability: 'Profitability per client and project',
-  tax: 'Tax set-aside',
-  cashflow: 'Cashflow forecasting',
-  automations: 'Automation rules',
-  invoicedesigner: 'The invoice template designer',
-  multicurrency: 'Multi-currency',
-  vault: 'The encrypted vault',
-  calendarlenses: 'Calendar lenses and scenario mode',
-  bank: 'Bank import',
-  yearend: 'The year-end pack',
-  aireview: 'The weekly business review'
+  updatepack: 'client update packs',
+  marketing: 'the Marketing module',
+  businessplan: 'the business plan assistant',
+  proposals: 'proposals and contracts',
+  expenses: 'expenses and receipt capture',
+  profitability: 'profitability per client and project',
+  tax: 'tax set-aside',
+  cashflow: 'cashflow forecasting',
+  automations: 'automation rules',
+  invoicedesigner: 'the invoice template designer',
+  multicurrency: 'multi-currency',
+  vault: 'the encrypted vault',
+  calendarlenses: 'calendar lenses and scenario mode',
+  bank: 'bank import',
+  yearend: 'the year-end pack',
+  aireview: 'the weekly business review'
 }
 
 /**
