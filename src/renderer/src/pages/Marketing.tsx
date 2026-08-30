@@ -7,27 +7,26 @@ import { transition } from '@/lib/motion'
 import { CampaignsTab } from './marketing/CampaignsTab'
 import { ContentTab } from './marketing/ContentTab'
 import { LibraryTab } from './marketing/LibraryTab'
+import { ResultsTab } from './marketing/ResultsTab'
 import { PlanTab } from './marketing/PlanTab'
 
 /**
  * Where the next job is coming from.
  *
- * §2 specifies five tabs — Plan, Campaigns, Content, Library, Results. Four
- * are here; Results arrives with the measurement stage that fills it. A tab
- * that opens onto "coming soon" is worse than a tab that is not there yet: it
- * costs a click to learn nothing, and it makes the ones that work look like
- * part of something broken.
+ * §2's five tabs, all present.
  *
- * Content is the default because it is the one somebody opens most days. Plan
- * is monthly, and Results — when it exists — is quarterly.
+ * Content is the default because it is the one somebody opens most days.
+ * Plan is monthly and Results is quarterly, so both sit to the right of the
+ * things touched daily rather than competing with them.
  */
 
-type Tab = 'content' | 'campaigns' | 'library' | 'plan'
+type Tab = 'content' | 'campaigns' | 'library' | 'results' | 'plan'
 
 const TABS: { value: Tab; label: string }[] = [
   { value: 'content', label: 'Content' },
   { value: 'campaigns', label: 'Campaigns' },
   { value: 'library', label: 'Library' },
+  { value: 'results', label: 'Results' },
   { value: 'plan', label: 'Plan' }
 ]
 
@@ -114,6 +113,7 @@ export function Marketing(): React.JSX.Element {
           {tab === 'content' && <ContentTab />}
           {tab === 'campaigns' && <CampaignsTab />}
           {tab === 'library' && <LibraryTab />}
+          {tab === 'results' && <ResultsTab />}
           {tab === 'plan' && <PlanTab />}
         </motion.div>
       </AnimatePresence>

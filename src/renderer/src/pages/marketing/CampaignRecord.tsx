@@ -7,6 +7,7 @@ import {
   File,
   FolderOpen,
   Plus,
+  Trash2,
   Upload
 } from 'lucide-react'
 import type {
@@ -21,8 +22,9 @@ import { Button } from '@/components/ui/Button'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Field, MoneyInput, TextInput } from '@/components/ui/Field'
 import { Select } from '@/components/ui/Select'
-import { formatSize } from '@/lib/format'
+import { formatMoney, formatSize } from '@/lib/format'
 import { keys, useInvalidate } from '@/lib/api'
+import { useFeature } from '@/lib/features'
 import { listItemVariants, listVariants } from '@/lib/motion'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
@@ -181,6 +183,8 @@ export function CampaignRecord({
         />
 
         <Tasks campaignId={id} tasks={work?.tasks ?? []} />
+
+        <Readings campaignId={id} />
 
         <Files
           folder={campaign.folder}
@@ -471,6 +475,127 @@ function Files({
           ))}
         </div>
       )}
+    </Card>
+  )
+}
+
+/**
+ * What this campaign cost and what came back (§5.2, §8.1).
+ *
+ * Typed in, because nothing here can fetch it — there is no ad-platform
+ * integration and there will not be. One row per reading rather than one
+ * running total, so a campaign checked weekly keeps its shape rather than
+ * collapsing into a single number nobody can question.
+ *
+ * Pro, like the rest of measurement. A Basic+ user still runs the campaign;
+ * what they do not get is the reckoning.
+ */
+function Readings({ campaignId }: { campaignId: number }): React.JSX.Element | null {
+  const invalidate = useInvalidate()
+  const entitled = useFeature('marketingresults')
+
+  const [spend, setSpend] = useState(0)
+  const [enquiries, setEnquiries] = useState('')
+
+  const { data: readings = [] } = useQuery({
+    queryKey: keys.campaignMetrics(campaignId),
+    queryFn: () => window.solo.invoke('metrics:campaign', { campaignId }),
+    enabled: entitled
+  })
+
+  const record = useMutation({
+    mutationFn: () =>
+      window.solo.invoke('metrics:recordCampaign', {
+        campaignId,
+        reading: {
+          spend: spend > 0 ? spend : null,
+          // Empty stays empty. `Number('')` is 0, which would record "nobody
+          // enquired" every time somebody only noted the spend.
+          enquiries: enquiries.trim() === '' ? null : Number(enquiries)
+        }
+      }),
+    onSuccess: () => {
+      invalidate(['marketing'])
+      setSpend(0)
+      setEnquiries('')
+    }
+  })
+
+  const remove = useMutation({
+    mutationFn: (id: number) => window.solo.invoke('metrics:deleteCampaign', { id, campaignId }),
+    onSuccess: () => invalidate(['marketing'])
+  })
+
+  if (!entitled) return null
+
+  const total = readings.reduce((sum, one) => sum + (one.spend ?? 0), 0)
+
+  return (
+    <Card className="p-4">
+      <CardHeader
+        title="Spend and enquiries"
+        action={
+          total > 0 ? (
+            <span className="numeric text-[11px] text-muted">{formatMoney(total)} so far</span>
+          ) : undefined
+        }
+      />
+
+      {readings.length > 0 && (
+        <div className="mb-2 flex flex-col gap-0.5">
+          {readings.map((reading) => (
+            <div
+              key={reading.id}
+              className="group flex items-center gap-3 rounded-control px-2 py-1.5 text-[12px] hover:bg-raised"
+            >
+              <span className="numeric w-[86px] shrink-0 text-faint">{reading.recordedOn}</span>
+              <span className="numeric w-[80px] shrink-0 text-ink">
+                {reading.spend === null ? '—' : formatMoney(reading.spend)}
+              </span>
+              <span className="numeric flex-1 text-muted">
+                {/* An em dash, not a zero. Not having looked is not a result. */}
+                {reading.enquiries === null
+                  ? '—'
+                  : `${reading.enquiries} ${reading.enquiries === 1 ? 'enquiry' : 'enquiries'}`}
+              </span>
+              <button
+                type="button"
+                aria-label="Delete reading"
+                onClick={() => remove.mutate(reading.id)}
+                className="shrink-0 text-faint opacity-0 transition-opacity group-hover:opacity-100 hover:text-danger"
+              >
+                <Trash2 size={12} strokeWidth={1.75} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <form
+        className="flex items-end gap-2"
+        onSubmit={(event) => {
+          event.preventDefault()
+          if (spend <= 0 && enquiries.trim() === '') return
+          record.mutate()
+        }}
+      >
+        <Field label="Spend" className="w-[130px]">
+          <MoneyInput pence={spend} onChangePence={setSpend} />
+        </Field>
+        <Field label="Enquiries" className="w-[110px]">
+          <TextInput
+            type="number"
+            min={0}
+            value={enquiries}
+            onChange={(event) => setEnquiries(event.target.value)}
+            onKeyDown={(event) => event.stopPropagation()}
+          />
+        </Field>
+        <Button type="submit" variant="outline" size="sm" className="mb-0.5">
+          <Plus size={13} strokeWidth={1.75} />
+          Record
+        </Button>
+      </form>
     </Card>
   )
 }

@@ -33,6 +33,9 @@ export const keys = {
       ? (['marketing', 'campaignRecords', filter] as const)
       : (['marketing', 'campaignRecords'] as const),
   campaignWork: (id: number) => ['marketing', 'campaignWork', id] as const,
+  results: (from: string, to: string) => ['marketing', 'results', { from, to }] as const,
+  contentMetrics: (id: number) => ['marketing', 'metrics', 'content', id] as const,
+  campaignMetrics: (id: number) => ['marketing', 'metrics', 'campaign', id] as const,
   library: (search?: string) =>
     search ? (['marketing', 'library', search] as const) : (['marketing', 'library'] as const),
   marketingPlan: ['marketing', 'plan'] as const,

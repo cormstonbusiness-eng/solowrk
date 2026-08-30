@@ -23,7 +23,7 @@ import { Page } from '@/components/Page'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, MoneyInput, NumberInput, TextInput } from '@/components/ui/Field'
-import { ColourPicker } from '@/components/ui/Select'
+import { ColourPicker, Select } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Dot, Empty } from '@/components/ui/Empty'
 import { Swap } from '@/components/ui/Swap'
@@ -516,9 +516,92 @@ function ClientModal({
               onChange={(colour) => set('colour', colour)}
             />
           </Field>
+
+          <WhereFrom
+            channelId={draft.sourceChannelId ?? null}
+            campaignId={draft.sourceCampaignId ?? null}
+            onChannel={(value) => set('sourceChannelId', value)}
+            onCampaign={(value) => set('sourceCampaignId', value)}
+          />
         </div>
       )}
     </Modal>
+  )
+}
+
+/**
+ * How this client found you.
+ *
+ * The whole of marketing attribution rests on these two fields. There is no
+ * tracking infrastructure in SoloWrk and there will not be — the user simply
+ * says where somebody came from, which is both more honest than a pixel and
+ * more accurate, because they usually know.
+ *
+ * It sits at the bottom of the form and is never required. Asked at the top
+ * it would look like a form field standing between somebody and adding a
+ * client; asked here it is a question you answer if you know the answer. A
+ * client with no source is a perfectly normal client, and Results simply
+ * counts one fewer.
+ */
+function WhereFrom({
+  channelId,
+  campaignId,
+  onChannel,
+  onCampaign
+}: {
+  channelId: number | null
+  campaignId: number | null
+  onChannel: (value: number | null) => void
+  onCampaign: (value: number | null) => void
+}): React.JSX.Element | null {
+  // Only where Marketing exists. On Free these tables are empty and the
+  // question would be two dropdowns with nothing in them.
+  const entitled = useFeature('marketing')
+
+  const { data: channels = [] } = useQuery({
+    queryKey: keys.channels,
+    queryFn: () => window.solo.invoke('channels:list'),
+    enabled: entitled
+  })
+
+  const { data: campaigns = [] } = useQuery({
+    queryKey: keys.campaignRecords(),
+    queryFn: () => window.solo.invoke('campaigns:list'),
+    enabled: entitled
+  })
+
+  if (!entitled || (channels.length === 0 && campaigns.length === 0)) return null
+
+  return (
+    <div className="rounded-control border border-line bg-raised px-3 py-2.5">
+      <p className="mb-2 text-[11.5px] leading-relaxed text-faint">
+        How did they find you? Optional, and the only thing the Results tab is built from.
+      </p>
+
+      <div className="grid grid-cols-2 gap-3">
+        {channels.length > 0 && (
+          <Field label="Channel">
+            <Select
+              value={channelId}
+              placeholder="Not sure"
+              onChange={onChannel}
+              options={channels.map((one) => ({ value: one.id, label: one.name }))}
+            />
+          </Field>
+        )}
+
+        {campaigns.length > 0 && (
+          <Field label="Campaign">
+            <Select
+              value={campaignId}
+              placeholder="None"
+              onChange={onCampaign}
+              options={campaigns.map((one) => ({ value: one.id, label: one.name }))}
+            />
+          </Field>
+        )}
+      </div>
+    </div>
   )
 }
 
