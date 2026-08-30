@@ -203,7 +203,53 @@ export async function writeConfig(config: AppConfig): Promise<void> {
   const temporary = `${target}.tmp`
 
   await writeFile(temporary, JSON.stringify(config, null, 2), 'utf8')
-  await rename(temporary, target)
+  await replace(temporary, target)
+}
+
+/**
+ * Windows conditions under which a rename is worth trying again.
+ *
+ * All three mean "somebody else has a handle on this file right now" rather
+ * than "this cannot work". A virus scanner opening the temporary file the
+ * instant it is written is the common one, and it holds it for milliseconds.
+ */
+const TRANSIENT = new Set(['EPERM', 'EBUSY', 'EACCES'])
+
+/** Long enough for a scanner to let go, short enough not to be a freeze. */
+const RETRY_DELAYS_MS = [10, 30, 90, 250]
+
+/**
+ * Rename, with a few goes at it.
+ *
+ * `rename` is atomic on NTFS, which is the whole reason the write goes
+ * through a temporary file — but atomic is not the same as always permitted.
+ * On Windows it fails with EPERM whenever anything else holds a handle to
+ * either path, and something usually does: Defender scans a file the moment
+ * it is created, and OneDrive and Search Indexer both watch the folders this
+ * config lives in.
+ *
+ * Without this, that transient collision surfaced as a failed save. Given
+ * what the config holds — the workspace path and the licence — a lost write
+ * signs the user out and drops them to Free, which is a terrible outcome for
+ * a fraction of a second of file locking. It showed up as an intermittent
+ * test failure first, which is the only reason it was found before somebody
+ * hit it for real.
+ */
+async function replace(temporary: string, target: string): Promise<void> {
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      await rename(temporary, target)
+      return
+    } catch (cause) {
+      const code = (cause as NodeJS.ErrnoException).code ?? ''
+
+      // Out of attempts, or a failure that retrying cannot fix — a bad path,
+      // a full disk, a read-only volume.
+      if (attempt >= RETRY_DELAYS_MS.length || !TRANSIENT.has(code)) throw cause
+
+      await new Promise((resolve) => setTimeout(resolve, RETRY_DELAYS_MS[attempt]))
+    }
+  }
 }
 
 export async function updateConfig(patch: Partial<AppConfig>): Promise<AppConfig> {
