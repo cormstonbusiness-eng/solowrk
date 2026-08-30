@@ -149,7 +149,7 @@ describe("Free's numbers", () => {
    * limit and must lift the moment somebody pays — a paid tier that still
    * counted invoices would be the bug this test exists to catch.
    */
-  const PAID_CAPS = new Set<Limit>(['devices', 'channels', 'campaigns'])
+  const PAID_CAPS = new Set<Limit>(['devices', 'channels', 'campaigns', 'workspaces'])
 
   it('lets a paid tier past every count that is only there for Free', () => {
     for (const limit of LIMITS) {
@@ -157,6 +157,16 @@ describe("Free's numbers", () => {
       expect(isUnlimited(limitOf('basicPlus', limit))).toBe(true)
       expect(isUnlimited(limitOf('pro', limit))).toBe(true)
     }
+  })
+
+  it('gives Free one workspace and Basic+ three, and Pro no ceiling', () => {
+    // A workspace per business. The cap is on making a new one and never on
+    // opening an existing one — see `workspaces.ts`.
+    expect(limitOf('free', 'workspaces')).toBe(1)
+    expect(limitOf('basicPlus', 'workspaces')).toBe(3)
+    expect(isUnlimited(limitOf('pro', 'workspaces'))).toBe(true)
+    expect(requiresFor('workspaces', 2)).toBe('basicPlus')
+    expect(requiresFor('workspaces', 4)).toBe('pro')
   })
 
   it('caps Basic+ at three channels and three campaigns, and Pro at neither', () => {

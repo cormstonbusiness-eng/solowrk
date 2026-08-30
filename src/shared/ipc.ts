@@ -38,6 +38,7 @@ import type {
   AgedDebtors,
   CapacityDefaults,
   CampaignInput,
+  KnownWorkspace,
   CampaignMetric,
   CampaignMetricInput,
   CampaignWithCounts,
@@ -162,6 +163,19 @@ export interface IpcContract {
   'workspace:adopt': { req: { path: string }; res: WorkspaceStatus }
   /** Reveal the workspace folder in Explorer. */
   'workspace:reveal': { req: void; res: void }
+
+  /**
+   * More than one business, in more than one folder.
+   *
+   * `workspace:switch` is separate from `workspace:adopt` on purpose: adopting
+   * adds to the list and is capped by tier, switching moves between ones
+   * already there and never is. Somebody who drops to Free with three
+   * workspaces keeps all three.
+   */
+  'workspace:list': { req: void; res: KnownWorkspace[] }
+  'workspace:switch': { req: { path: string }; res: WorkspaceStatus }
+  /** Takes it off the list. Never touches the folder. */
+  'workspace:forget': { req: { path: string }; res: KnownWorkspace[] }
 
   'settings:get': { req: void; res: Settings }
   'settings:update': { req: Partial<BusinessSettings>; res: Settings }
@@ -1192,6 +1206,9 @@ export const IPC_CHANNELS = [
   'workspace:create',
   'workspace:adopt',
   'workspace:reveal',
+  'workspace:list',
+  'workspace:switch',
+  'workspace:forget',
   'settings:get',
   'settings:update',
   'settings:setLogo',

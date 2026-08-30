@@ -145,6 +145,7 @@ import { readReceiptImage } from '../services/ocr'
 import { agedDebtors } from '../services/debtors'
 import { fileWeeklyReview, weeklyReview } from '../services/review'
 import { capacityDefaults } from '../services/capacity'
+import { forgetWorkspace, knownWorkspaces, workspaceCount } from '../services/workspaces'
 import { chainFor, repurpose } from '../services/repurpose'
 import { alreadyHarvested, harvestProject } from '../services/harvest'
 import { marketingResults } from '../services/results'
@@ -406,6 +407,10 @@ const handlers: Handlers = {
   'workspace:create': (_getWindow, setup) => session.create(setup),
 
   'workspace:adopt': (_getWindow, { path }) => session.adopt(path),
+
+  'workspace:list': () => knownWorkspaces(),
+  'workspace:switch': (_getWindow, { path }) => session.switchTo(path),
+  'workspace:forget': (_getWindow, { path }) => forgetWorkspace(path),
 
   'workspace:reveal': () => {
     void shell.openPath(session.requirePath())
@@ -1154,7 +1159,8 @@ const handlers: Handlers = {
   },
   'auth:setServer': (_g, { url }) => setApiBaseUrl(url),
 
-  'entitlements:meters': () => meters(session.requireDb()),
+  'entitlements:meters': async () =>
+    meters(session.requireDb(), await workspaceCount()),
   'entitlements:exceeded': () => exceeded(session.requireDb()),
 
   'updates:get': () => updateState(),

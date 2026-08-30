@@ -264,6 +264,21 @@ export type WorkspaceStatus =
   | { state: 'missing'; path: string; suggestedPath: string }
   | { state: 'ready'; path: string }
 
+/**
+ * A workspace this installation knows about.
+ *
+ * `name` is the folder's own name rather than the business name inside its
+ * database: reading that would mean opening every workspace on every listing,
+ * and the folder name is what the user chose and will recognise in Explorer.
+ */
+export interface KnownWorkspace {
+  path: string
+  name: string
+  current: boolean
+  /** The folder or its database has gone — moved drive, deleted, renamed. */
+  missing: boolean
+}
+
 /** Result of inspecting a folder the user picked in the wizard. */
 export interface FolderInspection {
   path: string

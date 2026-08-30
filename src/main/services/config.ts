@@ -9,7 +9,18 @@ import { app } from 'electron'
  * what makes a workspace portable between machines.
  */
 export interface AppConfig {
+  /** The one currently open. Always also present in `workspaces`. */
   workspacePath: string | null
+  /**
+   * Every workspace this installation knows about, most recently opened
+   * first.
+   *
+   * A list rather than a single path because somebody can run more than one
+   * business, and the two must not share a database — separate clients,
+   * separate invoice numbering, separate everything. They share only the
+   * licence, which belongs to the person rather than to the business.
+   */
+  workspaces: string[]
   lastBackupAt: string | null
 
   /**
@@ -92,6 +103,7 @@ export interface AppConfig {
 
 const DEFAULT_CONFIG: AppConfig = {
   workspacePath: null,
+  workspaces: [],
   lastBackupAt: null,
   apiBaseUrl: '',
   authToken: null,
@@ -151,8 +163,23 @@ function parseConfig(raw: string): AppConfig {
   const text = (value: unknown): string | null =>
     typeof value === 'string' && value.length > 0 ? value : null
 
+  /** A list of paths, deduplicated, with the current one guaranteed present. */
+  const paths = (value: unknown, current: string | null): string[] => {
+    const listed = Array.isArray(value)
+      ? value.filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
+      : []
+
+    return [...new Set(current ? [current, ...listed] : listed)]
+  }
+
   return {
     workspacePath: text(parsed.workspacePath),
+    /*
+      Older configs have no list at all, so the current path becomes it. A
+      missing list must never read as "no workspaces" — that would present
+      somebody who upgraded with an empty switcher and a first-run wizard.
+    */
+    workspaces: paths(parsed.workspaces, text(parsed.workspacePath)),
     lastBackupAt: text(parsed.lastBackupAt),
     apiBaseUrl: text(parsed.apiBaseUrl) ?? '',
     authToken: text(parsed.authToken),

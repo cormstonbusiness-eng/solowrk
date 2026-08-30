@@ -237,6 +237,7 @@ export const LIMITS = [
   'assistantMessages',
   'channels',
   'campaigns',
+  'workspaces',
   'devices'
 ] as const
 
@@ -263,6 +264,7 @@ export const LIMIT_LABELS: Record<Limit, string> = {
   assistantMessages: 'Assistant messages this month',
   channels: 'Marketing channels',
   campaigns: 'Campaigns on the go',
+  workspaces: 'Workspaces',
   devices: 'Computers'
 }
 
@@ -294,6 +296,16 @@ export const TIER_LIMITS: Record<Tier, Record<Limit, number>> = {
      */
     channels: 0,
     campaigns: 0,
+    /**
+     * One business, which is what Free is for.
+     *
+     * Unlike every other limit here, this one is counted in the config file
+     * rather than in a database — a workspace is a folder, and the folder is
+     * the user's. It is a product boundary, not a lock: somebody who drops to
+     * Free with three workspaces keeps all three and can still open any of
+     * them. See `workspaces.ts`.
+     */
+    workspaces: 1,
     devices: 1
   },
   basicPlus: {
@@ -312,6 +324,8 @@ export const TIER_LIMITS: Record<Tier, Record<Limit, number>> = {
      * a slot against you forever.
      */
     campaigns: 3,
+    // Enough for somebody running a couple of things at once.
+    workspaces: 3,
     devices: 2
   },
   pro: {
@@ -323,6 +337,7 @@ export const TIER_LIMITS: Record<Tier, Record<Limit, number>> = {
     assistantMessages: UNLIMITED,
     channels: UNLIMITED,
     campaigns: UNLIMITED,
+    workspaces: UNLIMITED,
     devices: 2
   }
 }

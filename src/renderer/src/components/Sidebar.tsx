@@ -7,6 +7,7 @@ import { EASE, transition } from '@/lib/motion'
 import { useAuthState, useFeature } from '@/lib/features'
 import { useUpdates } from '@/hooks/useUpdates'
 import { footerNav, navGroups, type NavItem } from '@/lib/nav'
+import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher'
 import { themeById } from '@shared/themes'
 import { useTheme } from '@/hooks/useTheme'
 import { ConfirmModal } from '@/components/ui/Modal'
@@ -467,7 +468,12 @@ export function Sidebar(): React.JSX.Element {
       data-tour="sidebar"
       className="flex w-[212px] shrink-0 flex-col border-r border-line bg-ground"
     >
-      <div className="flex-1 overflow-y-auto px-2.5 py-3">
+      {/* Above everything, because it is the widest piece of context in the
+          app: every row below means something different depending on which
+          business is open. */}
+      <WorkspaceSwitcher />
+
+      <div className="flex-1 overflow-y-auto px-2.5 pt-1 pb-3">
         {navGroups.map((group) => (
           // data-tour targets are derived from the group label, so adding a
           // group cannot silently break a tour step that points at it.

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { IPC_CHANNELS } from '@shared/ipc'
-import { FEATURES, LIMITS, TIER_NAMES, requires } from '@shared/entitlements'
+import { FEATURES, LIMITS, TIER_NAMES, requires, type Limit } from '@shared/entitlements'
 import { ACCOUNT_URL, GATES, gateFor, limitsFor } from './gating'
 
 /**
@@ -171,10 +171,19 @@ describe('the limits', () => {
     // channel had better be checked against it, or the cap is decorative.
     const covered = new Set(IPC_CHANNELS.flatMap((channel) => limitsFor(channel)))
 
+    /*
+      Two limits are not enforced through a channel, and both for the same
+      reason: nothing about them is countable from a workspace database.
+
+      Devices are counted by the licence server at activation — nothing local
+      can see the other computers. Workspaces are counted in the config file,
+      because a workspace *is* a database and there is no single one to ask;
+      `workspaces.ts` refuses at the point one would be created.
+    */
+    const elsewhere = new Set<Limit>(['devices', 'workspaces'])
+
     for (const limit of LIMITS) {
-      // Devices are counted by the licence server at activation; nothing local
-      // can see the other computers.
-      if (limit === 'devices') continue
+      if (elsewhere.has(limit)) continue
       expect([...covered]).toContain(limit)
     }
   })

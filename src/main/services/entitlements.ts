@@ -171,6 +171,16 @@ const COUNTS: Record<Limit, (db: Database) => number> = {
         WHERE archived = 0 AND is_template = 0 AND status IN ('planning','active')`
     ),
 
+  /**
+   * Counted in the config file rather than in a database, because a workspace
+   * *is* a database — there is no single one to ask.
+   *
+   * Zero here, and the real count is supplied by `meters()` below. The
+   * enforcement lives in `workspaces.ts` for the same reason: this function
+   * only ever gets handed one workspace's connection.
+   */
+  workspaces: () => 0,
+
   // Counted by the licence server, which is the only thing that can see the
   // other computers. Nothing local can answer it, and answering zero here is
   // honest rather than a hole: the seat check happens at activation.
@@ -201,12 +211,18 @@ export interface Meter {
  * `JSON.stringify(Infinity)` is `null` anyway and being explicit about it
  * beats discovering the coercion in the renderer.
  */
-export async function meters(db: Database): Promise<{ limit: Limit; used: number; cap: number | null }[]> {
+export async function meters(
+  db: Database,
+  workspaceCount?: number
+): Promise<{ limit: Limit; used: number; cap: number | null }[]> {
   const tier = await currentTier(db)
 
+  // Workspaces are the one thing not countable from a database connection, so
+  // the caller supplies the number it already had to read from the config.
   return LIMITS.map((limit) => {
     const cap = limitOf(tier, limit)
-    return { limit, used: usage(db, limit), cap: isUnlimited(cap) ? null : cap }
+    const used = limit === 'workspaces' ? (workspaceCount ?? 0) : usage(db, limit)
+    return { limit, used, cap: isUnlimited(cap) ? null : cap }
   }).filter((meter) => meter.cap !== 0)
 }
 

@@ -1,6 +1,8 @@
+import { basename } from 'node:path'
 import { Database } from '../db'
 import type { Settings, WorkspaceSetup, WorkspaceStatus } from '@shared/types'
 import { readConfig, suggestedWorkspacePath, updateConfig } from './config'
+import { rememberWorkspace, requireRoomForWorkspace } from './workspaces'
 import { backupDatabase, backupIsDue } from './backup'
 import { databasePath, isWorkspace, scaffoldWorkspace } from './workspace'
 import { getSettings, updateSettings } from './settings'
@@ -71,14 +73,32 @@ class Session {
     return { state: 'ready', path: config.workspacePath }
   }
 
-  /** Create the folder tree and database, then open it. */
+  /**
+   * Create the folder tree and database, then open it.
+   *
+   * The tier check comes first, before anything reaches the disk. A refusal
+   * that left a half-scaffolded folder behind would be a refusal somebody had
+   * to clean up.
+   */
   async create(setup: WorkspaceSetup): Promise<WorkspaceStatus> {
+    await requireRoomForWorkspace(this.dbOrNull(), setup.path)
+
     // `open` scaffolds too, so creation is just opening a path that is not
     // there yet — one code path builds the tree rather than two.
     await this.open(setup.path)
 
     updateSettings(this.requireDb(), {
       ...setup.business,
+      /**
+       * Named after its folder when nobody said otherwise.
+       *
+       * The first-run wizard always asks, but adding a second business from
+       * the switcher does not — running a full-screen wizard again in the
+       * middle of somebody's working day would be a strange price for a
+       * second workspace. The folder name is a fair guess, because they chose
+       * it, and Settings is one click away.
+       */
+      businessName: setup.business.businessName.trim() || basename(setup.path),
       // A UK sole trader is the default shape; both are editable in Settings.
       country: 'United Kingdom',
       currency: 'GBP'
@@ -92,6 +112,24 @@ class Session {
     if (!(await isWorkspace(path))) {
       throw new Error('That folder does not contain a SoloWrk workspace')
     }
+    await requireRoomForWorkspace(this.dbOrNull(), path)
+    await this.open(path)
+    return { state: 'ready', path }
+  }
+
+  /**
+   * Move to a workspace already on the list.
+   *
+   * Deliberately not `adopt`: this never checks the cap. Somebody who drops
+   * from Pro to Free with three workspaces keeps all three and can still open
+   * any of them — the limit is on making a fourth. Locking somebody out of
+   * their own books would be the worst possible reading of a downgrade.
+   */
+  async switchTo(path: string): Promise<WorkspaceStatus> {
+    if (!(await isWorkspace(path))) {
+      throw new Error('That workspace is not where it used to be. Has the folder moved?')
+    }
+
     await this.open(path)
     return { state: 'ready', path }
   }
@@ -150,7 +188,8 @@ class Session {
 
     this.db = new Database(databasePath(path))
     this.workspacePath = path
-    await updateConfig({ workspacePath: path })
+    // Records it as current *and* as known, so the switcher lists it.
+    await rememberWorkspace(path)
     await this.runDailyBackup()
     this.seedTemplates()
     // Before the retainers, so a lead won while the app was closed is a client
