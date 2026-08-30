@@ -2,7 +2,7 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, ChevronUp, Lock, Sparkles } from 'lucide-react'
+import { Bell, ChevronUp, LifeBuoy, Lock, Sparkles } from 'lucide-react'
 import { EASE, transition } from '@/lib/motion'
 import { useAuthState, useFeature } from '@/lib/features'
 import { useUpdates } from '@/hooks/useUpdates'
@@ -37,6 +37,35 @@ function ActivePill(): React.JSX.Element {
  * rather than places work lives. The badge is the point: an unread count you
  * cannot see is a notification system that does not work.
  */
+/**
+ * How to use the thing you are looking at.
+ *
+ * Above Notifications and below the sections, with the other two things you
+ * *go to* rather than places work lives. Deliberately a plain row: help that
+ * shouts is help somebody dismisses on day one and cannot find on day thirty.
+ */
+function GuidesButton(): React.JSX.Element {
+  const { pathname } = useLocation()
+  const isActive = pathname === '/guides'
+
+  return (
+    <NavLink
+      to="/guides"
+      className={cn(
+        'relative flex items-center gap-2.5 rounded-control px-2.5 py-[7px]',
+        'text-[13px] transition-colors duration-150',
+        isActive ? 'text-ink' : 'text-muted hover:text-ink'
+      )}
+    >
+      {isActive && <ActivePill />}
+      <span className="relative">
+        <LifeBuoy size={15} strokeWidth={1.75} />
+      </span>
+      <span className="relative flex-1">Guides</span>
+    </NavLink>
+  )
+}
+
 function NotificationsButton(): React.JSX.Element {
   const { pathname } = useLocation()
   const isActive = pathname === '/notifications'
@@ -463,6 +492,7 @@ export function Sidebar(): React.JSX.Element {
           another grey nav row: it is the one destination people hunt for, and a
           row that looks like every other row is a row you scan past. */}
       <div className="flex flex-col gap-1 px-2.5 pb-1.5">
+        <GuidesButton />
         <NotificationsButton />
         <AssistantButton />
       </div>

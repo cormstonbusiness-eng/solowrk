@@ -8,6 +8,7 @@ import {
   Clock,
   FileText,
   FolderKanban,
+  LifeBuoy,
   Megaphone,
   NotebookPen,
   Play,
@@ -27,6 +28,7 @@ import { describeSeconds, parseLoggedTime } from '@shared/logEntry'
 import { invalidate, keys } from '@/lib/api'
 import { useFeature } from '@/lib/features'
 import { allNavItems } from '@/lib/nav'
+import { GUIDES } from '@shared/guides'
 import { formatMoney } from '@/lib/format'
 
 export interface Command {
@@ -418,6 +420,23 @@ export function useCommands({
       searchText: `Today schedule calendar ${dayFromDate(new Date())}`,
       run: go('/calendar')
     })
+
+    /*
+      One entry per guide, matched on its summary as well as its title.
+      Somebody stuck types the word confusing them — "billable", "overdue",
+      "cadence" — rather than the name of the page it is documented on, and
+      the palette is where they are already looking.
+    */
+    for (const guide of GUIDES) {
+      commands.push({
+        id: `guide-${guide.id}`,
+        label: `${guide.title} guide`,
+        group: 'Help',
+        icon: LifeBuoy,
+        searchText: `Guide help how to ${guide.title} ${guide.summary}`,
+        run: go('/guides')
+      })
+    }
 
     // Navigation last: they are always reachable in the sidebar, so they are
     // the least interesting thing the palette can offer.
