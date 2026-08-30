@@ -84,6 +84,7 @@ export const FEATURES = [
   // Pro — the things that make a freelancer look like a bigger operation.
   'updatepack',
   'marketingresults',
+  'casestudies',
   'businessplan',
   'proposals',
   'expenses',
@@ -125,6 +126,7 @@ export const FEATURE_LABELS: Record<Feature, string> = {
 
   updatepack: 'client update packs',
   marketingresults: 'marketing attribution and spend tracking',
+  casestudies: 'case studies written from your finished projects',
   businessplan: 'the business plan assistant',
   proposals: 'proposals and contracts',
   expenses: 'expenses and receipt capture',
@@ -177,6 +179,15 @@ export const TIER_ADDS: Record<Tier, readonly Feature[]> = {
   pro: [
     'updatepack',
     'marketingresults',
+    /**
+     * Writing a case study *from a finished project* (§12), not keeping one.
+     *
+     * The library itself is Basic+ — somebody who has written a case study
+     * must always be able to file it. What Pro buys is the app reading a
+     * completed project and filling in the duration, the scope and the
+     * deliverables, which is the half nobody does by hand.
+     */
+    'casestudies',
     'businessplan',
     'proposals',
     'expenses',

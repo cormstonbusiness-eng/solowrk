@@ -39,6 +39,9 @@ import type {
   CapacityDefaults,
   CampaignInput,
   CampaignWithCounts,
+  LibraryAssetInput,
+  LibraryAssetWithContext,
+  LibraryType,
   CampaignWork,
   ContentItemInput,
   ContentItemWithContext,
@@ -387,6 +390,14 @@ export interface IpcContract {
 
   /** Hands a pre-filled draft to the OS mail client. Never sends anything. */
   'shell:mailto': { req: { to: string; subject: string; body: string }; res: void }
+  /**
+   * Open a link in the user's browser.
+   *
+   * http and https only, checked in main. This hands a string from the
+   * renderer to the operating system, and `file:` would make any stored link
+   * a way to open anything on the disk.
+   */
+  'shell:openUrl': { req: { url: string }; res: void }
 
   'time:running': { req: void; res: RunningTimer | null }
   'time:start': {
@@ -756,6 +767,26 @@ export interface IpcContract {
    * tasks and the files in its folder — in a single call, because a record
    * that fetched them separately would draw itself in three stages.
    */
+  /**
+   * The library: case studies, testimonials, assets and the swipe file (§7).
+   *
+   * `library:draftCaseStudy` reads a finished project and returns a draft —
+   * it writes nothing, so a user can look at what it would say before any of
+   * it becomes a row.
+   */
+  'library:list': {
+    req: { type?: LibraryType; search?: string; includeArchived?: boolean } | void
+    res: LibraryAssetWithContext[]
+  }
+  'library:get': { req: { id: number }; res: LibraryAssetWithContext }
+  'library:create': { req: LibraryAssetInput; res: LibraryAssetWithContext }
+  'library:update': { req: { id: number; patch: LibraryAssetInput }; res: LibraryAssetWithContext }
+  'library:archive': { req: { id: number; archived?: boolean }; res: LibraryAssetWithContext }
+  'library:draftCaseStudy': {
+    req: { projectId: number }
+    res: { title: string; body: string; clientId: number | null; sourceProjectId: number }
+  }
+
   'campaigns:list': {
     req: { includeArchived?: boolean; templates?: boolean } | void
     res: CampaignWithCounts[]
@@ -1195,6 +1226,7 @@ export const IPC_CHANNELS = [
   'documents:restoreVersion',
   'documents:setStatus',
   'shell:mailto',
+  'shell:openUrl',
   'time:running',
   'time:start',
   'time:stop',
@@ -1270,6 +1302,12 @@ export const IPC_CHANNELS = [
   'expenses:delete',
   'debtors:aged',
   'capacity:defaults',
+  'library:list',
+  'library:get',
+  'library:create',
+  'library:update',
+  'library:archive',
+  'library:draftCaseStudy',
   'campaigns:list',
   'campaigns:get',
   'campaigns:create',

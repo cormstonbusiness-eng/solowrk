@@ -74,6 +74,28 @@ export const GATES: Gate[] = [
     message: messageFor('marketing', 'Your clients, projects and invoices are unaffected.')
   },
   {
+    /**
+     * The library itself is Basic+ (§12): somebody who has written a case
+     * study or been sent a testimonial must always be able to keep it.
+     */
+    prefix: 'library:',
+    feature: 'marketing',
+    message: messageFor('marketing', 'Your clients, projects and invoices are unaffected.')
+  },
+  {
+    /**
+     * Writing one *from a finished project* is Pro, and it is a longer prefix
+     * than `library:` so it wins — which is exactly what longest-prefix-first
+     * exists for.
+     */
+    prefix: 'library:draftCaseStudy',
+    feature: 'casestudies',
+    message: messageFor(
+      'casestudies',
+      'You can still write one by hand and keep it in your library.'
+    )
+  },
+  {
     prefix: 'campaigns:',
     feature: 'marketing',
     message: messageFor('marketing', 'Your clients, projects and invoices are unaffected.')

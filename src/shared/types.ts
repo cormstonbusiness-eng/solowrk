@@ -353,6 +353,49 @@ export interface MarketingChannel {
 
 export type MarketingChannelInput = Partial<Omit<MarketingChannel, 'id'>>
 
+/**
+ * Everything reusable, in one table (§7).
+ *
+ * Four different things — case studies, testimonials, assets, swipe — sharing
+ * a table because they share every operation: filed, tagged, searched, filtered
+ * by type, archived. Four tables would have meant four of each and a UI that
+ * had to know which was which before it could show a grid.
+ */
+export const LIBRARY_TYPES = ['case_study', 'testimonial', 'image', 'template', 'swipe'] as const
+
+export type LibraryType = (typeof LIBRARY_TYPES)[number]
+
+export interface LibraryAsset {
+  id: number
+  type: LibraryType
+  title: string
+  body: string
+  /** Workspace-relative. A reference into Files, never a copy. */
+  filePath: string
+  /** Where a swipe came from, or where a case study is published. */
+  url: string
+  sourceProjectId: number | null
+  clientId: number | null
+  /**
+   * Permission to use a testimonial, held explicitly.
+   *
+   * Quoting a client without asking is a thing somebody does once, so this is
+   * a field rather than an assumption.
+   */
+  mayUse: boolean
+  tags: string
+  archived: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type LibraryAssetInput = Partial<Omit<LibraryAsset, 'id' | 'createdAt' | 'updatedAt'>>
+
+export interface LibraryAssetWithContext extends LibraryAsset {
+  clientName: string
+  projectName: string
+}
+
 export const CAMPAIGN_TYPES = [
   'content',
   'paid_ads',

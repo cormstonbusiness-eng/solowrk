@@ -146,6 +146,14 @@ import { agedDebtors } from '../services/debtors'
 import { fileWeeklyReview, weeklyReview } from '../services/review'
 import { capacityDefaults } from '../services/capacity'
 import {
+  archiveLibraryAsset,
+  caseStudyFromProject,
+  createLibraryAsset,
+  getLibraryAsset,
+  listLibrary,
+  updateLibraryAsset
+} from '../services/library'
+import {
   applyToMarketing,
   buildPlanFromAnswers,
   currentMarketingAudience,
@@ -522,6 +530,29 @@ const handlers: Handlers = {
     void shell.openExternal(url)
   },
 
+  'shell:openUrl': (_g, { url }) => {
+    /**
+     * The scheme is checked here and nowhere else.
+     *
+     * These URLs are typed by the user and stored, so by the time one reaches
+     * this handler nobody remembers where it came from. `file:` would turn
+     * any saved link into a way to open an arbitrary path, and the browser is
+     * the only place a stored link should ever end up.
+     */
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      throw new Error(`That does not look like a link: ${url}`)
+    }
+
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      throw new Error('Only web links can be opened from here.')
+    }
+
+    void shell.openExternal(parsed.toString())
+  },
+
   'time:running': () => getRunning(session.requireDb()),
   'time:start': (_g, input) => startTimer(session.requireDb(), input),
   'time:stop': (_g, { id }) => stopTimer(session.requireDb(), id),
@@ -889,6 +920,15 @@ const handlers: Handlers = {
   'debtors:aged': (_g, request) => agedDebtors(session.requireDb(), request?.asOf),
 
   'capacity:defaults': () => capacityDefaults(session.requireDb()),
+
+  'library:list': (_g, filter) => listLibrary(session.requireDb(), filter ?? {}),
+  'library:get': (_g, { id }) => getLibraryAsset(session.requireDb(), id),
+  'library:create': (_g, input) => createLibraryAsset(session.requireDb(), input),
+  'library:update': (_g, { id, patch }) => updateLibraryAsset(session.requireDb(), id, patch),
+  'library:archive': (_g, { id, archived }) =>
+    archiveLibraryAsset(session.requireDb(), id, archived ?? true),
+  'library:draftCaseStudy': (_g, { projectId }) =>
+    caseStudyFromProject(session.requireDb(), projectId),
 
   'campaigns:list': (_g, filter) => listCampaigns(session.requireDb(), filter ?? {}),
   'campaigns:get': (_g, { id }) => getCampaign(session.requireDb(), id),

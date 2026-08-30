@@ -96,6 +96,19 @@ describe('the chase schedule is paid, chasing is not', () => {
     expect(gateFor('expenses:list')).toBeNull()
   })
 
+  it('keeps the library while charging for writing one from a project', () => {
+    /*
+      §12 splits these deliberately, and longest-prefix-first is what makes
+      the split expressible. Keeping a case study is Basic+ — somebody who
+      wrote one by hand must always be able to file it. What Pro buys is the
+      app reading a finished project and filling in the dates, the hours and
+      the deliverables.
+    */
+    expect(gateFor('library:list')?.feature).toBe('marketing')
+    expect(gateFor('library:create')?.feature).toBe('marketing')
+    expect(gateFor('library:draftCaseStudy')?.feature).toBe('casestudies')
+  })
+
   it('gates the update pack without gating the client', () => {
     // One channel, not a prefix — longest-prefix-first is what makes that
     // work, and it is worth asserting because getting it wrong would gate
