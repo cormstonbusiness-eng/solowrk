@@ -75,6 +75,29 @@ export const GATES: Gate[] = [
   },
   {
     /**
+     * Results, attribution, spend and the consistency tracker — all Pro (§12).
+     *
+     * This is the measurement layer the Marketing split was drawn around:
+     * Basic+ gets the doing, Pro gets knowing whether it worked.
+     */
+    prefix: 'results:',
+    feature: 'marketingresults',
+    message: messageFor(
+      'marketingresults',
+      'Your channels, campaigns and content are all still here — this is the reckoning, not the work.'
+    )
+  },
+  {
+    /** Recording a figure is part of measurement, so it goes with it. */
+    prefix: 'metrics:',
+    feature: 'marketingresults',
+    message: messageFor(
+      'marketingresults',
+      'Your channels, campaigns and content are all still here — this is the reckoning, not the work.'
+    )
+  },
+  {
+    /**
      * The library itself is Basic+ (§12): somebody who has written a case
      * study or been sent a testimonial must always be able to keep it.
      */

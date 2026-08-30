@@ -38,7 +38,12 @@ import type {
   AgedDebtors,
   CapacityDefaults,
   CampaignInput,
+  CampaignMetric,
+  CampaignMetricInput,
   CampaignWithCounts,
+  ContentMetric,
+  ContentMetricInput,
+  MarketingResults,
   LibraryAssetInput,
   LibraryAssetWithContext,
   LibraryType,
@@ -774,6 +779,32 @@ export interface IpcContract {
    * it writes nothing, so a user can look at what it would say before any of
    * it becomes a row.
    */
+  /**
+   * What actually worked (§8), and the figures behind it.
+   *
+   * `results:marketing` is one call rather than four because the page answers
+   * a single question, and four queries would draw it in four stages.
+   *
+   * The `metrics:` channels are typed in by hand — there is no platform
+   * integration and there will not be — so every field is optional and `null`
+   * means "not recorded", which is not the same as zero.
+   */
+  'results:marketing': { req: { from: string; to: string }; res: MarketingResults }
+
+  'metrics:content': { req: { contentId: number }; res: ContentMetric[] }
+  'metrics:recordContent': {
+    req: { contentId: number; reading: ContentMetricInput }
+    res: ContentMetric[]
+  }
+  'metrics:deleteContent': { req: { id: number; contentId: number }; res: ContentMetric[] }
+
+  'metrics:campaign': { req: { campaignId: number }; res: CampaignMetric[] }
+  'metrics:recordCampaign': {
+    req: { campaignId: number; reading: CampaignMetricInput }
+    res: CampaignMetric[]
+  }
+  'metrics:deleteCampaign': { req: { id: number; campaignId: number }; res: CampaignMetric[] }
+
   'library:list': {
     req: { type?: LibraryType; search?: string; includeArchived?: boolean } | void
     res: LibraryAssetWithContext[]
@@ -1302,6 +1333,13 @@ export const IPC_CHANNELS = [
   'expenses:delete',
   'debtors:aged',
   'capacity:defaults',
+  'results:marketing',
+  'metrics:content',
+  'metrics:recordContent',
+  'metrics:deleteContent',
+  'metrics:campaign',
+  'metrics:recordCampaign',
+  'metrics:deleteCampaign',
   'library:list',
   'library:get',
   'library:create',

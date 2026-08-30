@@ -145,6 +145,15 @@ import { readReceiptImage } from '../services/ocr'
 import { agedDebtors } from '../services/debtors'
 import { fileWeeklyReview, weeklyReview } from '../services/review'
 import { capacityDefaults } from '../services/capacity'
+import { marketingResults } from '../services/results'
+import {
+  deleteCampaignMetric,
+  deleteContentMetric,
+  listCampaignMetrics,
+  listContentMetrics,
+  recordCampaignMetric,
+  recordContentMetric
+} from '../services/metrics'
 import {
   archiveLibraryAsset,
   caseStudyFromProject,
@@ -920,6 +929,26 @@ const handlers: Handlers = {
   'debtors:aged': (_g, request) => agedDebtors(session.requireDb(), request?.asOf),
 
   'capacity:defaults': () => capacityDefaults(session.requireDb()),
+
+  'results:marketing': (_g, { from, to }) => marketingResults(session.requireDb(), from, to),
+
+  'metrics:content': (_g, { contentId }) => listContentMetrics(session.requireDb(), contentId),
+  'metrics:recordContent': (_g, { contentId, reading }) =>
+    recordContentMetric(session.requireDb(), contentId, reading),
+  'metrics:deleteContent': (_g, { id, contentId }) => {
+    const db = session.requireDb()
+    deleteContentMetric(db, id)
+    return listContentMetrics(db, contentId)
+  },
+
+  'metrics:campaign': (_g, { campaignId }) => listCampaignMetrics(session.requireDb(), campaignId),
+  'metrics:recordCampaign': (_g, { campaignId, reading }) =>
+    recordCampaignMetric(session.requireDb(), campaignId, reading),
+  'metrics:deleteCampaign': (_g, { id, campaignId }) => {
+    const db = session.requireDb()
+    deleteCampaignMetric(db, id)
+    return listCampaignMetrics(db, campaignId)
+  },
 
   'library:list': (_g, filter) => listLibrary(session.requireDb(), filter ?? {}),
   'library:get': (_g, { id }) => getLibraryAsset(session.requireDb(), id),

@@ -13,6 +13,7 @@ import type { DebtBucket, DebtHeat } from './debtors'
 import type { Match } from './bankMatch'
 import type { Review } from './review'
 import type { CapacityInput } from './capacity'
+import type { Period as ConsistencyPeriod } from './cadence'
 import type { RenamePreview, StructureReport } from './structure'
 import type { ReceiptReading } from './receipts'
 import type { CadencePeriod } from './cadence'
@@ -394,6 +395,117 @@ export type LibraryAssetInput = Partial<Omit<LibraryAsset, 'id' | 'createdAt' | 
 export interface LibraryAssetWithContext extends LibraryAsset {
   clientName: string
   projectName: string
+}
+
+/* ------------------------------------------------------------------ *
+ * Marketing results (§8) and the figures behind them
+ * ------------------------------------------------------------------ */
+
+/**
+ * Shapes rather than logic, so the IPC contract can name them.
+ *
+ * The queries live in `main/services/results.ts` and the entry logic in
+ * `main/services/metrics.ts`; only the shapes are here, because the renderer
+ * cannot see into the main process and the contract has to describe both ends.
+ */
+export interface ChannelReturn {
+  channelId: number
+  name: string
+  colour: string
+  /** Clients whose source is this channel, acquired within the period. */
+  clients: number
+  /**
+   * Everything those clients have ever paid, not only what they paid inside
+   * the period. The period bounds who counts, not what they are worth.
+   */
+  revenue: Pence
+}
+
+export interface CampaignReturn {
+  campaignId: number
+  name: string
+  budget: Pence
+  spend: Pence
+  enquiries: number
+  won: number
+  revenue: Pence
+  /** Revenue over spend. Null when nothing was spent — never infinity. */
+  ratio: number | null
+  costPerEnquiry: Pence | null
+}
+
+export interface SpendAgainstBudget {
+  budget: Pence
+  spent: Pence
+  /** Goes negative when a budget is blown, rather than clamping at zero. */
+  remaining: Pence
+}
+
+export interface ChannelConsistency {
+  channelId: number
+  name: string
+  colour: string
+  commitment: number
+  period: CadencePeriod
+  periods: ConsistencyPeriod[]
+}
+
+export interface MarketingResults {
+  channels: ChannelReturn[]
+  campaigns: CampaignReturn[]
+  budget: SpendAgainstBudget
+  consistency: ChannelConsistency[]
+  /** True when there is genuinely nothing to show — see §8.3. */
+  empty: boolean
+}
+
+/**
+ * A reading somebody typed in.
+ *
+ * Every field is optional and `null` means "not recorded", which is different
+ * from zero and must stay different: zero clicks is a result, and not having
+ * looked is not.
+ */
+export interface ContentMetric {
+  id: number
+  contentId: number
+  recordedAt: string
+  impressions: number | null
+  engagements: number | null
+  clicks: number | null
+  enquiries: number | null
+  notes: string
+}
+
+export interface ContentMetricInput {
+  impressions?: number | null
+  engagements?: number | null
+  clicks?: number | null
+  enquiries?: number | null
+  notes?: string
+  /** Defaults to now. Passed in when recording a reading taken earlier. */
+  recordedAt?: string
+}
+
+export interface CampaignMetric {
+  id: number
+  campaignId: number
+  recordedOn: string
+  spend: Pence | null
+  impressions: number | null
+  clicks: number | null
+  enquiries: number | null
+  notes: string
+}
+
+export interface CampaignMetricInput {
+  spend?: Pence | null
+  impressions?: number | null
+  clicks?: number | null
+  enquiries?: number | null
+  notes?: string
+  /** `yyyy-mm-dd`. Defaults to today. */
+  recordedOn?: string
 }
 
 export const CAMPAIGN_TYPES = [
