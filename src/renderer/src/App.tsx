@@ -22,6 +22,7 @@ import { SeasonalLayer } from '@/components/seasonal/SeasonalLayer'
 import { transition } from '@/lib/motion'
 import { raiseLimit } from '@/lib/limits'
 import { LimitModal } from '@/components/LimitModal'
+import { QuickCapture } from '@/components/QuickCapture'
 import { TrialBar } from '@/components/TrialBar'
 import {
   ArchivedProjects,
@@ -139,6 +140,8 @@ function Shell(): React.JSX.Element {
             <DetailDrawer />
             {/* Likewise — any creation anywhere can raise it. */}
             <LimitModal />
+            {/* Ctrl+Shift+I from anywhere — see QuickCapture. */}
+            <QuickCapture />
           </TourProvider>
         </UndoProvider>
       </DrawerProvider>

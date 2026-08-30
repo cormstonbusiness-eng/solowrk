@@ -292,6 +292,25 @@ export interface IpcContract {
   'projects:create': { req: ProjectInput; res: Project }
   'projects:update': { req: { id: number; patch: Partial<ProjectInput> }; res: Project }
   'projects:delete': { req: { id: number }; res: void }
+  /**
+   * Turn a finished job into marketing, at the only moment the details are
+   * fresh (§9.2). Offered on completion, never done automatically —
+   * marking a project complete is bookkeeping, and quietly creating four
+   * rows in Marketing off the back of it would be a side effect nobody
+   * asked for.
+   */
+  'projects:harvest': {
+    req: { projectId: number }
+    res: { caseStudy: LibraryAssetWithContext; ideas: ContentItemWithContext[] }
+  }
+  /**
+   * Whether this job has already been written up, so the offer can stay quiet.
+   *
+   * Deliberately not named `projects:harvested`: that shares a prefix with
+   * `projects:harvest` and would inherit its Pro gate, which would make the
+   * question "may I ask whether to show this?" itself a paid feature.
+   */
+  'projects:writtenUp': { req: { projectId: number }; res: boolean }
   /** Open the project's folder in Explorer. */
   'projects:reveal': { req: { id: number }; res: void }
 
@@ -860,6 +879,22 @@ export interface IpcContract {
   'plan:get': { req: void; res: MarketingPlan }
   'plan:update': { req: MarketingPlanInput; res: MarketingPlan }
 
+  /**
+   * One piece of work, several pieces of content (§9.1).
+   *
+   * `content:chain` is not gated with `content:repurpose`: a chain made while
+   * somebody was on Pro must stay readable if they drop to Basic+, because
+   * hiding the link between things they wrote would be hiding their own work.
+   */
+  'content:repurpose': {
+    req: { sourceId: number; channelIds: number[] }
+    res: ContentItemWithContext[]
+  }
+  'content:chain': {
+    req: { id: number }
+    res: { parent: ContentItemWithContext | null; derivatives: ContentItemWithContext[] }
+  }
+
   'content:month': {
     req: { from: string; to: string }
     res: { items: ContentItemWithContext[]; ghosts: { day: string; channelId: number }[] }
@@ -1211,6 +1246,8 @@ export const IPC_CHANNELS = [
   'projects:create',
   'projects:update',
   'projects:delete',
+  'projects:harvest',
+  'projects:writtenUp',
   'projects:reveal',
   'tasks:list',
   'tasks:create',
@@ -1361,6 +1398,8 @@ export const IPC_CHANNELS = [
   'plan:applyFromBusiness',
   'plan:get',
   'plan:update',
+  'content:repurpose',
+  'content:chain',
   'content:month',
   'content:list',
   'content:get',

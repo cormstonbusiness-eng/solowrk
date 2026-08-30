@@ -85,6 +85,8 @@ export const FEATURES = [
   'updatepack',
   'marketingresults',
   'casestudies',
+  'repurpose',
+  'harvest',
   'businessplan',
   'proposals',
   'expenses',
@@ -127,6 +129,8 @@ export const FEATURE_LABELS: Record<Feature, string> = {
   updatepack: 'client update packs',
   marketingresults: 'marketing attribution and spend tracking',
   casestudies: 'case studies written from your finished projects',
+  repurpose: 'turning one piece of work into several posts',
+  harvest: 'turning a finished job into marketing while it is fresh',
   businessplan: 'the business plan assistant',
   proposals: 'proposals and contracts',
   expenses: 'expenses and receipt capture',
@@ -188,6 +192,8 @@ export const TIER_ADDS: Record<Tier, readonly Feature[]> = {
      * deliverables, which is the half nobody does by hand.
      */
     'casestudies',
+    'repurpose',
+    'harvest',
     'businessplan',
     'proposals',
     'expenses',

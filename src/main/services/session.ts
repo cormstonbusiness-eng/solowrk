@@ -8,6 +8,7 @@ import { seedStarterTemplates } from './docTemplates'
 import { migrateLeadsToClients } from './leadMigration'
 import { runRecurringInvoices } from './invoices'
 import { drainOutbox } from './chaseRun'
+import { checkQuietPeriod } from './quietPeriod'
 
 /**
  * Owns the currently open workspace: its path and its database connection.
@@ -157,6 +158,7 @@ class Session {
     await this.moveLeads()
     this.issueDueRetainers()
     this.sendWhatIsWaiting()
+    this.warnIfWorkIsRunningShort()
   }
 
   /**
@@ -233,6 +235,26 @@ class Session {
     void drainOutbox(this.requireDb()).catch((error) => {
       console.error('Outbox drain failed:', error)
     })
+  }
+
+  /**
+   * The quiet-period trigger (§9.3), checked when the workspace opens.
+   *
+   * Here rather than on a timer because the point is to catch somebody at the
+   * moment they sit down, and because a warning about an empty pipeline that
+   * arrives while they are mid-sentence in something else is a warning they
+   * dismiss without reading.
+   *
+   * Deduped inside `checkQuietPeriod`, so opening the app four times in a day
+   * raises it once. Swallowed on failure like the rest of the open sequence:
+   * nothing about marketing should be able to stop a workspace opening.
+   */
+  private warnIfWorkIsRunningShort(): void {
+    try {
+      checkQuietPeriod(this.requireDb())
+    } catch (error) {
+      console.error('Quiet-period check failed:', error)
+    }
   }
 
   /**

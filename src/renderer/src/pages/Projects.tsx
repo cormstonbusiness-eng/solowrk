@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { motion } from 'motion/react'
 import { Archive, ArrowLeft, BookMarked, FolderKanban, FolderOpen, Plus, Trash2 } from 'lucide-react'
-import type { ProjectInput, ProjectStatus } from '@shared/types'
+import type { ProjectInput, ProjectStatus, ProjectSummary } from '@shared/types'
 import { PROJECT_STATUSES } from '@shared/types'
 import { Page } from '@/components/Page'
 import { Card, CardHeader } from '@/components/ui/Card'
@@ -13,6 +13,7 @@ import { ColourPicker, Select } from '@/components/ui/Select'
 import { ConfirmModal, Modal } from '@/components/ui/Modal'
 import { Empty, Pill } from '@/components/ui/Empty'
 import { Swap } from '@/components/ui/Swap'
+import { HarvestOffer } from './projects/HarvestOffer'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { useEntityActions } from '@/hooks/useEntityActions'
@@ -45,6 +46,7 @@ export function Projects(): React.JSX.Element {
   const [searchParams] = useSearchParams()
   const clientFilter = searchParams.get('client')
   const [editing, setEditing] = useState<(ProjectInput & { id?: number }) | null>(null)
+  const [justFinished, setJustFinished] = useState<ProjectSummary | null>(null)
 
   const archive = useMutation({
     mutationFn: (id: number) =>
@@ -118,10 +120,16 @@ export function Projects(): React.JSX.Element {
       >
         <ProjectBoard
           projects={projects}
-          onMove={(project, status) => save.mutate({ ...project, id: project.id, status })}
+          onMove={(project, status) => {
+            save.mutate({ ...project, id: project.id, status })
+            // §9.2: the only moment the details are fresh. Offered, never done.
+            if (status === 'completed') setJustFinished(project)
+          }}
           onArchive={(project) => archive.mutate(project.id)}
         />
       </Swap>
+
+      <HarvestOffer project={justFinished} onClose={() => setJustFinished(null)} />
 
       <ProjectModal
         draft={editing}

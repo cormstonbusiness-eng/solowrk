@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
-import { Check, Copy, Trash2 } from 'lucide-react'
+import { Check, Copy, GitBranch, Trash2 } from 'lucide-react'
 import type {
   ContentItemInput,
   ContentItemWithContext,
@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
 import { Select } from '@/components/ui/Select'
 import { keys, useInvalidate } from '@/lib/api'
+import { useFeature } from '@/lib/features'
 import { toast } from '@/lib/celebrate'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
@@ -239,6 +240,8 @@ function Body({
           </Field>
         </div>
 
+        <Chain item={item} channels={channels} />
+
         <Field label="Scheduled for" hint="Leave it empty and this stays an idea.">
           <input
             type="datetime-local"
@@ -319,5 +322,107 @@ function Body({
         </span>
       </footer>
     </>
+  )
+}
+
+/**
+ * What this came from, and what came out of it (§9.1).
+ *
+ * One piece of work should produce several pieces of content. Freelancers
+ * know that and do not do it, because at the moment a job finishes the last
+ * thing anybody wants is to write five posts. So this makes the shells — one
+ * per channel, undated, in the idea column — and leaves the writing for a day
+ * when writing is the job.
+ *
+ * The thread is drawn in both directions, which is what turns five orphaned
+ * drafts into "the five things that came out of the Harding job".
+ */
+function Chain({
+  item,
+  channels
+}: {
+  item: ContentItemWithContext
+  channels: MarketingChannel[]
+}): React.JSX.Element | null {
+  const invalidate = useInvalidate()
+  const entitled = useFeature('repurpose')
+  const [picking, setPicking] = useState(false)
+
+  const { data: chain } = useQuery({
+    queryKey: keys.contentChain(item.id),
+    queryFn: () => window.solo.invoke('content:chain', { id: item.id })
+  })
+
+  const make = useMutation({
+    mutationFn: (channelIds: number[]) =>
+      window.solo.invoke('content:repurpose', { sourceId: item.id, channelIds }),
+    onSuccess: () => {
+      invalidate(['marketing'])
+      setPicking(false)
+    }
+  })
+
+  const derivatives = chain?.derivatives ?? []
+  const already = new Set(derivatives.map((one) => one.channelId))
+  const spare = channels.filter((channel) => !already.has(channel.id))
+
+  // Nothing to show and nothing to offer.
+  if (!entitled && derivatives.length === 0 && !chain?.parent) return null
+
+  return (
+    <div className="flex flex-col gap-2 rounded-control border border-line bg-raised px-3 py-2.5">
+      <div className="flex items-center gap-2">
+        <GitBranch size={12} strokeWidth={1.75} className="shrink-0 text-faint" />
+        <span className="text-[11.5px] text-muted">
+          {chain?.parent ? `Made from “${chain.parent.title || 'Untitled'}”` : 'Repurpose'}
+        </span>
+
+        {/* Offered only where there is somewhere left to send it. */}
+        {entitled && spare.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setPicking((open) => !open)}
+            className="ml-auto text-[11px] text-faint transition-colors hover:text-ink"
+          >
+            {picking ? 'Cancel' : 'Make versions'}
+          </button>
+        )}
+      </div>
+
+      {picking && (
+        <div className="flex flex-wrap gap-1.5">
+          {spare.map((channel) => (
+            <button
+              key={channel.id}
+              type="button"
+              disabled={make.isPending}
+              onClick={() => make.mutate([channel.id])}
+              className="flex items-center gap-1.5 rounded-control border border-line px-2 py-1 text-[11.5px] text-ink transition-colors hover:border-accent/50 disabled:opacity-50"
+            >
+              <span
+                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: channel.colour }}
+              />
+              {channel.name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {derivatives.length > 0 && (
+        <div className="flex flex-col gap-0.5">
+          {derivatives.map((one) => (
+            <span key={one.id} className="flex items-center gap-2 text-[11.5px]">
+              <span
+                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ backgroundColor: one.channelColour }}
+              />
+              <span className="min-w-0 flex-1 truncate text-muted">{one.channelName}</span>
+              <span className="shrink-0 text-disabled">{one.status}</span>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }

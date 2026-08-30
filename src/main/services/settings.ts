@@ -25,6 +25,7 @@ interface SettingsRow extends Row {
   tax_set_aside_percent: number
   planned_annual_costs: number
   take_home_target: number
+  quiet_period_weeks: number
   tax_year_start_day: number
   tax_year_start_month: number
   invoice_prefix: string
@@ -67,6 +68,7 @@ function toSettings(row: SettingsRow): Settings {
     taxSetAsidePercent: row.tax_set_aside_percent,
     plannedAnnualCosts: row.planned_annual_costs,
     takeHomeTarget: row.take_home_target,
+    quietPeriodWeeks: row.quiet_period_weeks,
     taxYearStartDay: row.tax_year_start_day,
     taxYearStartMonth: row.tax_year_start_month,
     invoicePrefix: row.invoice_prefix,
@@ -110,6 +112,7 @@ const COLUMNS: {
   taxSetAsidePercent: { column: 'tax_set_aside_percent', toDb: Number },
   plannedAnnualCosts: { column: 'planned_annual_costs', toDb: Number },
   takeHomeTarget: { column: 'take_home_target', toDb: Number },
+  quietPeriodWeeks: { column: 'quiet_period_weeks', toDb: Number },
   taxYearStartDay: { column: 'tax_year_start_day', toDb: Number },
   taxYearStartMonth: { column: 'tax_year_start_month', toDb: Number },
   invoicePrefix: { column: 'invoice_prefix', toDb: String },

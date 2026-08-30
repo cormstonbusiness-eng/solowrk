@@ -2106,5 +2106,23 @@ export const migrations: Migration[] = [
       -- reset to a hard-coded £30,000 on every visit.
       ALTER TABLE settings ADD COLUMN take_home_target INTEGER NOT NULL DEFAULT 0;
     `
+  },
+  {
+    id: 33,
+    name: 'quiet_period',
+    sql: `
+      -- How few weeks of booked work counts as a warning (§9.3).
+      --
+      -- Four by default, which is roughly the point at which a freelancer
+      -- starts to feel it but is still early enough to do something. The
+      -- whole purpose of the trigger is to break the panic-marketing cycle by
+      -- prompting effort *before* the gap rather than during it, so a default
+      -- that fires when the gap has already arrived would be worse than none.
+      --
+      -- Zero turns it off, which has to stay possible: somebody on a single
+      -- long retainer has no pipeline to measure and does not want telling
+      -- about it every month.
+      ALTER TABLE settings ADD COLUMN quiet_period_weeks INTEGER NOT NULL DEFAULT 4;
+    `
   }
 ]

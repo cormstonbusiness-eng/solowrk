@@ -145,6 +145,8 @@ import { readReceiptImage } from '../services/ocr'
 import { agedDebtors } from '../services/debtors'
 import { fileWeeklyReview, weeklyReview } from '../services/review'
 import { capacityDefaults } from '../services/capacity'
+import { chainFor, repurpose } from '../services/repurpose'
+import { alreadyHarvested, harvestProject } from '../services/harvest'
 import { marketingResults } from '../services/results'
 import {
   deleteCampaignMetric,
@@ -992,6 +994,12 @@ const handlers: Handlers = {
 
   'plan:get': () => getPlan(session.requireDb()),
   'plan:update': (_g, patch) => updatePlan(session.requireDb(), patch),
+
+  'content:repurpose': (_g, request) => repurpose(session.requireDb(), request),
+  'content:chain': (_g, { id }) => chainFor(session.requireDb(), id),
+
+  'projects:harvest': (_g, { projectId }) => harvestProject(session.requireDb(), projectId),
+  'projects:writtenUp': (_g, { projectId }) => alreadyHarvested(session.requireDb(), projectId),
 
   'content:month': (_g, { from, to }) => contentMonth(session.requireDb(), from, to),
   'content:list': (_g, filter) => listContent(session.requireDb(), filter ?? {}),

@@ -75,6 +75,31 @@ export const GATES: Gate[] = [
   },
   {
     /**
+     * Repurposing, and harvesting a finished job — both Pro (§12).
+     *
+     * Longer prefixes than `content:` and `projects:`, so they override the
+     * gates on those. Reading a chain is deliberately not in here: a chain
+     * made on Pro must stay readable after a drop to Basic+, because hiding
+     * the link between two things somebody wrote would be hiding their own
+     * work from them.
+     */
+    prefix: 'content:repurpose',
+    feature: 'repurpose',
+    message: messageFor(
+      'repurpose',
+      'You can still write each post yourself, and everything already written stays where it is.'
+    )
+  },
+  {
+    prefix: 'projects:harvest',
+    feature: 'harvest',
+    message: messageFor(
+      'harvest',
+      'Your projects, their hours and their files are all unchanged.'
+    )
+  },
+  {
+    /**
      * Results, attribution, spend and the consistency tracker — all Pro (§12).
      *
      * This is the measurement layer the Marketing split was drawn around:

@@ -34,6 +34,7 @@ export const keys = {
       : (['marketing', 'campaignRecords'] as const),
   campaignWork: (id: number) => ['marketing', 'campaignWork', id] as const,
   results: (from: string, to: string) => ['marketing', 'results', { from, to }] as const,
+  contentChain: (id: number) => ['marketing', 'content', 'chain', id] as const,
   contentMetrics: (id: number) => ['marketing', 'metrics', 'content', id] as const,
   campaignMetrics: (id: number) => ['marketing', 'metrics', 'campaign', id] as const,
   library: (search?: string) =>

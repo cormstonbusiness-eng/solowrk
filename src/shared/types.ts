@@ -144,6 +144,12 @@ export interface BusinessSettings {
   plannedAnnualCosts: Pence
   /** What the user says they need to take home in a year. Zero means unset. */
   takeHomeTarget: Pence
+  /**
+   * How few weeks of booked work raises the quiet-period warning (§9.3).
+   * Zero turns it off — somebody on one long retainer has no pipeline to
+   * measure and does not want telling about it.
+   */
+  quietPeriodWeeks: number
   /** UK default: 6 April. */
   taxYearStartDay: number
   taxYearStartMonth: number
