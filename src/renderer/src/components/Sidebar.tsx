@@ -339,19 +339,38 @@ function AccountChip(): React.JSX.Element {
               Settings
             </MenuButton>
 
-            {auth?.configured && auth.signedIn && (
-              <>
-                <div className="my-1 h-px bg-line" />
-                <MenuButton
-                  danger
-                  onClick={() => {
-                    setOpen(false)
-                    setConfirming(true)
-                  }}
-                >
-                  Log out
-                </MenuButton>
-              </>
+            {/*
+              There is always an account action here, and there did not used
+              to be: a signed-out user got no way to sign *in* from the one
+              menu named after their account, and somebody holding a licence
+              with no session got no way to clear it either.
+
+              Log out appears whenever there is something to clear — a session
+              or a licence — because signing out drops both, and a machine
+              still holding a Pro licence for somebody who has left is the
+              case that matters most.
+            */}
+            <div className="my-1 h-px bg-line" />
+
+            {auth?.signedIn || auth?.licensed ? (
+              <MenuButton
+                danger
+                onClick={() => {
+                  setOpen(false)
+                  setConfirming(true)
+                }}
+              >
+                Log out
+              </MenuButton>
+            ) : (
+              <MenuButton
+                onClick={() => {
+                  navigate('/settings?tab=account')
+                  setOpen(false)
+                }}
+              >
+                Sign in
+              </MenuButton>
             )}
           </motion.div>
         )}

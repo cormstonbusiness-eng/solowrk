@@ -55,12 +55,24 @@ describe('gating', () => {
     expect((await authState()).configured).toBe(true)
   })
 
-  it('still opens when the server is cleared by hand', async () => {
-    // Clearing it opens the door but grants nothing: the tier comes from the
-    // signed licence, and no licence is Free. This asks whether the app
-    // opens, not what it is worth.
+  it('falls back to the default when the field is cleared', async () => {
+    /*
+      Clearing chooses the default rather than turning the server off, and
+      that is the whole point of the change.
+
+      The old default was an empty string, so every config file ever written
+      already holds one — which makes "cleared on purpose" and "never set"
+      the same value on disk. Honouring an empty string as "no server" left
+      every existing install unable to reach one, which was the bug this
+      default was added to fix. There is no longer a reason to have no server
+      either: the app runs offline on the signed licence, so the field picks
+      which server rather than whether.
+    */
+    await setApiBaseUrl(SERVER)
     await setApiBaseUrl('')
-    expect((await authState()).configured).toBe(false)
+
+    expect((await readConfig()).apiBaseUrl).toBe(API_BASE)
+    expect((await authState()).configured).toBe(true)
   })
 
   it('asks for a sign-in once a server is set', async () => {

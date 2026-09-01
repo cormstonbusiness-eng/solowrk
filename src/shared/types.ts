@@ -846,6 +846,13 @@ export interface AuthAccount {
 export interface AuthState {
   /** True once a token is held. Not proof the licence is still valid. */
   signedIn: boolean
+  /**
+   * Whether a verified licence is held, which is not the same as being signed
+   * in. Activation leaves a licence that outlives the session, and signing out
+   * is what clears it — so this is what decides whether there is anything to
+   * sign out of.
+   */
+  licensed: boolean
   account: AuthAccount | null
   /**
    * Whether an account server is configured at all. False means the app runs

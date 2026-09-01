@@ -206,17 +206,22 @@ function parseConfig(raw: string): AppConfig {
     workspaces: paths(parsed.workspaces, text(parsed.workspacePath)),
     lastBackupAt: text(parsed.lastBackupAt),
     /*
-      Absent and empty are different answers, and `text()` collapses them.
+      Empty means "use the default", not "no server".
 
-      An older config predating this key has no value at all and must land on
-      the real server, or updating the app would leave an existing customer
-      quietly unlicensed. But somebody who has deliberately cleared the field
-      means "no server", and round-tripping that back to the default would
-      make the setting impossible to turn off — which is exactly what happened
-      the first time this defaulted.
+      I first wrote this to preserve an explicit empty string, on the reasoning
+      that somebody may have deliberately cleared the field. That was wrong,
+      and testing against a real install proved it: the old default *was* the
+      empty string and it got written into every config file that has ever
+      been saved, so "cleared on purpose" and "never set" are indistinguishable
+      — and treating them as "no server" left every existing install unable to
+      reach one. Which is the exact bug this default was added to fix.
+
+      There is also no longer a legitimate reason to have no server. The app
+      works offline through the signed licence and its grace window, so the
+      field chooses *which* server rather than *whether*. `SOLOWRK_API_BASE`
+      is the override for pointing a dev build somewhere else.
     */
-    apiBaseUrl:
-      typeof parsed.apiBaseUrl === 'string' ? parsed.apiBaseUrl.trim() : defaultApiBase(),
+    apiBaseUrl: text(parsed.apiBaseUrl) ?? defaultApiBase(),
     authToken: text(parsed.authToken),
     accountEmail: text(parsed.accountEmail),
     accountName: text(parsed.accountName),

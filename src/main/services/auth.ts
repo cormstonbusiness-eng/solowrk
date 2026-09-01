@@ -208,6 +208,13 @@ export async function authState(extra: Partial<AuthState> = {}): Promise<AuthSta
 
   return {
     signedIn: config.authToken !== null,
+    /*
+      Holding a verified licence, which is not the same as holding a session.
+      A machine can have one without the other: a licence arrives on
+      activation and outlives the session, and signing out is what clears it.
+      The account menu needs to know so it can offer a way to do that.
+    */
+    licensed: licence !== null,
     account: accountFrom(config),
     configured: config.apiBaseUrl.trim() !== '',
     verifiedAt: config.verifiedAt,

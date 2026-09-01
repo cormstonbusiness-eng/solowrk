@@ -174,6 +174,9 @@ export function App(): React.JSX.Element {
         // either way — the worst this costs is a restart.
         setAuth({
           signedIn: false,
+          // Same reasoning as the tier below: an unreadable config must not
+          // be read as holding a licence.
+          licensed: false,
           account: null,
           configured: false,
           verifiedAt: null,
