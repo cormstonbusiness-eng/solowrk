@@ -11,13 +11,20 @@ import type { Tier } from './entitlements'
  *
  * If the domain ever changes, it changes here.
  */
-export const SITE = 'https://solo-wrk.com'
+export const SITE = 'https://solowrk-website.vercel.app'
 
 /** What the app appends its licence paths to. */
 export const API_BASE = `${SITE}/api`
 
-/** Bare host, for gate messages that read better without the scheme. */
-export const SITE_HOST = 'solo-wrk.com'
+/**
+ * Bare host, for gate messages that read better without the scheme.
+ *
+ * Derived rather than typed a second time. It used to be its own literal, and
+ * a literal that has to be kept in step with the constant above it is a
+ * literal that eventually is not — which shows up as a gate message quoting a
+ * different address from the one the app is actually talking to.
+ */
+export const SITE_HOST = SITE.replace(/^https?:\/\//, '')
 
 export const ACCOUNT_URL = `${SITE}/account`
 export const PRICING_URL = `${SITE}/pricing`
