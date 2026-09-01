@@ -4,6 +4,7 @@ import { HardDrive, Loader2, Lock, TriangleAlert } from 'lucide-react'
 import type { AuthState } from '@shared/types'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
+import { Wordmark } from '@/components/Wordmark'
 import { transition } from '@/lib/motion'
 
 /**
@@ -67,6 +68,14 @@ export function SignIn({
   return (
     <div className="grid h-full place-items-center overflow-y-auto bg-ground px-6 py-10">
       <div className="w-full max-w-[400px]">
+        {/* Outside the mode swap on purpose: the brand should not flinch
+            because somebody switched between signing in and signing up.
+            Small enough to stay subordinate to the heading under it — this
+            screen's job is the form, not the logo. */}
+        <div className="mb-8 flex justify-center">
+          <Wordmark height={20} />
+        </div>
+
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={mode}

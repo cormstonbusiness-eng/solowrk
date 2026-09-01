@@ -8,6 +8,7 @@ import { themeById, type DecorKind } from '@shared/themes'
 import { useTheme } from '@/hooks/useTheme'
 import { useUpdates } from '@/hooks/useUpdates'
 import { Petal, Pumpkin, Snowflake, Sparkle } from '@/components/seasonal/sprites'
+import { Wordmark } from '@/components/Wordmark'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
@@ -235,10 +236,19 @@ export function TitleBar(): React.JSX.Element {
         !state.isFocused && 'opacity-60'
       )}
     >
-      <div className="flex items-center gap-2 pl-3">
-        <div className="h-3 w-3 rounded-[3px] bg-accent" aria-hidden />
-        {/* Not uppercased: the capital W is the whole point of the wordmark. */}
-        <span className="text-[11px] font-medium tracking-[0.06em] text-muted">SoloWrk</span>
+      <div className="flex items-center gap-2.5 pl-3">
+        {/*
+          The real wordmark, at the height the 11px text it replaced stood at.
+
+          The accent square that used to sit beside it has gone: the wordmark
+          carries its own orange full stop, and two orange squares within 50px
+          of each other is a lockup arguing with itself.
+
+          Held at 70% because a title bar is chrome. At full strength the
+          brightest thing in the window is its own furniture, which is the
+          mistake every app that puts a logo up here makes.
+        */}
+        <Wordmark height={11} className="opacity-70" />
         <RefreshButton />
         <Flourish />
       </div>

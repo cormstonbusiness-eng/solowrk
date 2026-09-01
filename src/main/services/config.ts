@@ -1,4 +1,5 @@
 import { readFile, rename, writeFile } from 'node:fs/promises'
+import { randomUUID } from 'node:crypto'
 import { join } from 'node:path'
 import { app } from 'electron'
 import { API_BASE } from '@shared/site'
@@ -243,8 +244,28 @@ function parseConfig(raw: string): AppConfig {
   }
 }
 
+/**
+ * Whether to consult the pre-rename pointer.
+ *
+ * `SOLOWRK_FRESH=1` says no, which is the only honest way to see what a new
+ * customer sees. Electron's `--user-data-dir` moves `userData` but not
+ * `appData`, so the legacy path survives it and a developer machine keeps
+ * finding its own workspace however clean the sandbox is — the first-run
+ * wizard and the splash before it then cannot be reached at all without
+ * moving files a real install would have.
+ *
+ * Development only, and it reads rather than writes: a run with this set
+ * still saves to the ordinary location, so nothing here can strand a real
+ * install on a config it cannot find.
+ */
+function usesLegacyConfig(): boolean {
+  return process.env.SOLOWRK_FRESH !== '1'
+}
+
 export async function readConfig(): Promise<AppConfig> {
-  for (const path of [configPath(), legacyConfigPath()]) {
+  const locations = usesLegacyConfig() ? [configPath(), legacyConfigPath()] : [configPath()]
+
+  for (const path of locations) {
     try {
       return parseConfig(await readFile(path, 'utf8'))
     } catch {
@@ -267,7 +288,21 @@ export async function readConfig(): Promise<AppConfig> {
  */
 export async function writeConfig(config: AppConfig): Promise<void> {
   const target = configPath()
-  const temporary = `${target}.tmp`
+
+  /*
+    A name no other write can be using.
+
+    This used to be a fixed `.tmp`, and two writes landing together — which is
+    ordinary at startup, where the device id and the restored session are both
+    saved — would share the file. One rename moved it to the target and the
+    other then found nothing there and threw ENOENT.
+
+    That failure surfaced as `auth:state` rejecting, the renderer taking its
+    "unreadable config" fallback, and licensing being silently off for the
+    whole session. On a first install, where both writes always happen, it was
+    the common case rather than a rare race.
+  */
+  const temporary = `${target}.${process.pid}.${randomUUID()}.tmp`
 
   await writeFile(temporary, JSON.stringify(config, null, 2), 'utf8')
   await replace(temporary, target)

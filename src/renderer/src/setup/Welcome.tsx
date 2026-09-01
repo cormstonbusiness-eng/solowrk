@@ -1,6 +1,6 @@
 import { motion } from 'motion/react'
 import { Button } from '@/components/ui/Button'
-import { Mark } from '@/setup/Mark'
+import { Wordmark } from '@/components/Wordmark'
 import { DURATION, EASE } from '@/lib/motion'
 
 /**
@@ -33,40 +33,45 @@ export function Welcome({ onContinue }: { onContinue: () => void }): React.JSX.E
   return (
     <div className="flex h-full flex-col items-center px-6 pb-10">
       <div className="flex flex-1 flex-col items-center justify-center text-center">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.94 }}
-          animate={{ opacity: 1, scale: 1 }}
+        {/*
+          The wordmark is the title, so it is the h1 and its alt text is the
+          heading a screen reader announces.
+
+          "for Windows" is not set anywhere near it. The line at the foot of
+          the screen already says which Windows, and a logo with a platform
+          bolted onto it is a logo being used as a sentence.
+        */}
+        <motion.h1
+          initial={{ opacity: 0, scale: 0.97, y: 4 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={enter(0)}
           className="relative"
         >
-          {/* The glow is what stops the mark reading as clip art on a black
-              rectangle. It is the accent at 6%, which is barely there by
-              design — visible as light, never as a coloured shape. */}
+          {/*
+            Accent at 6%, and softer than it sounds written down.
+
+            It matters more now than it did behind the icon: a wordmark alone
+            on flat near-black reads as a PNG pasted onto a rectangle, and the
+            glow is what gives the screen a light source instead. Wider than
+            it is tall, because the thing it is lighting is a long word. Never
+            a visible coloured shape.
+          */}
           <div
             aria-hidden
-            className="absolute -inset-16 rounded-full"
+            className="absolute -inset-x-24 -inset-y-20 rounded-full"
             style={{
               background:
                 'radial-gradient(circle closest-side, var(--color-accent-glow) 0%, transparent 100%)'
             }}
           />
-          <Mark size={58} className="relative text-accent" />
-        </motion.div>
-
-        <motion.h1
-          initial={{ opacity: 0, y: 6 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={enter(0.06)}
-          className="mt-9 text-[30px] leading-tight font-semibold tracking-[-0.025em] text-ink"
-        >
-          SoloWrk <span className="font-normal italic text-muted">for</span> Windows
+          <Wordmark height={52} className="relative" />
         </motion.h1>
 
         <motion.p
           initial={{ opacity: 0, y: 6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={enter(0.1)}
-          className="mt-3.5 text-[15px] text-muted"
+          transition={enter(0.06)}
+          className="mt-5 text-[15px] text-muted"
         >
           Your business, in a folder you own
         </motion.p>
@@ -75,7 +80,7 @@ export function Welcome({ onContinue }: { onContinue: () => void }): React.JSX.E
       <motion.div
         initial={{ opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={enter(0.16)}
+        transition={enter(0.12)}
         className="w-full max-w-[380px]"
       >
         {/* The one pill in the application. Everything else uses the 8px

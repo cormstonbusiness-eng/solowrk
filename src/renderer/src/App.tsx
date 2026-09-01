@@ -248,7 +248,22 @@ export function App(): React.JSX.Element {
             {auth?.paymentFailed && <PaymentFailedBar />}
             <TrialBar />
 
-            <AnimatePresence mode="wait">
+            {/*
+              No `mode="wait"` here, and no exits.
+
+              These are whole-screen states, and `mode="wait"` holds the
+              outgoing one until its exit animation reports completion. On this
+              chain that report does not always arrive: the leaving screen
+              finishes fading to opacity 0 and is then never removed, so the
+              incoming screen never mounts and the app sits on an invisible
+              dead page. It is reachable straight after a successful sign-in,
+              which is the worst possible moment to strand somebody.
+
+              A screen swap is not worth that risk. The outgoing screen is
+              removed immediately, the incoming one fades in, and nothing
+              depends on a callback firing.
+            */}
+            <AnimatePresence>
               {error ? (
                 <motion.div
                   key="error"
@@ -266,7 +281,6 @@ export function App(): React.JSX.Element {
                   key="welcome"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
                   transition={transition.page}
                   className="min-h-0 flex-1"
                 >
@@ -277,7 +291,6 @@ export function App(): React.JSX.Element {
                   key="signin"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
                   transition={transition.page}
                   className="min-h-0 flex-1"
                 >
@@ -302,7 +315,6 @@ export function App(): React.JSX.Element {
                   key="setup"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
                   transition={transition.page}
                   className="min-h-0 flex-1"
                 >
