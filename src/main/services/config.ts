@@ -1,6 +1,7 @@
 import { readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { app } from 'electron'
+import { API_BASE } from '@shared/site'
 
 /**
  * A pointer file in Electron's userData folder — the only SoloWrk state that lives
@@ -24,8 +25,19 @@ export interface AppConfig {
   lastBackupAt: string | null
 
   /**
-   * The account server. Empty means there is not one, and the app runs
-   * ungated — which is how it behaves until a licence backend exists.
+   * The account server.
+   *
+   * Defaults to the real one, and that default is the whole point: an install
+   * that never talks to a server can never be licensed, so a blank value here
+   * used to mean every paying customer sat on Free until they found a text
+   * box in Settings and typed a URL into it.
+   *
+   * `SOLOWRK_API_BASE` overrides it for development — pointing a dev build at
+   * `http://localhost:3000/api` is how the whole purchase loop gets tested
+   * before the domain resolves. It is still user-editable in Settings, which
+   * is harmless now that a licence is a signed token rather than whatever a
+   * server claims: a hostile server can hand out all the tokens it likes and
+   * none of them verify.
    */
   apiBaseUrl: string
   /** Session token from signing in. Held here, never in the workspace. */
@@ -101,11 +113,23 @@ export interface AppConfig {
   smtpPassword: string | null
 }
 
+
+/**
+ * Where the app looks for the account server unless told otherwise.
+ *
+ * `API_BASE` is the shipped answer and lives in `shared/site.ts` with the rest
+ * of the domain, so a rename is one line there rather than a hunt. The env
+ * override exists for development against a locally running website.
+ */
+function defaultApiBase(): string {
+  return process.env.SOLOWRK_API_BASE?.trim() || API_BASE
+}
+
 const DEFAULT_CONFIG: AppConfig = {
   workspacePath: null,
   workspaces: [],
   lastBackupAt: null,
-  apiBaseUrl: '',
+  apiBaseUrl: defaultApiBase(),
   authToken: null,
   accountEmail: null,
   accountName: null,
@@ -181,7 +205,18 @@ function parseConfig(raw: string): AppConfig {
     */
     workspaces: paths(parsed.workspaces, text(parsed.workspacePath)),
     lastBackupAt: text(parsed.lastBackupAt),
-    apiBaseUrl: text(parsed.apiBaseUrl) ?? '',
+    /*
+      Absent and empty are different answers, and `text()` collapses them.
+
+      An older config predating this key has no value at all and must land on
+      the real server, or updating the app would leave an existing customer
+      quietly unlicensed. But somebody who has deliberately cleared the field
+      means "no server", and round-tripping that back to the default would
+      make the setting impossible to turn off — which is exactly what happened
+      the first time this defaulted.
+    */
+    apiBaseUrl:
+      typeof parsed.apiBaseUrl === 'string' ? parsed.apiBaseUrl.trim() : defaultApiBase(),
     authToken: text(parsed.authToken),
     accountEmail: text(parsed.accountEmail),
     accountName: text(parsed.accountName),

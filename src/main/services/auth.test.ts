@@ -9,8 +9,9 @@ vi.mock('electron', () => ({
   app: { getPath: () => userData }
 }))
 
+import { API_BASE } from '@shared/site'
 const { readConfig, updateConfig } = await import('./config')
-const { authState, isEntitled, setApiBaseUrl, signIn, signOut } = await import('./auth')
+const { authState, setApiBaseUrl, signIn, signOut } = await import('./auth')
 
 const SERVER = 'https://example.com/api'
 
@@ -43,23 +44,28 @@ afterEach(async () => {
 })
 
 describe('gating', () => {
-  it('lets everyone in when no account server is set', async () => {
-    // The state before a licence backend exists. Gating the app against a
-    // server that is not there would lock out every user including the author.
-    expect(await isEntitled()).toBe(true)
+  it('points at the real server unless told otherwise', async () => {
+    /*
+      The default that makes licensing possible at all. It used to be empty,
+      which meant a fresh install never contacted a server — so every paying
+      customer would have sat on Free until they found a text box in Settings
+      and typed a URL into it.
+    */
+    expect((await readConfig()).apiBaseUrl).toBe(API_BASE)
+    expect((await authState()).configured).toBe(true)
+  })
+
+  it('still opens when the server is cleared by hand', async () => {
+    // Clearing it opens the door but grants nothing: the tier comes from the
+    // signed licence, and no licence is Free. This asks whether the app
+    // opens, not what it is worth.
+    await setApiBaseUrl('')
     expect((await authState()).configured).toBe(false)
   })
 
   it('asks for a sign-in once a server is set', async () => {
     await setApiBaseUrl(SERVER)
-    expect(await isEntitled()).toBe(false)
     expect((await authState()).configured).toBe(true)
-  })
-
-  it('turns licensing back off when the server is cleared', async () => {
-    await setApiBaseUrl(SERVER)
-    await setApiBaseUrl('')
-    expect(await isEntitled()).toBe(true)
   })
 })
 
@@ -73,7 +79,6 @@ describe('signing in', () => {
     expect(state.signedIn).toBe(true)
     expect(state.account?.email).toBe('alex@example.com')
     expect(state.account?.plan).toBe('Solo')
-    expect(await isEntitled()).toBe(true)
   })
 
   it('lowercases and trims the email', async () => {
@@ -180,13 +185,6 @@ describe('the offline grace window', () => {
     await signIn('alex@example.com', 'hunter2')
   })
 
-  it('keeps working for days without reaching the server', async () => {
-    // The whole point. Someone on a train must not lose access to their own
-    // invoices because a tunnel ate the licence check.
-    await verifiedDaysAgo(13)
-    expect(await isEntitled()).toBe(true)
-  })
-
   it('still opens once the window has run out, rather than locking', async () => {
     // The app still opens, and everything in it stays editable. §3.4 replaced
     // read-only with degrading to Free: a licence that cannot be confirmed
@@ -194,7 +192,6 @@ describe('the offline grace window', () => {
     // breaking its own promise at the worst possible moment.
     await verifiedDaysAgo(15)
 
-    expect(await isEntitled()).toBe(true)
     expect((await authState()).signedIn).toBe(true)
   })
 
@@ -212,7 +209,6 @@ describe('the offline grace window', () => {
     expect(state.offline).toBe(true)
     // Still signed in — the session survives a failed check.
     expect(state.signedIn).toBe(true)
-    expect(await isEntitled()).toBe(true)
   })
 
   it('ends the session when the server actively says no', async () => {
@@ -223,7 +219,6 @@ describe('the offline grace window', () => {
 
     expect(state.signedIn).toBe(false)
     expect(state.offline).toBe(false)
-    expect(await isEntitled()).toBe(false)
   })
 })
 
@@ -315,7 +310,6 @@ describe('a lapsed subscription', () => {
 
     expect(state.signedIn).toBe(true)
     expect(state.paymentFailed).toBe(true)
-    expect(await isEntitled()).toBe(true)
   })
 
   it('does not throw the licence away over a failed payment', async () => {
@@ -421,8 +415,12 @@ describe('config round-trip', () => {
 
     const config = await readConfig()
     expect(config.workspacePath).toBe('C:\\old')
-    expect(config.apiBaseUrl).toBe('')
+    /*
+      Lands on the real server rather than on nothing. An old config with no
+      value must not leave an existing customer quietly unlicensed after an
+      update — they would have no way of knowing why.
+    */
+    expect(config.apiBaseUrl).toBe(API_BASE)
     expect(config.authToken).toBeNull()
-    expect(await isEntitled()).toBe(true)
   })
 })

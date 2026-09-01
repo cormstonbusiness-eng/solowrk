@@ -353,23 +353,24 @@ export async function verify(): Promise<AuthState> {
   }
 }
 
-/**
- * Whether the app should open at all.
+/*
+ * `isEntitled` used to live here and has been removed.
  *
- * Deliberately generous, and deliberately not the same question as what the
- * licence is worth — that is `entitlement()`. An unpaid or unconfirmed licence
- * still opens, at Free if it has to, because the alternative is a person
- * locked out of files they own, on a machine they own, by an app that promised
- * the opposite. Only signing out, or a licence the server actively disowns,
- * closes the door.
+ * It answered "should the app open at all", which was a real question under
+ * the old read-only model: an unconfirmed licence used to lock the app to
+ * reading. §3.4 removed that state entirely — an unconfirmed licence now
+ * degrades to Free and everything stays editable — so nothing has called this
+ * since, and grep confirms it: no caller in main, none in the renderer, and
+ * no IPC channel.
+ *
+ * Left in place it was worse than clutter. It read as the live answer to
+ * entitlement while encoding a model the app no longer has, and its tests
+ * were the only thing still asserting that an unconfigured server means
+ * "grant everything" — the exact belief the pricing work set out to kill.
+ *
+ * What actually decides what a licence is worth is `entitlement()` in
+ * `services/entitlements.ts`, from the signed token.
  */
-export async function isEntitled(): Promise<boolean> {
-  const config = await readConfig()
-
-  // No server configured: nothing to be entitled against.
-  if (config.apiBaseUrl.trim() === '') return true
-  return config.authToken !== null
-}
 
 /** Points the app at an account server. Empty turns licensing off again. */
 export async function setApiBaseUrl(url: string): Promise<AuthState> {
