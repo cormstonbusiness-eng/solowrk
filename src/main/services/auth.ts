@@ -380,7 +380,4 @@ export async function verify(): Promise<AuthState> {
  */
 
 /** Points the app at an account server. Empty turns licensing off again. */
-export async function setApiBaseUrl(url: string): Promise<AuthState> {
-  await updateConfig({ apiBaseUrl: url.trim() })
-  return authState()
-}
+

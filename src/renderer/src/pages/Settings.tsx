@@ -950,14 +950,13 @@ function UsageCard(): React.JSX.Element {
 /**
  * The account a licence belongs to.
  *
- * Two cards rather than one, because they answer different questions: who is
- * signed in, and where the app asks. The second only matters while there is a
- * choice to make about it — once SoloWrk ships with a server baked in, that
- * card can go.
+ * There used to be a second card here for the account server. It has gone, as
+ * its own comment said it should once a server shipped baked in: the address
+ * is a fact about the build now, not a choice, and an editable one only ever
+ * offered a way to break the install.
  */
 function AccountCard(): React.JSX.Element {
   const queryClient = useQueryClient()
-  const [server, setServer] = useState<string | null>(null)
 
   const { data: auth } = useQuery({
     queryKey: ['auth', 'state'],
@@ -967,14 +966,6 @@ function AccountCard(): React.JSX.Element {
   const settle = (next: Awaited<ReturnType<typeof window.solo.invoke<'auth:state'>>>): void => {
     queryClient.setQueryData(['auth', 'state'], next)
   }
-
-  const setUrl = useMutation({
-    mutationFn: (url: string) => window.solo.invoke('auth:setServer', { url }),
-    onSuccess: (next) => {
-      settle(next)
-      setServer(null)
-    }
-  })
 
   const verify = useMutation({
     mutationFn: () => window.solo.invoke('auth:verify'),
@@ -1041,50 +1032,14 @@ function AccountCard(): React.JSX.Element {
               </p>
             )}
           </>
-        ) : auth.configured ? (
-          <p className="text-[12px] leading-relaxed text-muted">
-            Not signed in. SoloWrk will ask the next time it starts.
-          </p>
         ) : (
           <p className="text-[12px] leading-relaxed text-muted">
-            No account server is set, so SoloWrk is not asking anyone to sign in. Set one below
-            to turn licensing on.
+            Not signed in. SoloWrk will ask the next time it starts.
           </p>
         )}
       </Card>
 
       <UsageCard />
-
-      <Card>
-        <CardHeader title="Account server" />
-        <p className="mb-3 text-[12px] leading-relaxed text-muted">
-          Where SoloWrk checks licences. Leaving this empty turns sign-in off entirely, which is
-          how it behaves before a licence server exists. Setting it makes signing in required on
-          the next launch.
-        </p>
-
-        <div className="flex gap-2">
-          <TextInput
-            value={server ?? (auth.configured ? '' : '')}
-            onChange={(event) => setServer(event.target.value)}
-            placeholder="https://www.blockoutdigital.com/api"
-            className="flex-1"
-          />
-          <Button
-            variant="secondary"
-            onClick={() => setUrl.mutate(server ?? '')}
-            disabled={server === null || setUrl.isPending}
-          >
-            {setUrl.isPending ? 'Saving…' : 'Save'}
-          </Button>
-        </div>
-
-        <p className="mt-2.5 text-[11px] text-faint">
-          {auth.configured
-            ? 'A server is set. Clear the box and save to turn licensing off again.'
-            : 'Nothing set — the app is ungated.'}
-        </p>
-      </Card>
     </>
   )
 }

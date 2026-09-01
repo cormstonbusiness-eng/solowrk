@@ -10,10 +10,21 @@ vi.mock('electron', () => ({
 }))
 
 const { readConfig, updateConfig } = await import('./config')
-const { setApiBaseUrl, signIn } = await import('./auth')
+const { signIn } = await import('./auth')
 const { checkLicence, startLicenceChecks, stopLicenceChecks } = await import('./licence')
 
 const SERVER = 'https://example.com/api'
+
+/**
+ * Point the app at a fake server.
+ *
+ * The environment variable is the only way left: the account server is now a
+ * fact about the build rather than something an install can be told, so there
+ * is no setter to call. That is what the tests below are checking works.
+ */
+function useServer(url: string = SERVER): void {
+  process.env.SOLOWRK_API_BASE = url
+}
 
 const licence = {
   token: 'tok_abc',
@@ -44,6 +55,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
+  delete process.env.SOLOWRK_API_BASE
   vi.unstubAllGlobals()
   await rm(userData, { recursive: true, force: true })
 })
@@ -61,7 +73,7 @@ describe('the background licence check', () => {
   })
 
   it('does nothing when nobody is signed in', async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     const fetched = vi.fn()
     vi.stubGlobal('fetch', fetched)
 
@@ -71,7 +83,7 @@ describe('the background licence check', () => {
   })
 
   it('winds the grace clock forward, which is the whole point', async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith(licence)
     await signIn('alex@example.com', 'hunter2')
 
@@ -88,7 +100,7 @@ describe('the background licence check', () => {
   })
 
   it('leaves the session alone when the server cannot be reached', async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith(licence)
     await signIn('alex@example.com', 'hunter2')
 
@@ -107,7 +119,7 @@ describe('the background licence check', () => {
   })
 
   it('records a lapse without ending the session', async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith(licence)
     await signIn('alex@example.com', 'hunter2')
 
@@ -120,7 +132,7 @@ describe('the background licence check', () => {
   })
 
   it('clears a lapse once the licence is paid again', async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith(licence)
     await signIn('alex@example.com', 'hunter2')
 
@@ -134,7 +146,7 @@ describe('the background licence check', () => {
   })
 
   it('ends the session when the licence is disowned', async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith(licence)
     await signIn('alex@example.com', 'hunter2')
 
@@ -145,7 +157,7 @@ describe('the background licence check', () => {
   })
 
   it('never throws, whatever the server does', async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith(licence)
     await signIn('alex@example.com', 'hunter2')
 

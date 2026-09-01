@@ -11,9 +11,20 @@ vi.mock('electron', () => ({
 
 import { API_BASE } from '@shared/site'
 const { readConfig, updateConfig } = await import('./config')
-const { authState, setApiBaseUrl, signIn, signOut } = await import('./auth')
+const { authState, signIn, signOut } = await import('./auth')
 
 const SERVER = 'https://example.com/api'
+
+/**
+ * Point the app at a fake server.
+ *
+ * The environment variable is the only way left: the account server is now a
+ * fact about the build rather than something an install can be told, so there
+ * is no setter to call. That is what the tests below are checking works.
+ */
+function useServer(url: string = SERVER): void {
+  process.env.SOLOWRK_API_BASE = url
+}
 
 /** A successful licence response, in the shape the contract promises. */
 const licence = {
@@ -40,6 +51,7 @@ beforeEach(async () => {
 
 afterEach(async () => {
   vi.unstubAllGlobals()
+  delete process.env.SOLOWRK_API_BASE
   await rm(userData, { recursive: true, force: true })
 })
 
@@ -55,35 +67,32 @@ describe('gating', () => {
     expect((await authState()).configured).toBe(true)
   })
 
-  it('falls back to the default when the field is cleared', async () => {
+  it('ignores an address left behind in the config file', async () => {
     /*
-      Clearing chooses the default rather than turning the server off, and
-      that is the whole point of the change.
+      The case this replaces: a value written once — during development, or by
+      following a support instruction — used to outlive its reason and become
+      the server that install talked to forever. No update could correct it,
+      because an update does not rewrite the file.
 
-      The old default was an empty string, so every config file ever written
-      already holds one — which makes "cleared on purpose" and "never set"
-      the same value on disk. Honouring an empty string as "no server" left
-      every existing install unable to reach one, which was the bug this
-      default was added to fix. There is no longer a reason to have no server
-      either: the app runs offline on the signed licence, so the field picks
-      which server rather than whether.
+      So the stored field is not read back. A release talks to the server it
+      shipped for, and moving the server is a release rather than an
+      instruction issued to every existing user.
     */
-    await setApiBaseUrl(SERVER)
-    await setApiBaseUrl('')
+    await updateConfig({ apiBaseUrl: 'http://localhost:3000/api' })
 
     expect((await readConfig()).apiBaseUrl).toBe(API_BASE)
     expect((await authState()).configured).toBe(true)
   })
 
   it('asks for a sign-in once a server is set', async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     expect((await authState()).configured).toBe(true)
   })
 })
 
 describe('signing in', () => {
   it('stores the account and entitles the app', async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith(licence)
 
     const state = await signIn('alex@example.com', 'hunter2')
@@ -96,7 +105,7 @@ describe('signing in', () => {
   it('lowercases and trims the email', async () => {
     // Otherwise " Alex@Example.com " and "alex@example.com" are two accounts
     // as far as the server is concerned, and one of them cannot sign in.
-    await setApiBaseUrl(SERVER)
+    useServer()
     const fetchMock = vi.fn(
       async (_url: string, _init: RequestInit) =>
         new Response(JSON.stringify(licence), { status: 200 })
@@ -110,7 +119,7 @@ describe('signing in', () => {
   })
 
   it('sends a device id, and the same one every time', async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     const fetchMock = vi.fn(
       async (_url: string, _init: RequestInit) =>
         new Response(JSON.stringify(licence), { status: 200 })
@@ -132,7 +141,7 @@ describe('signing in', () => {
     // A licence allows two computers AND a phone, not three devices. The
     // server cannot tell those apart without this, and adding it later means
     // changing both sides at once.
-    await setApiBaseUrl(SERVER)
+    useServer()
     const fetchMock = vi.fn(
       async (_url: string, _init: RequestInit) =>
         new Response(JSON.stringify(licence), { status: 200 })
@@ -149,7 +158,7 @@ describe('signing in', () => {
   it('identifies the device the same way on every endpoint', async () => {
     // The server matches a seat on deviceId, so a sign-out that described the
     // device differently from the sign-in would fail to release it.
-    await setApiBaseUrl(SERVER)
+    useServer()
     const fetchMock = vi.fn(
       async (_url: string, _init: RequestInit) =>
         new Response(JSON.stringify(licence), { status: 200 })
@@ -168,21 +177,21 @@ describe('signing in', () => {
   })
 
   it('surfaces the server’s own message rather than a status code', async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith({ message: 'This licence was refunded.' }, 403)
 
     await expect(signIn('alex@example.com', 'hunter2')).rejects.toThrow('This licence was refunded.')
   })
 
   it('explains a seat limit in words', async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith({}, 409)
 
     await expect(signIn('alex@example.com', 'x')).rejects.toThrow(/maximum number of computers/)
   })
 
   it('does not sign in when the server rejects the password', async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith({}, 401)
 
     await expect(signIn('alex@example.com', 'wrong')).rejects.toThrow(/do not match/)
@@ -192,7 +201,7 @@ describe('signing in', () => {
 
 describe('the offline grace window', () => {
   beforeEach(async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith(licence)
     await signIn('alex@example.com', 'hunter2')
   })
@@ -236,7 +245,7 @@ describe('the offline grace window', () => {
 
 describe('signing out', () => {
   it('clears the session even when the server cannot be told', async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith(licence)
     await signIn('alex@example.com', 'hunter2')
 
@@ -256,7 +265,7 @@ describe('signing out', () => {
   it('leaves the workspace pointer alone', async () => {
     // Signing out must never look like losing your data.
     await updateConfig({ workspacePath: 'C:\\Users\\alex\\Documents\\SoloWrk' })
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith(licence)
     await signIn('alex@example.com', 'hunter2')
     await signOut()
@@ -273,7 +282,7 @@ describe('the signed licence', () => {
    */
 
   it('keeps the licence the server issued', async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith({ ...licence, licence: 'signed.licence' })
     await signIn('alex@example.com', 'hunter2')
 
@@ -283,7 +292,7 @@ describe('the signed licence', () => {
   it('does not revoke a held licence when a response omits one', async () => {
     // A server hiccup, or an older deployment. Treating a missing licence as
     // "no licence" would downgrade a paying customer on a bad afternoon.
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith({ ...licence, licence: 'signed.licence' })
     await signIn('alex@example.com', 'hunter2')
 
@@ -295,7 +304,7 @@ describe('the signed licence', () => {
   })
 
   it('forgets it on sign-out', async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith({ ...licence, licence: 'signed.licence' })
     await signIn('alex@example.com', 'hunter2')
     await signOut()
@@ -306,7 +315,7 @@ describe('the signed licence', () => {
 
 describe('a lapsed subscription', () => {
   beforeEach(async () => {
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith(licence)
     await signIn('alex@example.com', 'hunter2')
   })
@@ -398,7 +407,7 @@ describe('config round-trip', () => {
     // parseConfig reads field by field, so a field added to AppConfig without
     // a line there is silently dropped on the next write — which would sign
     // the user out on the next launch for no visible reason.
-    await setApiBaseUrl(SERVER)
+    useServer()
     respondWith({ ...licence, account: { ...licence.account, features: ['assistant'] } })
     await signIn('alex@example.com', 'hunter2')
 

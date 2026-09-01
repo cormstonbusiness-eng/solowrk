@@ -222,7 +222,27 @@ function parseConfig(raw: string): AppConfig {
       field chooses *which* server rather than *whether*. `SOLOWRK_API_BASE`
       is the override for pointing a dev build somewhere else.
     */
-    apiBaseUrl: text(parsed.apiBaseUrl) ?? defaultApiBase(),
+    /*
+      Not read back from the file, deliberately.
+
+      The account server is a fact about this build, not a preference: it is
+      whatever the release was compiled to talk to. Honouring a stored value
+      meant an address written once — during development, or by somebody
+      following a support instruction — outlived the reason for it and quietly
+      became the server that install used forever. That is how a machine ends
+      up pointing at localhost after a test, and it cannot be corrected by an
+      update, because the update does not change the file.
+
+      Reading it fresh each time means a release always talks to the server it
+      shipped for, and moving the server is a release rather than an
+      instruction to every existing user. `SOLOWRK_API_BASE` still overrides,
+      for development and for support.
+
+      The field stays in the file. Removing it would rewrite every config on
+      first read for no gain, and having it there records what the install was
+      last talking to.
+    */
+    apiBaseUrl: defaultApiBase(),
     authToken: text(parsed.authToken),
     accountEmail: text(parsed.accountEmail),
     accountName: text(parsed.accountName),

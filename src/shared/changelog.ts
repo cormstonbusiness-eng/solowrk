@@ -41,6 +41,37 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.1.13',
+    date: '2026-09-01',
+    headline: 'A first run that works, and a way in that does not ask you to configure anything.',
+    changes: [
+      {
+        kind: 'fixed',
+        text: 'A fresh install could start with licensing switched off',
+        detail:
+          'Two settings were saved at the same moment on the very first launch and overwrote each other, and the app read that as having no account server at all. It never asked you to sign in and never checked your licence. It now saves both cleanly.'
+      },
+      {
+        kind: 'fixed',
+        text: 'The window could stay on the sign-in screen after signing in',
+        detail:
+          'The sign-in worked and the app knew it, but the screen never changed — so the only way forward was to close it and open it again.'
+      },
+      {
+        kind: 'changed',
+        text: 'The account server is set by the app now, not by you',
+        detail:
+          'It used to be a box in Settings, from a time before there was a server to point at. An address typed in once outlived its reason and quietly became the one that install used forever, and no update could correct it. It has gone, and updates move it instead.'
+      },
+      {
+        kind: 'added',
+        text: 'A proper first screen',
+        detail:
+          'The app opens on a title card rather than straight into a form, and carries the SoloWork wordmark.'
+      }
+    ]
+  },
+  {
     version: '0.1.12',
     date: '2026-08-24',
     headline: 'Everything an accountant asks for in January, and your data out whenever you want it.',

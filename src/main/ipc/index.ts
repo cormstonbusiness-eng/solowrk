@@ -314,7 +314,7 @@ import { rangeFor } from '@shared/taxYear'
 import { updateSettings } from '../services/settings'
 import { getState, setState } from '../services/appState'
 import { check, installNow, updateState } from '../services/updates'
-import { authState, setApiBaseUrl, signIn, signOut, signUp, verify } from '../services/auth'
+import { authState, signIn, signOut, signUp, verify } from '../services/auth'
 import {
   can,
   currentTier,
@@ -1157,7 +1157,6 @@ const handlers: Handlers = {
     getWindow()?.webContents.send('auth:changed', state)
     return state
   },
-  'auth:setServer': (_g, { url }) => setApiBaseUrl(url),
 
   'entitlements:meters': async () =>
     meters(session.requireDb(), await workspaceCount()),

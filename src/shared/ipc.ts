@@ -195,7 +195,6 @@ export interface IpcContract {
   /** Re-confirms the licence. Being offline is not a failure. */
   'auth:verify': { req: void; res: AuthState }
   /** Points the app at an account server. Empty turns licensing off. */
-  'auth:setServer': { req: { url: string }; res: AuthState }
 
   /**
    * What has been used against each limit, for the meters on Settings →
@@ -1220,7 +1219,6 @@ export const IPC_CHANNELS = [
   'auth:signUp',
   'auth:signOut',
   'auth:verify',
-  'auth:setServer',
   'entitlements:meters',
   'entitlements:exceeded',
   'updates:get',
