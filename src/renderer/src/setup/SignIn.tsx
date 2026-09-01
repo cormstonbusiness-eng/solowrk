@@ -1,11 +1,10 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
-import { ArrowRight, HardDrive, Loader2, Lock, TriangleAlert } from 'lucide-react'
+import { HardDrive, Loader2, Lock, TriangleAlert } from 'lucide-react'
 import type { AuthState } from '@shared/types'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
 import { transition } from '@/lib/motion'
-import { cn } from '@/lib/utils'
 
 /**
  * Signing in to the account a licence belongs to.
@@ -20,7 +19,11 @@ import { cn } from '@/lib/utils'
  * side, because the honest answer is genuinely reassuring. It is the one piece
  * of structure here that is not a form field, and it earns its place.
  *
- * Everything else stays quiet and matches the setup wizard it hands over to.
+ * The layout follows the splash it arrives from — centred column, the title
+ * standing free above a single card, everything else quiet underneath. The
+ * form is boxed and the reassurance is not, which is the right way round: the
+ * card is what is being asked of you, and the panel is context you can read or
+ * ignore.
  */
 export function SignIn({
   state,
@@ -62,13 +65,8 @@ export function SignIn({
   }
 
   return (
-    <div className="grid h-full place-items-center bg-ground px-6">
-      <div className="w-full max-w-[420px]">
-        <div className="mb-6 flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-[9px] bg-accent" aria-hidden />
-          <span className="text-[15px] font-medium tracking-[-0.01em] text-ink">SoloWrk</span>
-        </div>
-
+    <div className="grid h-full place-items-center overflow-y-auto bg-ground px-6 py-10">
+      <div className="w-full max-w-[400px]">
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={mode}
@@ -77,16 +75,19 @@ export function SignIn({
             exit={{ opacity: 0, y: -6 }}
             transition={transition.page}
           >
-            <h1 className="text-[24px] leading-tight font-semibold tracking-[-0.02em] text-ink">
+            <h1 className="text-center text-[26px] leading-tight font-semibold tracking-[-0.025em] text-ink">
               {joining ? 'Create your account' : 'Sign in'}
             </h1>
-            <p className="mt-2.5 text-[13.5px] leading-relaxed text-muted">
+            <p className="mt-2.5 text-center text-[13.5px] leading-relaxed text-muted">
               {joining
                 ? 'This is the account your licence belongs to. Use the email you bought with.'
                 : 'Use the account you bought your licence with.'}
             </p>
 
-            <form onSubmit={submit} className="mt-6 flex flex-col gap-3.5">
+            <form
+              onSubmit={submit}
+              className="lit-card mt-7 flex flex-col gap-3.5 rounded-card border border-line bg-surface p-6"
+            >
               {joining && (
                 <Field label="Your name">
                   <TextInput
@@ -131,18 +132,16 @@ export function SignIn({
                 </motion.p>
               )}
 
+              {/* The same pill as the splash's "Get started", so the two
+                  screens read as one sequence rather than two designs. */}
               <Button
                 type="submit"
                 variant="primary"
                 size="lg"
                 disabled={!ready || busy}
-                className="mt-1 w-full"
+                className="mt-1 h-11 w-full rounded-full text-[14px]"
               >
-                {busy ? (
-                  <Loader2 size={15} className="animate-spin" />
-                ) : (
-                  <ArrowRight size={15} strokeWidth={1.75} />
-                )}
+                {busy && <Loader2 size={15} className="animate-spin" />}
                 {busy
                   ? joining
                     ? 'Creating your account…'
@@ -151,21 +150,23 @@ export function SignIn({
                     ? 'Create account'
                     : 'Sign in'}
               </Button>
-            </form>
 
-            <p className="mt-4 text-center text-[12.5px] text-muted">
-              {joining ? 'Already bought SoloWrk?' : "Bought SoloWrk but haven't set up an account?"}{' '}
-              <button
-                type="button"
-                onClick={() => {
-                  setMode(joining ? 'in' : 'up')
-                  setError('')
-                }}
-                className="text-accent underline-offset-2 hover:underline"
-              >
-                {joining ? 'Sign in' : 'Create one'}
-              </button>
-            </p>
+              <p className="text-center text-[12.5px] text-muted">
+                {joining
+                  ? 'Already bought SoloWrk?'
+                  : 'Bought SoloWrk but have not set up an account?'}{' '}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode(joining ? 'in' : 'up')
+                    setError('')
+                  }}
+                  className="rounded-[3px] text-accent underline-offset-2 hover:underline"
+                >
+                  {joining ? 'Sign in' : 'Create one'}
+                </button>
+              </p>
+            </form>
           </motion.div>
         </AnimatePresence>
 
@@ -207,12 +208,12 @@ function ServerRow({ onChanged }: { onChanged: (next: AuthState) => void }): Rea
 
   if (!editing) {
     return (
-      <p className="mt-4 text-center text-[11.5px] text-faint">
+      <p className="mt-5 text-center text-[11.5px] text-faint">
         Can’t sign in?{' '}
         <button
           type="button"
           onClick={() => setEditing(true)}
-          className="underline-offset-2 hover:text-muted hover:underline"
+          className="rounded-[3px] underline-offset-2 hover:text-muted hover:underline"
         >
           Change the account server
         </button>
@@ -221,7 +222,7 @@ function ServerRow({ onChanged }: { onChanged: (next: AuthState) => void }): Rea
   }
 
   return (
-    <div className="mt-4 rounded-card border border-line bg-surface p-3">
+    <div className="mt-5 rounded-card border border-line bg-surface p-3">
       <p className="mb-2 text-[11.5px] leading-relaxed text-muted">
         Where SoloWrk checks your licence. Leave it empty to use SoloWrk without an account.
       </p>
@@ -247,10 +248,15 @@ function ServerRow({ onChanged }: { onChanged: (next: AuthState) => void }): Rea
  * Two columns because the point is the contrast: the things that stay on this
  * machine, and the one thing that leaves it. Anything vaguer — "we respect your
  * privacy" — would be exactly the sentence nobody believes.
+ *
+ * Borderless now, and below the card rather than boxed like one. Giving it the
+ * same frame as the form made it look like more to fill in; without the frame
+ * it reads as what it is, which is the answer to a question the screen has
+ * just raised.
  */
 function WhatTheAccountTouches(): React.JSX.Element {
   return (
-    <div className="mt-8 grid grid-cols-2 gap-px overflow-hidden rounded-card border border-line bg-line">
+    <div className="mt-8 grid grid-cols-2 gap-x-6">
       <Column
         icon={HardDrive}
         heading="Stays on this PC"
@@ -279,14 +285,14 @@ function Column({
   items: string[]
 }): React.JSX.Element {
   return (
-    <div className="bg-surface px-3.5 py-3">
+    <div>
       <p className="flex items-center gap-1.5 text-[10.5px] font-medium tracking-[0.08em] text-faint uppercase">
         <Icon size={11} strokeWidth={2} />
         {heading}
       </p>
       <ul className="mt-2 flex flex-col gap-1">
         {items.map((item) => (
-          <li key={item} className={cn('text-[11.5px] leading-snug text-muted')}>
+          <li key={item} className="text-[11.5px] leading-snug text-muted">
             {item}
           </li>
         ))}

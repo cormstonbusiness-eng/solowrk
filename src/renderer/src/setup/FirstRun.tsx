@@ -13,13 +13,22 @@ import {
 import type { FolderInspection, WorkspaceSetup, WorkspaceStatus } from '@shared/types'
 import { DEFAULT_BUSINESS } from '@shared/types'
 import { Button } from '@/components/ui/Button'
+import { Mark } from '@/setup/Mark'
 import { Field, MoneyInput, NumberInput, TextInput, Toggle } from '@/components/ui/Field'
 import { EASE, transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
 type Step = 'welcome' | 'workspace' | 'business' | 'creating'
 
+/**
+ * The welcome step exists only for a workspace that has gone missing.
+ *
+ * A first install has already had its welcome — the splash in `Welcome.tsx`,
+ * which says the same thing with more room and no progress bar under it. Two
+ * welcomes in a row is how software admits it was built in pieces.
+ */
 const STEP_ORDER: Step[] = ['welcome', 'workspace', 'business']
+const RESUME_ORDER: Step[] = ['workspace', 'business']
 
 /** Windows-only app, so a literal separator is honest and avoids shipping path utils. */
 function joinPath(base: string, child: string): string {
@@ -47,7 +56,11 @@ export function FirstRun({
   status: Extract<WorkspaceStatus, { state: 'unconfigured' | 'missing' }>
   onReady: (status: WorkspaceStatus) => void
 }): React.JSX.Element {
-  const [step, setStep] = useState<Step>('welcome')
+  // A missing workspace needs explaining before anything is asked of anyone.
+  // A fresh install does not: the splash has just done it.
+  const explains = status.state === 'missing'
+  const stepOrder = explains ? STEP_ORDER : RESUME_ORDER
+  const [step, setStep] = useState<Step>(explains ? 'welcome' : 'workspace')
   const [logoPath, setLogoPath] = useState<string | null>(null)
   const [direction, setDirection] = useState(1)
   const [path, setPath] = useState(status.suggestedPath)
@@ -122,14 +135,14 @@ export function FirstRun({
     }
   }
 
-  const stepIndex = STEP_ORDER.indexOf(step)
+  const stepIndex = stepOrder.indexOf(step)
 
   return (
     <div className="grid h-full place-items-center bg-ground px-6">
       <div className="w-full max-w-[520px]">
         {step !== 'creating' && (
           <div className="mb-7 flex items-center gap-1.5">
-            {STEP_ORDER.map((name, index) => (
+            {stepOrder.map((name, index) => (
               <div key={name} className="h-[3px] flex-1 overflow-hidden rounded-full bg-line">
                 <motion.div
                   initial={false}
@@ -151,7 +164,7 @@ export function FirstRun({
             animate="center"
             exit="exit"
           >
-            {step === 'welcome' && (
+            {step === 'welcome' && status.state === 'missing' && (
               <WelcomeStep status={status} onContinue={() => goTo('workspace', 1)} />
             )}
 
@@ -160,7 +173,7 @@ export function FirstRun({
                 path={path}
                 inspection={inspection}
                 onBrowse={browse}
-                onBack={() => goTo('welcome', -1)}
+                onBack={explains ? () => goTo('welcome', -1) : undefined}
                 onContinue={() => goTo('business', 1)}
                 onAdopt={adoptExisting}
               />
@@ -196,49 +209,45 @@ export function FirstRun({
   )
 }
 
+/**
+ * Only reached when a workspace that existed has gone missing — a moved
+ * folder, an unplugged drive, a renamed parent.
+ *
+ * Nobody in this state needs telling what SoloWrk is. They need telling what
+ * happened, where their files were last seen, and that nothing has been lost —
+ * so the path is in the sentence rather than in a details panel below it, and
+ * the reassurance is a plain statement rather than an apology.
+ */
 function WelcomeStep({
   status,
   onContinue
 }: {
-  status: Extract<WorkspaceStatus, { state: 'unconfigured' | 'missing' }>
+  status: Extract<WorkspaceStatus, { state: 'missing' }>
   onContinue: () => void
 }): React.JSX.Element {
-  const isMissing = status.state === 'missing'
-
   return (
     <div>
-      <div className="mb-5 grid h-11 w-11 place-items-center rounded-panel bg-accent">
-        <span className="text-[17px] font-semibold text-white">S</span>
+      <div className="mb-5 text-accent">
+        <Mark size={34} />
       </div>
 
-      <h1 className="text-[26px] leading-tight font-semibold tracking-[-0.02em] text-ink">
-        {isMissing ? 'Your workspace has moved' : 'Welcome to SoloWrk'}
+      <h1 className="text-[24px] leading-tight font-semibold tracking-[-0.02em] text-ink">
+        Your workspace has moved
       </h1>
 
       <p className="mt-3 text-[14px] leading-relaxed text-muted">
-        {isMissing ? (
-          <>
-            SoloWrk expected to find your workspace at{' '}
-            <span className="text-ink">{status.path}</span>, but it is not there. Point SoloWrk at
-            where it went, or start a new one.
-          </>
-        ) : (
-          <>
-            SoloWrk runs your freelance business from this PC. Projects, clients, time, invoices and
-            documents all live in a folder you choose and control — no cloud account, no sync, no
-            subscription holding your files.
-          </>
-        )}
+        SoloWrk expected to find it at <span className="text-ink">{status.path}</span>, but it is
+        not there. Point SoloWrk at where it went, or start a new one.
       </p>
 
       <p className="mt-3 text-[13px] leading-relaxed text-faint">
-        Next you will pick that folder, then enter your business details for invoices. Both can be
-        changed later in Settings.
+        Nothing has been deleted. If the folder was moved or renamed, choosing it here picks up
+        where you left off.
       </p>
 
       <div className="mt-7 flex justify-end">
         <Button variant="primary" size="lg" onClick={onContinue}>
-          {isMissing ? 'Find my workspace' : 'Get started'}
+          Find my workspace
           <ArrowRight size={15} strokeWidth={1.75} />
         </Button>
       </div>
@@ -257,7 +266,8 @@ function WorkspaceStep({
   path: string
   inspection: FolderInspection | null
   onBrowse: () => void
-  onBack: () => void
+  /** Absent on a first install, where this is the first step there is. */
+  onBack?: () => void
   onContinue: () => void
   onAdopt: () => void
 }): React.JSX.Element {
@@ -316,10 +326,16 @@ function WorkspaceStep({
       </div>
 
       <div className="mt-6 flex items-center justify-between">
-        <Button variant="ghost" size="md" onClick={onBack}>
-          <ArrowLeft size={14} strokeWidth={1.75} />
-          Back
-        </Button>
+        {onBack ? (
+          <Button variant="ghost" size="md" onClick={onBack}>
+            <ArrowLeft size={14} strokeWidth={1.75} />
+            Back
+          </Button>
+        ) : (
+          // Holds the primary action against the right edge whether or not
+          // there is anywhere to go back to.
+          <span />
+        )}
 
         {existing ? (
           <Button variant="primary" size="lg" onClick={onAdopt}>

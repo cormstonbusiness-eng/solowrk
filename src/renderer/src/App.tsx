@@ -7,6 +7,7 @@ import type { AuthState, WorkspaceStatus } from '@shared/types'
 import { TitleBar } from '@/components/TitleBar'
 import { Sidebar } from '@/components/Sidebar'
 import { FirstRun } from '@/setup/FirstRun'
+import { Welcome } from '@/setup/Welcome'
 import { SignIn } from '@/setup/SignIn'
 import { WorkspaceContext } from '@/hooks/useWorkspace'
 import { ThemeContext, useThemeState } from '@/hooks/useTheme'
@@ -216,6 +217,22 @@ export function App(): React.JSX.Element {
   // Only stands in the way once an account server exists to check against.
   const needsSignIn = auth !== null && auth.configured && !auth.signedIn
 
+  /**
+   * The splash, and the single rule about when it appears.
+   *
+   * `unconfigured` means no workspace has ever been set up on this machine,
+   * which is a first install and nothing else. A workspace that has gone
+   * missing is not a first install, and somebody signing back in after signing
+   * out is certainly not, so neither is welcomed.
+   *
+   * Dismissal is session state rather than a flag on disk, and can be: the
+   * condition it is gated on stops being true the moment a workspace exists,
+   * so there is nothing left to remember. Quitting from the splash and
+   * relaunching shows it again, which is correct — nothing has happened yet.
+   */
+  const [welcomed, setWelcomed] = useState(false)
+  const showsWelcome = status?.state === 'unconfigured' && !welcomed
+
   const workspace = useMemo(() => ({ status, setStatus }), [status])
   // Themes live in the workspace, so the stored choice can only be read once
   // one is open. Until then the default applies.
@@ -243,6 +260,17 @@ export function App(): React.JSX.Element {
                     <p className="text-[14px] text-ink">SoloWrk could not start</p>
                     <p className="mt-1 text-[12px] text-muted">{error}</p>
                   </div>
+                </motion.div>
+              ) : showsWelcome ? (
+                <motion.div
+                  key="welcome"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={transition.page}
+                  className="min-h-0 flex-1"
+                >
+                  <Welcome onContinue={() => setWelcomed(true)} />
                 </motion.div>
               ) : needsSignIn ? (
                 <motion.div
