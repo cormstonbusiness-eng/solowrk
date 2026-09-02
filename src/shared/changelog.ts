@@ -41,6 +41,25 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.1.14',
+    date: '2026-09-02',
+    headline: 'Every project gets a board, so moving work along is a drag rather than a form.',
+    changes: [
+      {
+        kind: 'added',
+        text: 'A board inside every project',
+        detail:
+          'Open a project and its tasks are three columns — to do, in progress, done. Drag a card across and that is the status changed; there is no dropdown to open and nothing to save. The list is still there behind the switcher next to Add, and whichever you pick is remembered.'
+      },
+      {
+        kind: 'improved',
+        text: 'Cards in a project no longer repeat its name',
+        detail:
+          'On the Tasks page, where work from every project sits together, naming the project on each card earns its place. Inside one project it was the same words down the screen.'
+      }
+    ]
+  },
+  {
     version: '0.1.13',
     date: '2026-09-01',
     headline: 'A first run that works, and a way in that does not ask you to configure anything.',
