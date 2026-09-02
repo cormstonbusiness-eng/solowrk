@@ -232,6 +232,29 @@ describe('the offline grace window', () => {
     expect(state.signedIn).toBe(true)
   })
 
+  /**
+   * A status code is not always an answer.
+   *
+   * These all used to fall through to "the server said no", which ended the
+   * session and deleted the licence on the machine. A deploy rolling, a
+   * function hitting its host's time limit, or a rate limiter doing its job
+   * would each have signed a paying customer out.
+   */
+  for (const status of [500, 502, 503, 504, 408, 429]) {
+    it(`treats ${status} as offline, not as a rejection`, async () => {
+      respondWith({}, status)
+
+      const { verify } = await import('./auth')
+      const state = await verify()
+
+      expect(state.offline).toBe(true)
+      expect(state.signedIn).toBe(true)
+      // The session token stays on disk: nothing has disowned it. This is
+      // the value the old behaviour cleared, which is what signed people out.
+      expect((await readConfig()).authToken).not.toBeNull()
+    })
+  }
+
   it('ends the session when the server actively says no', async () => {
     respondWith({ message: 'Licence cancelled.' }, 403)
 

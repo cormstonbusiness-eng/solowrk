@@ -156,6 +156,28 @@ async function call<T>(
       throw lapsed
     }
 
+    /**
+     * A server that fails to answer has not disowned the licence.
+     *
+     * `verify` ends the session for anything that is not offline and not a
+     * lapse, on the reasoning that the server said no. But a 500, a 502 from a
+     * deploy rolling, a 504 from a function hitting its time limit and a 429
+     * from a rate limiter are not the server saying no — they are the server
+     * saying nothing. Treating them as a rejection signed paying customers out
+     * and deleted the licence on their machine, for an outage measured in
+     * seconds.
+     *
+     * It is the same rule the rest of this area already follows, applied to
+     * the case where the failure arrives with a status code attached rather
+     * than as a dropped connection. Only an answer — 401, 403, a revocation —
+     * ends a session.
+     */
+    if (response.status >= 500 || response.status === 408 || response.status === 429) {
+      const offline = new Error('The account server is not answering just now.')
+      offline.name = 'OfflineError'
+      throw offline
+    }
+
     if (detail?.message) throw new Error(detail.message)
     if (response.status === 401) throw new Error('That email and password do not match.')
     if (response.status === 409) {

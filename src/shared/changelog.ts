@@ -41,6 +41,19 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.1.15',
+    date: '2026-09-03',
+    headline: 'A licence server having a bad minute no longer signs you out.',
+    changes: [
+      {
+        kind: 'fixed',
+        text: 'A server error is treated as offline, not as a cancelled licence',
+        detail:
+          'If the licence server returned an error rather than an answer — a deploy restarting, a request taking too long, a rate limit — SoloWork read it as being told the licence was gone. It signed you out and removed the licence from this computer. It now treats that the same as having no internet: nothing changes, and it tries again later. Only an actual answer from the server ends a session.'
+      }
+    ]
+  },
+  {
     version: '0.1.14',
     date: '2026-09-02',
     headline: 'Every project gets a board, so moving work along is a drag rather than a form.',
