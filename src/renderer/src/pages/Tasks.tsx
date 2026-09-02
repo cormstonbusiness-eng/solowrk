@@ -1,21 +1,10 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import {
-  DndContext,
-  DragOverlay,
-  PointerSensor,
-  useDroppable,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-  type DragStartEvent
-} from '@dnd-kit/core'
-import { useDraggable } from '@dnd-kit/core'
 import { AnimatePresence } from 'motion/react'
 import { Archive, CircleCheckBig, Columns3, List, Plus, Tag } from 'lucide-react'
 import type { TaskStatus, TaskWithContext } from '@shared/types'
-import { COLOUR_CHOICES, TASK_STATUSES } from '@shared/types'
+import { COLOUR_CHOICES } from '@shared/types'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
 import { TextInput } from '@/components/ui/Field'
@@ -38,6 +27,7 @@ import { BulkBar } from '@/components/list/BulkBar'
 import { useSelection } from '@/hooks/useSelection'
 import { useUndo } from '@/hooks/useUndo'
 import { TaskModal } from './tasks/TaskModal'
+import { TaskBoard } from './tasks/TaskBoard'
 import { DEFAULT_ENTITY_COLOUR } from '@shared/types'
 
 type View = 'board' | 'list'
@@ -135,7 +125,6 @@ export function Tasks(): React.JSX.Element {
   const setView = (next: View): void => list.set('view', next === 'board' ? null : next)
   const [open, setOpen] = useState<TaskWithContext | null>(null)
   const [managingCategories, setManagingCategories] = useState(false)
-  const [dragging, setDragging] = useState<TaskWithContext | null>(null)
   const [newProjectId, setNewProjectId] = useState<number | null>(null)
   const [newDueAt, setNewDueAt] = useState('')
   const [newColour, setNewColour] = useState('')
@@ -229,12 +218,6 @@ export function Tasks(): React.JSX.Element {
     onSuccess: () => invalidate(['tasks'])
   })
 
-  const sensors = useSensors(
-    // A small distance threshold so clicking a task opens it instead of
-    // starting a drag the user did not intend.
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
-  )
-
   const projectFilter = list.values('project')
   const categoryFilter = list.values('category')
   const search = (list.one('q') ?? '').trim().toLowerCase()
@@ -290,14 +273,6 @@ export function Tasks(): React.JSX.Element {
     }
     invalidate(['tasks'])
     offer(`Deleted ${targets.length} task${targets.length === 1 ? '' : 's'}`)
-  }
-
-  const onDragEnd = (event: DragEndEvent): void => {
-    setDragging(null)
-    const status = event.over?.id as TaskStatus | undefined
-    const task = tasks.find((t) => t.id === Number(event.active.id))
-    if (!status || !task || task.status === status) return
-    move.mutate({ id: task.id, status, projectId: task.projectId })
   }
 
   return (
@@ -412,35 +387,14 @@ export function Tasks(): React.JSX.Element {
           body="Add one above, or open a project and add it there. Set a due date and it appears on your calendar."
         />
       ) : view === 'board' ? (
-        <DndContext
-          sensors={sensors}
-          onDragStart={(event: DragStartEvent) =>
-            setDragging(tasks.find((t) => t.id === Number(event.active.id)) ?? null)
+        <TaskBoard
+          tasks={visible}
+          onMove={(task, status) =>
+            move.mutate({ id: task.id, status, projectId: task.projectId })
           }
-          onDragEnd={onDragEnd}
-          onDragCancel={() => setDragging(null)}
-        >
-          <div className="grid grid-cols-3 gap-3">
-            {TASK_STATUSES.map((status) => (
-              <Column
-                key={status.value}
-                status={status.value}
-                label={status.label}
-                tasks={visible.filter((t) => t.status === status.value)}
-                onToggle={(task) => toggle.mutate(task)}
-                onOpen={setOpen}
-              />
-            ))}
-          </div>
-
-          <DragOverlay>
-            {dragging && (
-              <div className="w-[240px] rotate-1 opacity-90">
-                <BoardCard task={dragging} onToggle={() => {}} onOpen={() => {}} />
-              </div>
-            )}
-          </DragOverlay>
-        </DndContext>
+          onToggle={(task) => toggle.mutate(task)}
+          onOpen={setOpen}
+        />
       ) : (
         <div className="flex max-w-[900px] flex-col gap-1">
           <AnimatePresence initial={false}>
@@ -483,95 +437,6 @@ export function Tasks(): React.JSX.Element {
         onClose={() => setManagingCategories(false)}
       />
     </Page>
-  )
-}
-
-function Column({
-  status,
-  label,
-  tasks,
-  onToggle,
-  onOpen
-}: {
-  status: TaskStatus
-  label: string
-  tasks: TaskWithContext[]
-  onToggle: (task: TaskWithContext) => void
-  onOpen: (task: TaskWithContext) => void
-}): React.JSX.Element {
-  const { setNodeRef, isOver } = useDroppable({ id: status })
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={cn(
-        'flex min-h-[320px] flex-col rounded-card border bg-surface p-2.5 transition-colors duration-150',
-        isOver ? 'border-accent bg-raised' : 'border-line'
-      )}
-    >
-      <div className="mb-2 flex items-center justify-between px-1">
-        <span className="text-[12px] font-medium text-muted">{label}</span>
-        <span className="numeric text-[11px] text-faint">{tasks.length}</span>
-      </div>
-
-      <div className="flex flex-col gap-1.5">
-        <AnimatePresence initial={false}>
-          {tasks.map((task) => (
-            <DraggableCard
-              key={task.id}
-              task={task}
-              onToggle={() => onToggle(task)}
-              onOpen={() => onOpen(task)}
-            />
-          ))}
-        </AnimatePresence>
-      </div>
-    </div>
-  )
-}
-
-function DraggableCard({
-  task,
-  onToggle,
-  onOpen
-}: {
-  task: TaskWithContext
-  onToggle: () => void
-  onOpen: () => void
-}): React.JSX.Element {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: task.id })
-
-  return (
-    <div ref={setNodeRef} {...attributes} {...listeners}>
-      <BoardCard task={task} onToggle={onToggle} onOpen={onOpen} dragging={isDragging} />
-    </div>
-  )
-}
-
-function BoardCard({
-  task,
-  onToggle,
-  onOpen,
-  onArchive,
-  dragging
-}: {
-  task: TaskWithContext
-  onToggle: () => void
-  onOpen: () => void
-  onArchive?: () => void
-  dragging?: boolean
-}): React.JSX.Element {
-  return (
-    <div className={cn(dragging && 'opacity-40')}>
-      <TaskRow
-        task={task}
-        onToggle={onToggle}
-        onOpen={onOpen}
-        onArchive={onArchive}
-        showProject
-        stacked
-      />
-    </div>
   )
 }
 
