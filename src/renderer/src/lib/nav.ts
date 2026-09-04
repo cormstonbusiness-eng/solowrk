@@ -77,9 +77,24 @@ export const navGroups: NavGroup[] = [
 ]
 
 /** Pinned to the bottom of the sidebar, away from the day-to-day navigation. */
-export const footerNav: NavItem[] = [
-  { label: 'Assistant', path: '/assistant', icon: Sparkles },
-  { label: 'Settings', path: '/settings', icon: Settings }
-]
+export const footerNav: NavItem[] = [{ label: 'Assistant', path: '/assistant', icon: Sparkles }]
 
-export const allNavItems: NavItem[] = [...navGroups.flatMap((g) => g.items), ...footerNav]
+/**
+ * Settings: a destination, but not a sidebar row.
+ *
+ * It is reached from the account menu at the foot of the sidebar, with the
+ * other things that are about you rather than about the work. It had a row
+ * there too, which meant two controls a few pixels apart doing the same thing.
+ *
+ * Still listed in `allNavItems`, so Ctrl K offers it like any other section. A
+ * destination with no visible row is precisely the one people open the palette
+ * to find, and dropping it from there would have turned a tidy-up into a
+ * regression.
+ */
+export const settingsNav: NavItem = { label: 'Settings', path: '/settings', icon: Settings }
+
+export const allNavItems: NavItem[] = [
+  ...navGroups.flatMap((g) => g.items),
+  ...footerNav,
+  settingsNav
+]

@@ -41,7 +41,6 @@ import {
   Invoices,
   Marketing,
   Notes,
-  Guides,
   Notifications,
   ProjectDetail,
   Projects,
@@ -97,7 +96,6 @@ function AnimatedRoutes(): React.JSX.Element {
         <Route path="/marketing" element={<Marketing />} />
         <Route path="/goals" element={<Goals />} />
         <Route path="/notes" element={<Notes />} />
-        <Route path="/guides" element={<Guides />} />
         <Route path="/notifications" element={<Notifications />} />
         <Route path="/invoices" element={<Invoices />} />
         <Route path="/finance" element={<Finance />} />

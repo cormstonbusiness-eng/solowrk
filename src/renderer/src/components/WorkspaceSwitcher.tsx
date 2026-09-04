@@ -115,7 +115,9 @@ export function WorkspaceSwitcher(): React.JSX.Element {
   // nothing to switch to and a menu with one item in it is furniture.
   if (workspaces.length <= 1 && !open) {
     return (
-      <div className="px-2.5 pt-1 pb-2">
+      // Tagged on both branches: a fresh install has exactly one workspace and
+      // lands here, which is the only state the first-run tour ever sees.
+      <div data-tour="workspace" className="px-2.5 pt-1 pb-2">
         <button
           type="button"
           onClick={() => setOpen(true)}
@@ -131,7 +133,7 @@ export function WorkspaceSwitcher(): React.JSX.Element {
   }
 
   return (
-    <div ref={box} className="relative px-2.5 pt-1 pb-2">
+    <div data-tour="workspace" ref={box} className="relative px-2.5 pt-1 pb-2">
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
