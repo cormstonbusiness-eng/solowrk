@@ -14,7 +14,7 @@
  *                                        you happen to be
  *   DTSTART:20260817T080000Z             an instant, 08:00 UTC
  *
- * SoloWrk stores wall time, so the first two arrive unchanged and only the
+ * SoloWork stores wall time, so the first two arrive unchanged and only the
  * third is converted. Treating a floating time as UTC is the classic bug here
  * and it moves half a calendar by an hour for half the year.
  */
@@ -361,15 +361,15 @@ export interface IcsExportBlock {
 /**
  * The user's own blocks, as a file they can hand to anybody.
  *
- * Written as floating times with no TZID, which is what they are: SoloWrk
+ * Written as floating times with no TZID, which is what they are: SoloWork
  * stores 09:00, not an instant, and stamping a zone on the way out would be
  * asserting something the app was never told.
  */
-export function writeIcs(blocks: IcsExportBlock[], name = 'SoloWrk'): string {
+export function writeIcs(blocks: IcsExportBlock[], name = 'SoloWork'): string {
   const lines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Blockout Digital//SoloWrk//EN',
+    'PRODID:-//Blockout Digital//SoloWork//EN',
     'CALSCALE:GREGORIAN',
     `X-WR-CALNAME:${escapeText(name)}`
   ]

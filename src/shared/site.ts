@@ -2,7 +2,7 @@ import { TIER_WIRE } from './licence'
 import type { Tier } from './entitlements'
 
 /**
- * Where SoloWrk lives on the web.
+ * Where SoloWork lives on the web.
  *
  * One place, because the domain appears in the sidebar menu, in every gate
  * message, on the upgrade panel and as the account server the app talks to —

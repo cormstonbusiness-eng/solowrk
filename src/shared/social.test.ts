@@ -221,7 +221,7 @@ describe('ordering and canPublish', () => {
 
 describe('the registry itself', () => {
   it('agrees with itself about which platforms schedule natively', () => {
-    // These two are why a post can be handed over and published while SoloWrk
+    // These two are why a post can be handed over and published while SoloWork
     // is closed; the rest are jobs the app has to run itself.
     expect(PLATFORM_IDS_WITH_NATIVE_SCHEDULING()).toEqual(['facebook', 'pinterest'])
   })

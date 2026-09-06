@@ -68,7 +68,7 @@ describe('a feature this tier does not include', () => {
       feature: 'branding',
       tier: 'free',
       needs: 'basicPlus',
-      message: 'SoloWrk Basic+ includes your own logo and colours on documents. Upgrade at x. Y.'
+      message: 'SoloWork Basic+ includes your own logo and colours on documents. Upgrade at x. Y.'
     })
 
     expect(raiseLimit(locked)).toBe(true)

@@ -8,7 +8,7 @@ import { createContent } from './content'
  * fresh (§9.2).
  *
  * §9.2 calls this the strongest tie between Marketing and the rest of the
- * app, and the reason to have marketing inside SoloWrk at all rather than in
+ * app, and the reason to have marketing inside SoloWork at all rather than in
  * a separate tool. Nothing else in the module knows that a job just finished,
  * how long it really took, or what was delivered — and nobody writes a case
  * study three months later, because by then they would have to go and look

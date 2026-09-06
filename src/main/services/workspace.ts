@@ -8,7 +8,7 @@ export const APP_DIR = '_app'
 export const DB_FILENAME = 'solo.db'
 
 /**
- * The folder tree SoloWrk creates. Top-level names are user-facing — they show up
+ * The folder tree SoloWork creates. Top-level names are user-facing — they show up
  * in Explorer, so they read as folders a person would have made themselves.
  */
 export const WORKSPACE_TREE = [
@@ -73,7 +73,7 @@ export function resolveInWorkspace(root: string, relativePath: string): string {
     throw new Error(`Path escapes the workspace: ${relativePath}`)
   }
   // Guard against a sibling folder that merely shares a prefix, e.g.
-  // C:\SoloWrk-backup being treated as inside C:\SoloWrk.
+  // C:\SoloWork-backup being treated as inside C:\SoloWork.
   if (target !== rootResolved && !target.startsWith(rootResolved + sep)) {
     throw new Error(`Path escapes the workspace: ${relativePath}`)
   }
@@ -150,7 +150,7 @@ export async function scaffoldWorkspace(workspacePath: string): Promise<void> {
   }
 }
 
-/** True when the folder holds a usable SoloWrk workspace. */
+/** True when the folder holds a usable SoloWork workspace. */
 export async function isWorkspace(workspacePath: string): Promise<boolean> {
   return exists(databasePath(workspacePath))
 }

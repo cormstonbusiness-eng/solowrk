@@ -36,7 +36,7 @@ const MAX_CHARACTERS = 400_000
 export const LEGACY_PLAN_PATH = join('Documents', 'Business Plan.md')
 
 /**
- * The formats SoloWrk can write back to, which is a much shorter list than the
+ * The formats SoloWork can write back to, which is a much shorter list than the
  * ones it can read.
  *
  * A PDF or a Word file can be read but not edited: rewriting one would mean
@@ -104,7 +104,7 @@ export async function attachPlan(
 ): Promise<BusinessPlanStatus> {
   if (!isSupported(sourcePath)) {
     throw new Error(
-      `SoloWrk cannot read ${extname(sourcePath) || 'that file'}. ` +
+      `SoloWork cannot read ${extname(sourcePath) || 'that file'}. ` +
         'Save it as PDF, Word (.docx), markdown or plain text.'
     )
   }
@@ -148,7 +148,7 @@ export async function writePlan(
   if (businessPlanFile === '') throw new Error('There is no business plan to write to.')
   if (!isEditablePlan(businessPlanFile)) {
     throw new Error(
-      `${basename(businessPlanFile)} is not a format SoloWrk can write to. ` +
+      `${basename(businessPlanFile)} is not a format SoloWork can write to. ` +
         'Make an editable copy first.'
     )
   }
@@ -222,7 +222,7 @@ export async function editPlanSection(
   }
   if (!isEditablePlan(businessPlanFile)) {
     throw new Error(
-      `The business plan is ${basename(businessPlanFile)}, which SoloWrk can read but not ` +
+      `The business plan is ${basename(businessPlanFile)}, which SoloWork can read but not ` +
         'write to. The user can make an editable copy from the Business plan page.'
     )
   }

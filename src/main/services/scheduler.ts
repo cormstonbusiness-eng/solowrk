@@ -53,7 +53,7 @@ function notifyLate(
     body:
       posts.length === 1
         ? `“${posts[0]!.title || 'Untitled'}” was due at ${timeOf(posts[0]!.scheduledAt ?? '')}. Reschedule or send it now.`
-        : 'SoloWrk was closed when they were due. They are waiting in Marketing.',
+        : 'SoloWork was closed when they were due. They are waiting in Marketing.',
     link: '/marketing',
     dedupeKey: `post-late-${posts.map((post) => post.id).join('-')}`
   })

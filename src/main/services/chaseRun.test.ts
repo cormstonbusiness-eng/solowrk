@@ -5,7 +5,7 @@ import { listMail } from './mailQueue'
 /**
  * Whether a chaser goes out on its own.
  *
- * This is the one place in SoloWrk where the software can do something to
+ * This is the one place in SoloWork where the software can do something to
  * somebody else's relationship with their client. Every test below is a
  * variation on the same question: what does it take to make that happen, and
  * does anything less than that make it happen by accident?

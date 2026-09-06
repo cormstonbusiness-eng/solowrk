@@ -120,7 +120,7 @@ if (!/^\d+\.\d+\.\d+$/.test(next)) {
   fail(`"${bump}" is not major, minor, patch or a version number.`)
 }
 
-console.log(`\n  SoloWrk ${manifest.version} → ${next}\n`)
+console.log(`\n  SoloWork ${manifest.version} → ${next}\n`)
 
 manifest.version = next
 writeFileSync(packagePath, `${JSON.stringify(manifest, null, 2)}\n`)
@@ -168,7 +168,7 @@ try {
     '--title',
     `${next}`,
     '--notes',
-    `SoloWrk ${next}`
+    `SoloWork ${next}`
   ])
 
   run('npx', ['electron-builder', '--win', '--publish', 'always'])

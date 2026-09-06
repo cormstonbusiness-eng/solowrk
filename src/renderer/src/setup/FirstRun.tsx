@@ -101,11 +101,11 @@ export function FirstRun({
       if (!chosen) return
 
       const result = await inspect(chosen)
-      // Dropping SoloWrk's folders into someone's busy Documents folder would be
+      // Dropping SoloWork's folders into someone's busy Documents folder would be
       // rude, so a non-empty pick gets its own subfolder unless it is already a
       // workspace we can adopt.
       if (!result.hasExistingWorkspace && result.exists && !result.isEmpty) {
-        const nested = joinPath(chosen, 'SoloWrk')
+        const nested = joinPath(chosen, 'SoloWork')
         setPath(nested)
         await inspect(nested)
       } else {
@@ -228,7 +228,7 @@ export function FirstRun({
  * Only reached when a workspace that existed has gone missing — a moved
  * folder, an unplugged drive, a renamed parent.
  *
- * Nobody in this state needs telling what SoloWrk is. They need telling what
+ * Nobody in this state needs telling what SoloWork is. They need telling what
  * happened, where their files were last seen, and that nothing has been lost —
  * so the path is in the sentence rather than in a details panel below it, and
  * the reassurance is a plain statement rather than an apology.
@@ -251,8 +251,8 @@ function WelcomeStep({
       </h1>
 
       <p className="mt-3 text-[14px] leading-relaxed text-muted">
-        SoloWrk expected to find it at <span className="text-ink">{status.path}</span>, but it is
-        not there. Point SoloWrk at where it went, or start a new one.
+        SoloWork expected to find it at <span className="text-ink">{status.path}</span>, but it is
+        not there. Point SoloWork at where it went, or start a new one.
       </p>
 
       <p className="mt-3 text-[13px] leading-relaxed text-faint">
@@ -292,10 +292,10 @@ function WorkspaceStep({
   return (
     <div>
       <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-ink">
-        Where should SoloWrk keep your files?
+        Where should SoloWork keep your files?
       </h1>
       <p className="mt-2 text-[13px] leading-relaxed text-muted">
-        Everything SoloWrk stores goes here — including the database. Back this folder up, or point
+        Everything SoloWork stores goes here — including the database. Back this folder up, or point
         your own cloud drive at it, and your whole business travels with it.
       </p>
 
@@ -320,15 +320,15 @@ function WorkspaceStep({
           >
             {blocked ? (
               <Notice tone="danger" icon={TriangleAlert}>
-                SoloWrk cannot write to that folder. Choose another one.
+                SoloWork cannot write to that folder. Choose another one.
               </Notice>
             ) : existing ? (
               <Notice tone="info" icon={Info}>
-                A SoloWrk workspace already exists here. You can open it instead of creating a new one.
+                A SoloWork workspace already exists here. You can open it instead of creating a new one.
               </Notice>
             ) : inspection?.exists ? (
               <Notice tone="muted" icon={Info}>
-                This folder exists and is empty. SoloWrk will create its folders inside it.
+                This folder exists and is empty. SoloWork will create its folders inside it.
               </Notice>
             ) : (
               <Notice tone="muted" icon={Info}>

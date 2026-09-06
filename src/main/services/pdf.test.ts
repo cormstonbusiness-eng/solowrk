@@ -77,7 +77,7 @@ const STATEMENT: StatementForPdf = {
 /**
  * The template.
  *
- * These four documents are the only things SoloWrk produces that another
+ * These four documents are the only things SoloWork produces that another
  * person reads, so a branch that renders an empty page or leaks raw markup is
  * seen by the customer's customer before it is seen by anybody who could fix
  * it.
@@ -252,23 +252,23 @@ describe('safeFileName', () => {
   })
 })
 
-describe('the SoloWrk line', () => {
+describe('the SoloWork line', () => {
   it('appears on an unbranded invoice', () => {
     // §2.2 sells "branding removal", which means there has to be something to
     // remove. There was no mark on an invoice before this, so it is added
     // rather than deleted.
-    expect(renderHtml(lineDoc('invoice'), SETTINGS, null, false)).toContain('Made with SoloWrk')
+    expect(renderHtml(lineDoc('invoice'), SETTINGS, null, false)).toContain('Made with SoloWork')
   })
 
   it('is absent once it has been paid for', () => {
-    expect(renderHtml(lineDoc('invoice'), SETTINGS, null, true)).not.toContain('Made with SoloWrk')
+    expect(renderHtml(lineDoc('invoice'), SETTINGS, null, true)).not.toContain('Made with SoloWork')
   })
 
   it('defaults to absent', () => {
     // The dangerous default is the other way round. Every caller that has no
     // opinion should produce a clean document — getting this backwards puts
     // our name on a paying customer's invoice.
-    expect(renderHtml(lineDoc('invoice'), SETTINGS)).not.toContain('Made with SoloWrk')
+    expect(renderHtml(lineDoc('invoice'), SETTINGS)).not.toContain('Made with SoloWork')
   })
 
   it('never covers the amount owed', () => {
@@ -277,7 +277,7 @@ describe('the SoloWrk line', () => {
     // looking amateur.
     const html = renderHtml(lineDoc('invoice'), SETTINGS, null, false)
 
-    expect(html.indexOf('Made with SoloWrk')).toBeGreaterThan(html.indexOf('class="footer"'))
+    expect(html.indexOf('Made with SoloWork')).toBeGreaterThan(html.indexOf('class="footer"'))
     expect(html).toContain('class="mark"')
   })
 })

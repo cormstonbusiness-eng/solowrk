@@ -32,7 +32,7 @@ export async function setLogo(
 ): Promise<string> {
   const extension = extname(sourcePath).toLowerCase()
   if (!ALLOWED.has(extension)) {
-    throw new Error(`${extension || 'That file'} is not an image SoloWrk can show`)
+    throw new Error(`${extension || 'That file'} is not an image SoloWork can show`)
   }
 
   // A fixed name, so replacing the logo replaces the file rather than leaving a

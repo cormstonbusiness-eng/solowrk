@@ -6,7 +6,7 @@ import { DURATION, EASE } from '@/lib/motion'
 /**
  * The first screen, seen once.
  *
- * Everything else in SoloWrk is dense on purpose — a freelancer's day is
+ * Everything else in SoloWork is dense on purpose — a freelancer's day is
  * invoices and hours, and screens that make them scroll for those are screens
  * that waste their time. This one is the exception, and the exception is the
  * point: it is the only moment in the app where nothing is being asked of

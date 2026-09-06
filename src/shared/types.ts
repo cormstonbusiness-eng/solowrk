@@ -202,7 +202,7 @@ export interface BusinessPlanStatus {
   file: string
   /** Just the file name, for display. */
   name: string
-  /** True when SoloWrk can write back to it — markdown and text, not PDF or Word. */
+  /** True when SoloWork can write back to it — markdown and text, not PDF or Word. */
   editable: boolean
   /** Characters of readable text pulled out of it. */
   length: number
@@ -284,7 +284,7 @@ export interface FolderInspection {
   path: string
   exists: boolean
   isEmpty: boolean
-  /** True when this folder already holds a SoloWrk workspace we can adopt. */
+  /** True when this folder already holds a SoloWork workspace we can adopt. */
   hasExistingWorkspace: boolean
   writable: boolean
 }
@@ -2178,7 +2178,7 @@ export interface ContentPillar {
 }
 
 /**
- * `idea` has no date yet. `needs_attention` means it came due while SoloWrk was
+ * `idea` has no date yet. `needs_attention` means it came due while SoloWork was
  * closed and is now too late to send without you looking at it first.
  */
 export type PostStatus =

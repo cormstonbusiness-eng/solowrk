@@ -107,7 +107,7 @@ export async function extractText(path: string): Promise<string> {
   if (extension === '.pdf') return fromPdf(path)
 
   throw new Error(
-    `SoloWrk cannot read ${extension || 'that file'}. Save it as PDF, Word (.docx), ` +
+    `SoloWork cannot read ${extension || 'that file'}. Save it as PDF, Word (.docx), ` +
       'markdown or plain text.'
   )
 }

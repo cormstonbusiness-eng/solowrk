@@ -5,14 +5,14 @@ import { LICENCE_VERSION, toLicence, type Licence, type LicenceClaims } from '@s
  * Verifying a licence, offline.
  *
  * Ed25519 over `node:crypto`, which has supported it natively since Node 12.
- * No dependency, which matters more here than it looks: SoloWrk deliberately
+ * No dependency, which matters more here than it looks: SoloWork deliberately
  * carries no compiled modules so `npm install` works on any machine and the
  * installer ships no ABI-specific binaries. A crypto library would have been
  * the first exception.
  *
  * **Why signing at all.** Until now the token was opaque and the app trusted
  * whatever the server returned — but `apiBaseUrl` is editable from the UI, so
- * anyone could point SoloWrk at their own server and mint themselves Pro. A
+ * anyone could point SoloWork at their own server and mint themselves Pro. A
  * signature makes that escape hatch harmless, which is why it stays: somebody
  * pointing the app at a test server is a developer, and somebody forging a
  * licence now has to break Ed25519.

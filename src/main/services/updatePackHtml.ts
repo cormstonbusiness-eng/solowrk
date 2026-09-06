@@ -10,7 +10,7 @@ import type { ClientUpdatePack, Settings } from '@shared/types'
  *
  * Rendered light-on-white like the invoices. This is the second thing the app
  * produces that leaves it, and it will be read by somebody who has never heard
- * of SoloWrk on a screen we know nothing about.
+ * of SoloWork on a screen we know nothing about.
  *
  * The same HTML becomes the PDF, so there is one renderer rather than two
  * drifting apart.

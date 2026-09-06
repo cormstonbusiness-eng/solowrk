@@ -72,7 +72,7 @@ export interface ProjectStructure extends StructureReport {
  *
  * Projects do not record the template that made them, so the check falls back
  * to the app's own default structure. That is the honest default: it is what
- * `scaffoldWorkspace` creates, so a project made by SoloWrk really was built
+ * `scaffoldWorkspace` creates, so a project made by SoloWork really was built
  * to it.
  */
 function expectedFor(db: Database, templateId?: number): { name: string; folders: string[] } {

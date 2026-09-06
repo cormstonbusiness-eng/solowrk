@@ -1,5 +1,5 @@
 /**
- * The SoloWrk mark: a folder, open, drawn in one stroke.
+ * The SoloWork mark: a folder, open, drawn in one stroke.
  *
  * The same geometry as the installer icon and the website favicon, so the
  * thing somebody double-clicked and the thing that greets them are visibly

@@ -360,7 +360,7 @@ function removeFiles(files: string[]): void {
 
 const handlers: Handlers = {
   'app:info': () => ({
-    name: 'SoloWrk',
+    name: 'SoloWork',
     version: app.getVersion(),
     electron: process.versions.electron,
     chrome: process.versions.chrome,
@@ -390,7 +390,7 @@ const handlers: Handlers = {
   'workspace:browse': async (getWindow, { startIn }) => {
     const window = getWindow()
     const options: OpenDialogOptions = {
-      title: 'Choose a folder for your SoloWrk workspace',
+      title: 'Choose a folder for your SoloWork workspace',
       defaultPath: startIn ?? suggestedWorkspacePath(),
       buttonLabel: 'Use this folder',
       properties: ['openDirectory', 'createDirectory']

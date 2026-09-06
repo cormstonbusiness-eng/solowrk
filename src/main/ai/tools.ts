@@ -37,7 +37,7 @@ import { rangeFor, today as todayString, type Period } from '@shared/taxYear'
 import { nowStamp } from '@shared/calendar'
 
 /**
- * The tools the assistant can use inside SoloWrk.
+ * The tools the assistant can use inside SoloWork.
  *
  * Two rules hold this together:
  *
@@ -163,7 +163,7 @@ export const soloTools = createSdkMcpServer({
   name: 'solowrk',
   version: '1.0.0',
   instructions:
-    'Tools for the user’s own SoloWrk workspace: their projects, clients, tasks, time, ' +
+    'Tools for the user’s own SoloWork workspace: their projects, clients, tasks, time, ' +
     'invoices, expenses, calendar, notes and files. Prefer these over shell commands — ' +
     'they are the only way to reach the workspace database, and file paths are relative ' +
     'to the workspace root.',

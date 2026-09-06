@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils'
  * the place the feature lives. Kept in step with the same line in
  * `main/services/subscriptions.ts`, which is where it is enforced.
  */
-const PROMISE = 'SoloWrk downloads this calendar. It never uploads your SoloWrk data.'
+const PROMISE = 'SoloWork downloads this calendar. It never uploads your SoloWork data.'
 
 export function Subscriptions({
   open,

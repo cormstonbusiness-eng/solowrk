@@ -548,7 +548,7 @@ function ClientModal({
  * How this client found you.
  *
  * The whole of marketing attribution rests on these two fields. There is no
- * tracking infrastructure in SoloWrk and there will not be — the user simply
+ * tracking infrastructure in SoloWork and there will not be — the user simply
  * says where somebody came from, which is both more honest than a pixel and
  * more accurate, because they usually know.
  *
@@ -732,7 +732,7 @@ export function ClientDetail(): React.JSX.Element {
         onClose={() => setConfirmDelete(false)}
         onConfirm={() => remove.mutate()}
         title={`Delete ${client.name}?`}
-        body="This removes the client and their projects from SoloWrk. Their folder and every file inside it stays on disk untouched."
+        body="This removes the client and their projects from SoloWork. Their folder and every file inside it stays on disk untouched."
       />
     </Page>
   )
@@ -867,7 +867,7 @@ function AccountCard({
             </Button>
           ) : (
             <span
-              title="Statements of account are part of SoloWrk Pro"
+              title="Statements of account are part of SoloWork Pro"
               className="flex items-center gap-1 text-[11px] text-faint"
             >
               <Lock size={11} strokeWidth={1.75} />

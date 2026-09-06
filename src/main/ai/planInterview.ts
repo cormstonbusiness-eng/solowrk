@@ -13,7 +13,7 @@ import { startPlan, writePlan } from './businessPlan'
  *
  * The interview itself is in `@shared/planInterview` — pure, testable, and
  * with no model behind it. This is the half that needs the workspace: three
- * answers it can fill in from what the user already typed into SoloWrk, and
+ * answers it can fill in from what the user already typed into SoloWork, and
  * the hand-off to Marketing once the plan exists.
  */
 

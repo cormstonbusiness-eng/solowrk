@@ -169,9 +169,9 @@ export class Database {
       copyFileSync(this.file, destination)
     } catch (cause) {
       throw new Error(
-        'SoloWrk needs to update how it stores your data, and could not take a backup first ' +
+        'SoloWork needs to update how it stores your data, and could not take a backup first ' +
           `(${cause instanceof Error ? cause.message : String(cause)}). ` +
-          'Nothing has been changed. Free some disk space and reopen SoloWrk.',
+          'Nothing has been changed. Free some disk space and reopen SoloWork.',
         { cause }
       )
     }

@@ -493,7 +493,7 @@ function ChaseQueue({ onRead }: { onRead: (draft: ChaserDraft) => void }): React
 }
 
 /**
- * A chase email drafted for the user to read, edit and send. SoloWrk never sends
+ * A chase email drafted for the user to read, edit and send. SoloWork never sends
  * it — an email to a client in someone's name is not a decision to automate.
  */
 function QuoteList({
@@ -537,7 +537,7 @@ function QuoteList({
       <Empty
         icon={ReceiptText}
         title="No quotes yet"
-        body="Price a job before you start it. When a quote is accepted, SoloWrk can turn it into a project and a deposit invoice in one step."
+        body="Price a job before you start it. When a quote is accepted, SoloWork can turn it into a project and a deposit invoice in one step."
       />
     )
   }

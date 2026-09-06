@@ -229,7 +229,7 @@ function Body({
                 if (!status) return
                 onSave({ status })
                 // §6.3: asked once, on the way past. A URL back to the live
-                // post is the only thing SoloWrk cannot work out for itself.
+                // post is the only thing SoloWork cannot work out for itself.
                 if (status === 'published' && item.linkUrl === '') setLinkPrompt(true)
               }}
               options={CONTENT_STATUSES.map((value) => ({
@@ -309,7 +309,7 @@ function Body({
               onSave({ status: 'published' })
               if (item.linkUrl === '') setLinkPrompt(true)
               toast('Marked as published', {
-                body: 'SoloWrk records what you posted. It does not post for you.'
+                body: 'SoloWork records what you posted. It does not post for you.'
               })
             }}
           >

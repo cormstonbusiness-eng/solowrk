@@ -13,7 +13,7 @@ import { getSettings } from './settings'
  * made: whether a note goes to somebody's client without them reading it first.
  *
  * The answer is that it does not, unless the user has gone into Settings, given
- * SoloWrk their mail account, and then changed chasing from 'hold' to 'auto'.
+ * SoloWork their mail account, and then changed chasing from 'hold' to 'auto'.
  * Three deliberate acts. Anything less and the chaser is written, queued, and
  * left waiting for a press.
  */

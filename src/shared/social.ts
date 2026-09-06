@@ -59,7 +59,7 @@ export const PLATFORMS: Record<Platform, PlatformSpec> = {
     previewLimit: 400,
     media: { min: 0, max: 10, kinds: ['image', 'video'] },
     nativeSchedule: true,
-    note: 'Pages publish on schedule server-side, so SoloWrk need not be open.'
+    note: 'Pages publish on schedule server-side, so SoloWork need not be open.'
   },
   instagram: {
     id: 'instagram',

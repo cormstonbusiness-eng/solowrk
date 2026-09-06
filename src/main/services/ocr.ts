@@ -14,7 +14,7 @@ const run = promisify(execFile)
  * computer. A cloud service would read better and would make that a lie.
  *
  * It is reached through PowerShell rather than a native binding on purpose:
- * SoloWrk has no compiled dependencies, so `npm install` works on any machine
+ * SoloWork has no compiled dependencies, so `npm install` works on any machine
  * and the installer carries no ABI-specific binaries. WinRT is available to
  * PowerShell for the asking, and the cost is one short-lived process per
  * receipt — which is nothing against how often somebody photographs one.

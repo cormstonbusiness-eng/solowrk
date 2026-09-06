@@ -5,7 +5,7 @@ import { app } from 'electron'
 import { API_BASE } from '@shared/site'
 
 /**
- * A pointer file in Electron's userData folder — the only SoloWrk state that lives
+ * A pointer file in Electron's userData folder — the only SoloWork state that lives
  * outside the workspace. It exists purely so the app knows where the workspace
  * is on next launch; everything else belongs to the workspace itself, which is
  * what makes a workspace portable between machines.
@@ -158,14 +158,29 @@ function configPath(): string {
 }
 
 /**
- * Where the pointer lived when the app was still called Solo.
+ * Everywhere the pointer has lived under a previous name, newest first.
  *
- * `userData` is derived from the app name, so renaming to SoloWrk moved it and
- * would otherwise have looked like a first run to anyone already set up. Read
- * the old location once as a fallback; the next write lands in the new one.
+ * `userData` is derived from the app's `productName`, so every rename moves it
+ * and would otherwise look like a first run to somebody already set up — no
+ * workspace, no licence, and a folder full of their business sitting on disk
+ * that the app has forgotten about. This has now happened twice:
+ *
+ *   - **Solo → SoloWrk**, which is why `solo` is here.
+ *   - **SoloWrk → SoloWork**, the rename to match the website. Every install of
+ *     0.1.16 and earlier has its pointer in `SoloWrk`, so that is the one that
+ *     matters today and it is listed first.
+ *
+ * Read-only fallbacks. The next write lands in the current location, so an
+ * install migrates itself the first time anything changes and never reads the
+ * old file again. Nothing is deleted: an abandoned config in an old folder is a
+ * few hundred bytes, and removing it would make going back to a previous
+ * version worse than it needs to be.
  */
-function legacyConfigPath(): string {
-  return join(app.getPath('appData'), 'solo', CONFIG_FILENAME)
+function legacyConfigPaths(): string[] {
+  return [
+    join(app.getPath('appData'), 'SoloWrk', CONFIG_FILENAME),
+    join(app.getPath('appData'), 'solo', CONFIG_FILENAME)
+  ]
 }
 
 /**
@@ -283,7 +298,7 @@ function usesLegacyConfig(): boolean {
 }
 
 export async function readConfig(): Promise<AppConfig> {
-  const locations = usesLegacyConfig() ? [configPath(), legacyConfigPath()] : [configPath()]
+  const locations = usesLegacyConfig() ? [configPath(), ...legacyConfigPaths()] : [configPath()]
 
   for (const path of locations) {
     try {
@@ -382,5 +397,5 @@ export async function updateConfig(patch: Partial<AppConfig>): Promise<AppConfig
 
 /** Where we suggest putting the workspace when the user has no preference. */
 export function suggestedWorkspacePath(): string {
-  return join(app.getPath('documents'), 'SoloWrk')
+  return join(app.getPath('documents'), 'SoloWork')
 }

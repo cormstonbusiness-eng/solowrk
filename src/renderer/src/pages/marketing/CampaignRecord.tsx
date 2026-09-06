@@ -453,7 +453,7 @@ function Files({
       {files.length === 0 ? (
         <p className="text-[11.5px] leading-relaxed text-faint">
           This campaign has a real folder in your workspace. Anything you put there — through
-          SoloWrk or through Explorer — shows up here.
+          SoloWork or through Explorer — shows up here.
         </p>
       ) : (
         <div className="flex flex-col gap-0.5">

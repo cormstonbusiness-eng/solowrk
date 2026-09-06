@@ -151,7 +151,7 @@ describe('marketing', () => {
 
     it('counts a natively scheduled target as sent', async () => {
       // Facebook and Pinterest hold the post themselves, so handing it over is
-      // as far as SoloWrk goes and the post is not still "scheduled" here.
+      // as far as SoloWork goes and the post is not still "scheduled" here.
       const created = await createPost(
         db,
         root,

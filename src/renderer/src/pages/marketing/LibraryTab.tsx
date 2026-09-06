@@ -241,7 +241,7 @@ function ProjectPicker({
         <div className="border-b border-line px-4 py-3">
           <h2 className="text-[13px] font-medium text-ink">Write up which job?</h2>
           <p className="mt-0.5 text-[11.5px] leading-relaxed text-faint">
-            SoloWrk fills in the dates, the hours and what was delivered. The problem, the approach
+            SoloWork fills in the dates, the hours and what was delivered. The problem, the approach
             and the outcome are left for you — they are the parts only you can write.
           </p>
         </div>

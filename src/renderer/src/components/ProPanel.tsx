@@ -43,7 +43,7 @@ export function ProPanel({
         </div>
 
         <p className="text-[11px] tracking-[0.14em] text-faint uppercase">
-          SoloWrk {TIER_NAMES[tier]}
+          SoloWork {TIER_NAMES[tier]}
         </p>
         <h2 className="mt-1.5 text-[15px] font-semibold text-ink">{title}</h2>
         <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted">{blurb}</p>

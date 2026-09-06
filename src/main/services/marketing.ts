@@ -645,7 +645,7 @@ export function setTargetResult(
 /**
  * How late a post can be and still go out unattended.
  *
- * SoloWrk is a desktop app, so it cannot publish while it is closed. When it
+ * SoloWork is a desktop app, so it cannot publish while it is closed. When it
  * opens and finds a post that came due an hour ago, sending it is still fine —
  * nobody can tell. A post that came due on Tuesday is a different matter: the
  * moment has gone, and quietly sending it now would be worse than saying so.

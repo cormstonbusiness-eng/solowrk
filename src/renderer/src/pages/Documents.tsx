@@ -202,7 +202,7 @@ function DocumentTags({ id }: { id: number }): React.JSX.Element {
             body={
               list.active > 0
                 ? 'Try a different search or category.'
-                : 'Add your insurance, contracts and certificates. Give them an expiry date and SoloWrk will warn you before they lapse.'
+                : 'Add your insurance, contracts and certificates. Give them an expiry date and SoloWork will warn you before they lapse.'
             }
             action={
               list.active === 0 ? (

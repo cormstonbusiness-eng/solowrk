@@ -354,9 +354,9 @@ function friendlyError(message: string): string {
 
   if (lower.includes('enoent') || lower.includes('not found') || lower.includes('spawn')) {
     return (
-      'Could not start Claude. SoloWrk runs your own Claude Code installation, so it needs ' +
+      'Could not start Claude. SoloWork runs your own Claude Code installation, so it needs ' +
       'to be installed and on your PATH. Install it, run `claude` once to log in, then ' +
-      'restart SoloWrk.'
+      'restart SoloWork.'
     )
   }
 
@@ -388,7 +388,7 @@ function escapingPath(input: Record<string, unknown>): string | null {
     const rel = relative(root, target)
 
     // The prefix check catches a sibling that merely shares a name, e.g.
-    // C:\SoloWrk-backup against C:\SoloWrk.
+    // C:\SoloWork-backup against C:\SoloWork.
     const inside =
       target === root || (!rel.startsWith('..') && !isAbsolute(rel) && target.startsWith(root + sep))
     if (!inside) return value

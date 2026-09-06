@@ -7,7 +7,7 @@ import type { MailTransport } from './mailQueue'
 /**
  * Sending, through the user's own mail account.
  *
- * There is no SoloWrk mail server and there is not going to be one. A service
+ * There is no SoloWork mail server and there is not going to be one. A service
  * relaying a freelancer's correspondence with their clients is a service that
  * can read it, lose it, and be blamed for it — and it would put every chaser
  * this app writes behind somebody else's deliverability reputation. Sending
@@ -62,7 +62,7 @@ export async function storeSmtpPassword(password: string): Promise<void> {
   }
 
   if (!safeStorage.isEncryptionAvailable()) {
-    throw new Error('This machine has no secure store for passwords, so SoloWrk will not keep one.')
+    throw new Error('This machine has no secure store for passwords, so SoloWork will not keep one.')
   }
 
   await updateConfig({
@@ -172,9 +172,9 @@ export async function sendTestEmail(settings: Settings): Promise<void> {
 
   await smtpTransport(credentials).send({
     to: settings.smtpFrom.trim() || settings.smtpUser.trim(),
-    subject: 'SoloWrk test message',
+    subject: 'SoloWork test message',
     body: [
-      'This is SoloWrk checking it can send mail through your account.',
+      'This is SoloWork checking it can send mail through your account.',
       '',
       'If you are reading it, invoice chasers will go out the same way — from',
       'this address, in your name, and into your sent folder.',

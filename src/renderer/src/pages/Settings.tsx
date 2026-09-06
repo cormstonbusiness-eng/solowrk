@@ -464,7 +464,7 @@ function ChasingCard({
             checked={draft.chaseEnabled}
             onChange={(checked) => set('chaseEnabled', checked)}
             label="Tell me when an invoice needs chasing"
-            hint="SoloWrk watches your due dates and writes the note."
+            hint="SoloWork watches your due dates and writes the note."
           />
 
           <AnimatePresence initial={false}>
@@ -509,7 +509,7 @@ function ChasingCard({
                 ) : (
                   <p className="mt-3.5 border-t border-line pt-3.5 text-[11px] leading-relaxed text-faint">
                     Notes wait in your outbox until you press send. Add your email account under
-                    Sending mail to have SoloWrk send them for you.
+                    Sending mail to have SoloWork send them for you.
                   </p>
                 )}
               </Expand>
@@ -1027,14 +1027,14 @@ function AccountCard(): React.JSX.Element {
 
             {auth.offline && (
               <p className="mt-2.5 text-[11.5px] text-warning">
-                Could not reach the account server at the last check. SoloWrk keeps working —
+                Could not reach the account server at the last check. SoloWork keeps working —
                 being offline is not a reason to lose access to your own records.
               </p>
             )}
           </>
         ) : (
           <p className="text-[12px] leading-relaxed text-muted">
-            Not signed in. SoloWrk will ask the next time it starts.
+            Not signed in. SoloWork will ask the next time it starts.
           </p>
         )}
       </Card>
@@ -1355,7 +1355,7 @@ function VersionFooter(): React.JSX.Element {
 
   return (
     <div className="flex flex-col items-center gap-1 py-2">
-      <p className="text-[11px] text-white/25">SoloWrk v{version ?? '—'}</p>
+      <p className="text-[11px] text-white/25">SoloWork v{version ?? '—'}</p>
 
       {/*
         §3.2 asks for this and it is worth the two lines. It costs nothing and

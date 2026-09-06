@@ -26,7 +26,7 @@ const SAVE_DELAY_MS = 700
  * Same substance as project notes — real `.md` files in the workspace, editable
  * in any editor — just filed under `Notes\` instead of inside a project. A
  * plain textarea rather than a rich editor, deliberately: the file has to stay
- * readable and useful outside SoloWrk, which is the whole point of it being a
+ * readable and useful outside SoloWork, which is the whole point of it being a
  * file at all.
  */
 export function Notes(): React.JSX.Element {

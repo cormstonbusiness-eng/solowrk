@@ -16,7 +16,7 @@ import { listBlocks } from './blocks'
 
 /** Shown verbatim in the subscription panel. Required by the specification. */
 export const SUBSCRIPTION_PROMISE =
-  'SoloWrk downloads this calendar. It never uploads your SoloWrk data.'
+  'SoloWork downloads this calendar. It never uploads your SoloWork data.'
 
 /** A feed that answers slowly is a feed that is broken, for our purposes. */
 const FETCH_TIMEOUT_MS = 15_000

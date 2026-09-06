@@ -84,7 +84,7 @@ describe('the other kind of refusal', () => {
     tier: 'free',
     needs: 'pro',
     message:
-      'SoloWrk Pro includes the Marketing module. Upgrade at solo-wrk.com/account. Your clients, projects and invoices are unaffected.'
+      'SoloWork Pro includes the Marketing module. Upgrade at solo-wrk.com/account. Your clients, projects and invoices are unaffected.'
   } as const
 
   it('survives the wrapping Electron puts round it', () => {
@@ -99,7 +99,7 @@ describe('the other kind of refusal', () => {
   it('reads as a sentence before it reads as an envelope', () => {
     // Anywhere this does leak into a raw error string, the first thing on
     // screen should be English rather than JSON.
-    expect(new FeatureLockedError({ ...LOCKED }).message).toMatch(/^SoloWrk Pro includes/)
+    expect(new FeatureLockedError({ ...LOCKED }).message).toMatch(/^SoloWork Pro includes/)
   })
 
   it('is told apart from a limit', () => {

@@ -4,7 +4,7 @@ import { deflateRawSync } from 'node:zlib'
  * Writing a ZIP file.
  *
  * Written out rather than taken as a dependency, for the same reason the
- * database is `node:sqlite` and the OCR is PowerShell: SoloWrk has no compiled
+ * database is `node:sqlite` and the OCR is PowerShell: SoloWork has no compiled
  * dependencies, so `npm install` works on any machine and the installer
  * carries no ABI-specific binaries. A ZIP is a length-prefixed format with a
  * table at the end — it is about a hundred lines, and the alternative is a

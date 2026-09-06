@@ -1,4 +1,4 @@
-# SoloWrk
+# SoloWork
 
 Freelance project and business management for Windows, running entirely on your own PC. Projects,
 tasks, clients, time, quotes, invoices, finance, documents and a calendar — with your files in a
@@ -106,7 +106,7 @@ three steps rather than showing a chat box that silently fails.
   as three paragraphs and to Instagram as a caption with hashtags, and each destination succeeds
   or fails on its own. Post status is *derived* from its targets, never set directly, so a
   partial failure cannot round up to "published".
-- **Only Facebook and Pinterest schedule natively.** Everything else is a job SoloWrk runs while
+- **Only Facebook and Pinterest schedule natively.** Everything else is a job SoloWork runs while
   it is open, with an hour's grace (`PUBLISH_GRACE_MINUTES`) before a missed post is flagged
   rather than sent late. Same rule and reasoning as calendar reminders.
 - **Every platform rule lives in `src/shared/social.ts`.** The check that greys out the schedule
@@ -130,7 +130,7 @@ three steps rather than showing a chat box that silently fails.
   comparison. Phase 8's Google and Microsoft sync converts at that boundary and nowhere else.
   Range queries compare `substr(starts_at, 1, 10)`, because `'2026-08-19' >= '2026-08-19T23:00'`
   is false and would drop an evening event from its own day.
-- **The product is SoloWrk; the internals are still `solo`.** `solo.db`, `solo.config.json` and
+- **The product is SoloWork; the internals are still `solo`.** `solo.db`, `solo.config.json` and
   `window.solo` keep the old spelling deliberately — renaming them would orphan every workspace
   and pointer file already on disk. Rename the *display* name freely; leave those three alone.
   `readConfig()` falls back to the pre-rename `%APPDATA%\solo` pointer for the same reason.

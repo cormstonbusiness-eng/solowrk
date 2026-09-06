@@ -60,7 +60,7 @@ function fileLogger(): { info: (m: unknown) => void; warn: (m: unknown) => void;
   const path = join(app.getPath('userData'), 'updates.log')
 
   try {
-    writeFileSync(path, `SoloWrk ${app.getVersion()} — ${new Date().toISOString()}\n`)
+    writeFileSync(path, `SoloWork ${app.getVersion()} — ${new Date().toISOString()}\n`)
   } catch {
     // A read-only userData is possible and is not worth failing over.
   }
@@ -102,7 +102,7 @@ function announce(version: string): void {
   try {
     push(session.requireDb(), getWindow ?? (() => null), {
       kind: 'info',
-      title: `SoloWrk ${version} is ready`,
+      title: `SoloWork ${version} is ready`,
       body: 'Restart when it suits you and the update applies. Nothing installs on its own.',
       link: '/settings',
       dedupeKey: `update-${version}`

@@ -4,7 +4,7 @@
  * Shipped with the build rather than fetched, for three reasons: it works
  * offline like everything else here, it cannot disagree with the code it was
  * built alongside, and the GitHub release notes it would otherwise come from
- * say nothing but "SoloWrk 0.1.11".
+ * say nothing but "SoloWork 0.1.11".
  *
  * Written for somebody who uses the app, not somebody who wrote it. "Statements
  * of account" rather than "widen DocumentForPdf"; the reason a change matters
@@ -40,6 +40,25 @@ export interface Release {
 }
 
 export const changelog: Release[] = [
+  {
+    version: '0.1.17',
+    date: '2026-09-06',
+    headline: 'The app is called SoloWork now, which is what the website has called it all along.',
+    changes: [
+      {
+        kind: 'changed',
+        text: 'SoloWrk is now SoloWork',
+        detail:
+          'One name in one spelling, everywhere: the window title, the Start Menu, the installer, and every message the app writes. The website, the guides and your receipts have said SoloWork since launch, and having the thing on your desktop disagree with them was a small confusion nobody needed.'
+      },
+      {
+        kind: 'fixed',
+        text: 'Updating to the new name keeps your workspace and your licence',
+        detail:
+          'Windows files an app\'s settings under its name, so renaming moves them — and left alone that would have looked like a brand new install: no workspace, signed out, and your business sitting in a folder the app had forgotten about. It now reads the old location and moves itself across the first time you open it. You should notice nothing at all.'
+      }
+    ]
+  },
   {
     version: '0.1.16',
     date: '2026-09-06',
@@ -198,7 +217,7 @@ export const changelog: Release[] = [
     changes: [
       {
         kind: 'added',
-        text: 'Refresh button next to the SoloWrk wordmark',
+        text: 'Refresh button next to the SoloWork wordmark',
         detail:
           'Re-reads your workspace, re-checks your licence and looks for a new version, all at once. It is not a reload — you keep your place and anything half-typed.'
       },
@@ -246,7 +265,7 @@ export const changelog: Release[] = [
   {
     version: '0.1.9',
     date: '2026-08-24',
-    headline: 'SoloWrk chases your late invoices, without asking you twice.',
+    headline: 'SoloWork chases your late invoices, without asking you twice.',
     changes: [
       {
         kind: 'added',

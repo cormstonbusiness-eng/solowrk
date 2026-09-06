@@ -10,7 +10,7 @@ import { fingerprint } from './fingerprint'
  *
  * Two things shape everything here.
  *
- * **The account is not the data.** SoloWrk's whole pitch is that your work
+ * **The account is not the data.** SoloWork's whole pitch is that your work
  * lives in a folder you control, and signing in must not quietly walk that
  * back. Nothing about a client, an invoice or an hour is ever sent anywhere.
  * The account exists to answer one question — is this copy licensed — and the

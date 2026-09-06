@@ -204,7 +204,7 @@ export interface CaseStudyDraft {
 /**
  * The parts of a case study the workspace already knows (§9.2).
  *
- * Everything here is a fact SoloWrk recorded while the work happened: who it
+ * Everything here is a fact SoloWork recorded while the work happened: who it
  * was for, when it ran, how long it actually took, what was delivered. The
  * judgement — the problem, the approach, what it was worth to them — is left
  * as headings with nothing under them, because those are the parts only the

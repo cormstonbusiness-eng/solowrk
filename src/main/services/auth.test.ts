@@ -287,13 +287,13 @@ describe('signing out', () => {
 
   it('leaves the workspace pointer alone', async () => {
     // Signing out must never look like losing your data.
-    await updateConfig({ workspacePath: 'C:\\Users\\alex\\Documents\\SoloWrk' })
+    await updateConfig({ workspacePath: 'C:\\Users\\alex\\Documents\\SoloWork' })
     useServer()
     respondWith(licence)
     await signIn('alex@example.com', 'hunter2')
     await signOut()
 
-    expect((await readConfig()).workspacePath).toBe('C:\\Users\\alex\\Documents\\SoloWrk')
+    expect((await readConfig()).workspacePath).toBe('C:\\Users\\alex\\Documents\\SoloWork')
   })
 })
 

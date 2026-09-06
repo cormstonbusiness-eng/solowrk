@@ -208,7 +208,7 @@ export function App(): React.JSX.Element {
       .invoke('workspace:status')
       .then(setStatus)
       .catch((cause: unknown) =>
-        setError(cause instanceof Error ? cause.message : 'SoloWrk could not start')
+        setError(cause instanceof Error ? cause.message : 'SoloWork could not start')
       )
   }, [])
 
@@ -270,7 +270,7 @@ export function App(): React.JSX.Element {
                   className="grid flex-1 place-items-center px-6 text-center"
                 >
                   <div>
-                    <p className="text-[14px] text-ink">SoloWrk could not start</p>
+                    <p className="text-[14px] text-ink">SoloWork could not start</p>
                     <p className="mt-1 text-[12px] text-muted">{error}</p>
                   </div>
                 </motion.div>

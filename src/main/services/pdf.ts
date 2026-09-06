@@ -12,14 +12,14 @@ import type {
 import { resolveInWorkspace } from './workspace'
 
 /**
- * The documents SoloWrk produces for someone else to read.
+ * The documents SoloWork produces for someone else to read.
  *
  * Rendered by loading HTML into an offscreen BrowserWindow and calling
  * printToPDF, rather than drawing with a PDF library. That keeps one template
  * for both the screen and the file, and gets real text layout, web fonts and
  * page breaks for free.
  *
- * Everything here is printed light-on-white: these are the only things SoloWrk
+ * Everything here is printed light-on-white: these are the only things SoloWork
  * produces that leave the app, and a dark invoice would be unreadable and cost
  * the client a cartridge.
  *
@@ -271,7 +271,7 @@ function lineItemBody(doc: LineItemDocument, settings: Settings, branded: boolea
  * and an unfair thing to extract.
  */
 function mark(branded: boolean): string {
-  return branded ? '' : '<div class="mark">Made with SoloWrk — solo-wrk.com</div>'
+  return branded ? '' : '<div class="mark">Made with SoloWork — solo-wrk.com</div>'
 }
 
 /** The invoices, what is left owing, and how long it has been owing. */
@@ -466,7 +466,7 @@ function summaryBody(doc: YearSummaryForPdf): string {
     ${formatDate(doc.periodTo)} — the cash basis — not what was invoiced in that period.
     Expenses are counted on the date they were incurred.
     ${doc.vatRegistered ? '' : ' This business is not VAT registered.'}
-    Prepared by SoloWrk from the workspace. Figures are a starting point for a return, not a
+    Prepared by SoloWork from the workspace. Figures are a starting point for a return, not a
     substitute for one.
   </div>`
 }
@@ -636,7 +636,7 @@ export async function writePdf(
   settings: Settings,
   /** Overrides the usual filing, for a year-end pack that gathers its own. */
   into?: string,
-  /** False adds the SoloWrk line. See `renderHtml`. */
+  /** False adds the SoloWork line. See `renderHtml`. */
   branded = true
 ): Promise<string> {
   const year = doc.issueDate.slice(0, 4)

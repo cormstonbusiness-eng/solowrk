@@ -114,7 +114,7 @@ export function ResultsTab(): React.JSX.Element {
       */}
       {data?.empty ? (
         <p className="max-w-[560px] text-[12.5px] leading-relaxed text-faint">
-          Once you&rsquo;ve logged a few campaigns and told SoloWrk where clients came from, this
+          Once you&rsquo;ve logged a few campaigns and told SoloWork where clients came from, this
           is where you&rsquo;ll see what&rsquo;s actually working.
         </p>
       ) : (

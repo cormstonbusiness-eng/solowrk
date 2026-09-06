@@ -253,7 +253,7 @@ export function BusinessPlan(): React.JSX.Element {
         onClose={() => setResetting(false)}
         onConfirm={() => reset.mutate()}
         title="Start the business plan again?"
-        body={`SoloWrk will forget this plan and offer you the two ways in again. ${plan?.name ?? 'The file'} stays in your workspace under Documents\Business, so nothing you wrote is lost — you can attach it again at any point.`}
+        body={`SoloWork will forget this plan and offer you the two ways in again. ${plan?.name ?? 'The file'} stays in your workspace under Documents\Business, so nothing you wrote is lost — you can attach it again at any point.`}
         confirmLabel="Start again"
       />
     </Page>
@@ -319,7 +319,7 @@ function Choice({
             {attaching ? 'Reading…' : 'I already have one'}
           </span>
           <span className="text-[11.5px] leading-relaxed text-faint">
-            Word, PDF, markdown or plain text. SoloWrk reads it, lays out its contents, and shows
+            Word, PDF, markdown or plain text. SoloWork reads it, lays out its contents, and shows
             you what a plan usually covers that yours does not.
           </span>
         </button>
@@ -514,7 +514,7 @@ function ReadOnlyNotice({
       <div className="min-w-0 flex-1">
         <p className="text-[12.5px] text-ink">Read-only</p>
         <p className="mt-0.5 text-[11.5px] leading-relaxed text-muted">
-          SoloWrk can read {name} but not write to it, so nothing here can be edited — by you
+          SoloWork can read {name} but not write to it, so nothing here can be edited — by you
           or the assistant. An editable copy carries all of this text into a markdown file and
           uses that instead. {name} stays where it is.
         </p>

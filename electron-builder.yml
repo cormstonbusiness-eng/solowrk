@@ -1,5 +1,17 @@
+# Deliberately unchanged through the rename to SoloWork.
+#
+# Windows identifies an installed application by its appId. Changing it would
+# make this a different application: an existing 0.1.16 would stay installed
+# alongside the new one, keep its own shortcuts, and never see another update —
+# because the updater would be feeding a product nobody has. The id is not shown
+# to anybody, so the only thing a "tidy" rename here would buy is two copies of
+# the app on every machine that already has one.
 appId: com.solowrk.app
-productName: SoloWrk
+
+# Changing this moves %APPDATA%\<productName>, which holds the pointer to the
+# user's workspace and their licence. `legacyConfigPaths()` in config.ts reads
+# the old folder so nobody arrives at a first-run screen after updating.
+productName: SoloWork
 copyright: Copyright © 2026
 
 directories:
@@ -10,7 +22,7 @@ files:
   - out/**/*
   - package.json
 
-# SoloWrk stores everything in the user's chosen workspace folder, so nothing
+# SoloWork stores everything in the user's chosen workspace folder, so nothing
 # user-facing is bundled here — the installer only carries the app itself.
 asar: true
 
@@ -37,7 +49,7 @@ nsis:
   perMachine: false
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: SoloWrk
+  shortcutName: SoloWork
   # Leave the previous install's files alone on upgrade. The workspace lives in
   # Documents and the config in userData, so neither is touched either way —
   # but a full wipe would drop the pinned taskbar shortcut's target.

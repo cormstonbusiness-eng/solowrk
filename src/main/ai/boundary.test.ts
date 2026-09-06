@@ -39,7 +39,7 @@ function escapingPath(root: string, input: Record<string, unknown>): string | nu
   return null
 }
 
-const ROOT = resolve('/workspace/SoloWrk')
+const ROOT = resolve('/workspace/SoloWork')
 const check = (input: Record<string, unknown>): string | null => escapingPath(ROOT, input)
 
 describe('what a borrowed read tool may look at', () => {
@@ -68,7 +68,7 @@ describe('what a borrowed read tool may look at', () => {
   })
 
   it('refuses a sibling that merely shares the name', () => {
-    // C:\SoloWrk-backup is not inside C:\SoloWrk, however much it looks it.
+    // C:\SoloWork-backup is not inside C:\SoloWork, however much it looks it.
     const sibling = `${ROOT}-backup`
     expect(check({ path: sibling })).toBe(sibling)
   })

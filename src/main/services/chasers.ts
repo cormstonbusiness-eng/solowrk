@@ -9,7 +9,7 @@ import { getSettings } from './settings'
 /**
  * Chasing late invoices.
  *
- * SoloWrk drafts, it does not send. There is no mail server here and there is
+ * SoloWork drafts, it does not send. There is no mail server here and there is
  * not going to be one: an email going out in somebody's name, to their client,
  * without them reading it first, is not a decision to take on their behalf —
  * and the first time it got the tone wrong it would cost them the relationship,

@@ -80,7 +80,7 @@ describe('isNewerThan', () => {
 })
 
 describe('isEditablePlan', () => {
-  it('allows the formats SoloWrk can write back to', () => {
+  it('allows the formats SoloWork can write back to', () => {
     expect(isEditablePlan('Documents/Business/Business Plan.md')).toBe(true)
     expect(isEditablePlan('plan.TXT')).toBe(true)
   })

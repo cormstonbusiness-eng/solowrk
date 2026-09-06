@@ -10,7 +10,7 @@ import { transition } from '@/lib/motion'
 /**
  * Signing in to the account a licence belongs to.
  *
- * The design problem here is a real one rather than a visual one. SoloWrk's own
+ * The design problem here is a real one rather than a visual one. SoloWork's own
  * first screen says "no cloud account, no sync, no subscription holding your
  * files" — so a login wall is, on the face of it, the app contradicting itself.
  * Anyone who bought it for that reason will feel the contradiction immediately.
@@ -162,8 +162,8 @@ export function SignIn({
 
               <p className="text-center text-[12.5px] text-muted">
                 {joining
-                  ? 'Already bought SoloWrk?'
-                  : 'Bought SoloWrk but have not set up an account?'}{' '}
+                  ? 'Already bought SoloWork?'
+                  : 'Bought SoloWork but have not set up an account?'}{' '}
                 <button
                   type="button"
                   onClick={() => {

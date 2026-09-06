@@ -86,7 +86,7 @@ export function MailCard({
 
       <p className="mb-3.5 text-[12.5px] leading-relaxed text-muted">
         Chasers go out through your own email account, from your own address — so the reply comes
-        back to you and a copy lands in your sent folder. SoloWrk does not run a mail server and
+        back to you and a copy lands in your sent folder. SoloWork does not run a mail server and
         never sees your messages.
       </p>
 

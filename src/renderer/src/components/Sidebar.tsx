@@ -185,7 +185,7 @@ function NavRow({ item, unlockIndex }: { item: NavItem; unlockIndex: number }): 
               delay: unlockIndex * UNLOCK_STAGGER
             }}
           >
-            <Lock size={11} strokeWidth={2} aria-label="Part of SoloWrk Pro" />
+            <Lock size={11} strokeWidth={2} aria-label="Part of SoloWork Pro" />
           </motion.span>
         )}
       </AnimatePresence>
@@ -355,7 +355,7 @@ function AccountChip(): React.JSX.Element {
         title="Log out?"
         body={
           `You will need to sign in again as ${auth?.account?.email ?? 'your account'} to use ` +
-          'SoloWrk on this computer. Your workspace stays exactly where it is — nothing in it ' +
+          'SoloWork on this computer. Your workspace stays exactly where it is — nothing in it ' +
           'is touched, and nothing is uploaded.'
         }
         confirmLabel="Log out"

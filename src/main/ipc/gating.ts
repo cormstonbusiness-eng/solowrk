@@ -50,7 +50,7 @@ export const ACCOUNT_URL = `${SITE_HOST}/account`
  */
 function messageFor(feature: Feature, reassurance: string): string {
   const tier = TIER_NAMES[requires(feature)]
-  return `SoloWrk ${tier} includes ${FEATURE_LABELS[feature]}. Upgrade at ${ACCOUNT_URL}. ${reassurance}`
+  return `SoloWork ${tier} includes ${FEATURE_LABELS[feature]}. Upgrade at ${ACCOUNT_URL}. ${reassurance}`
 }
 
 export const GATES: Gate[] = [
@@ -236,7 +236,7 @@ export const GATES: Gate[] = [
     feature: 'branding',
     message: messageFor(
       'branding',
-      'Your invoices carry a small SoloWrk line until then, and nothing else changes.'
+      'Your invoices carry a small SoloWork line until then, and nothing else changes.'
     )
   },
   {

@@ -6,7 +6,7 @@ import { Card } from '@/components/ui/Card'
  * Shown when the assistant cannot run.
  *
  * There is no public OAuth flow that lets a third-party app authorise someone's
- * Claude subscription, so SoloWrk runs the Claude Code installation already on
+ * Claude subscription, so SoloWork runs the Claude Code installation already on
  * the machine and inherits its login. That means the setup step is real and
  * belongs on screen — a chat box that silently does nothing would be worse than
  * saying plainly what is missing.
@@ -24,7 +24,7 @@ export function SetupPanel({ status }: { status: AssistantStatus }): React.JSX.E
         </h2>
         <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted">
           {status.detail ??
-            'SoloWrk uses the Claude Code installation on this PC, so the assistant runs on your ' +
+            'SoloWork uses the Claude Code installation on this PC, so the assistant runs on your ' +
               'own Claude subscription. Nothing is sent anywhere else, and no API key is stored.'}
         </p>
 
@@ -39,7 +39,7 @@ export function SetupPanel({ status }: { status: AssistantStatus }): React.JSX.E
               body: 'Run claude in a terminal and follow the prompt to log in.'
             },
             {
-              title: 'Restart SoloWrk',
+              title: 'Restart SoloWork',
               body: 'The assistant picks up that login automatically.'
             }
           ].map((step, index) => (

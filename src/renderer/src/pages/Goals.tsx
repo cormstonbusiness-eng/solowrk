@@ -101,7 +101,7 @@ export function Goals(): React.JSX.Element {
           <Empty
             icon={Target}
             title="No goals set"
-            body="Set a revenue target for the tax year, a number of new clients this quarter, or hours you want to bill each month. SoloWrk counts them from your own records — nothing to keep updated."
+            body="Set a revenue target for the tax year, a number of new clients this quarter, or hours you want to bill each month. SoloWork counts them from your own records — nothing to keep updated."
             action={
               <Button variant="primary" onClick={() => setEditing({ ...BLANK })}>
                 <Plus size={14} strokeWidth={1.75} />

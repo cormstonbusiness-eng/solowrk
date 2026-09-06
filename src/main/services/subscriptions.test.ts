@@ -86,7 +86,7 @@ describe('subscribed calendars', () => {
     // Users choose this product for the local-first promise. Anything
     // network-facing has to explain itself in the panel, not in a help article.
     expect(SUBSCRIPTION_PROMISE).toBe(
-      'SoloWrk downloads this calendar. It never uploads your SoloWrk data.'
+      'SoloWork downloads this calendar. It never uploads your SoloWork data.'
     )
   })
 
