@@ -26,6 +26,15 @@ import { formatDate } from '@/lib/format'
 import { listItemVariants, listVariants, transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
+/*
+  An icon and a colour per kind, kept as complete `Record`s rather than lookups
+  with a fallback. Adding a kind to `NotificationKind` and forgetting to give it
+  a face is then a compile error here, not a blank space on the page.
+
+  The same five kinds and the same five colours are used by the toast stack, so
+  a notification looks identical whether it arrives as a toast or is read here
+  a week later.
+*/
 const ICONS: Record<NotificationKind, typeof Bell> = {
   info: Bell,
   due: Clock,
@@ -61,6 +70,16 @@ export function Notifications(): React.JSX.Element {
     queryFn: () => window.solo.invoke('notifications:list', { archived: tab === 'archive' })
   })
 
+  /*
+    Every mutation here does the same thing on success, and there are six of
+    them. Shared rather than repeated so the sidebar's unread badge cannot end
+    up refreshing after five of the six — which is the shape of bug that leaves
+    a badge claiming three unread on an empty inbox.
+
+    Invalidating `['notifications']` and not `['notifications', tab]` is
+    deliberate: archiving moves a row between the two lists, so both are stale
+    afterwards, and so is the unread count the sidebar reads separately.
+  */
   const refresh = { onSuccess: () => invalidate(['notifications']) }
 
   const read = useMutation({
@@ -90,6 +109,17 @@ export function Notifications(): React.JSX.Element {
 
   const unread = items.filter((item) => item.readAt === null).length
 
+  /**
+   * Opening a notification reads it and follows it.
+   *
+   * Reading is not conditional on there being somewhere to go: an alert with no
+   * link is still one you have now seen, and leaving it bold would make the
+   * unread count something you can never clear by reading.
+   *
+   * `link` is an in-app route recorded when the notification was written — the
+   * invoice that went overdue, the document about to expire — so this lands on
+   * the thing itself rather than on the section it lives in.
+   */
   function open(item: AppNotification): void {
     if (item.readAt === null) read.mutate(item.id)
     if (item.link) navigate(item.link)

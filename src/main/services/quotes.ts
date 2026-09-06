@@ -220,6 +220,25 @@ export function updateQuote(
  * The deposit is a percentage of the quote, raised as a draft — the freelancer
  * decides when it goes out.
  */
+/**
+ * Accepting a quote, and everything that follows from it.
+ *
+ * The one place a quote stops being a document and becomes work. It can do
+ * three things in one step — mark the quote accepted, create the project, raise
+ * a deposit invoice — because that is the sequence somebody does by hand the
+ * moment a client says yes, and doing it as three separate screens is how one
+ * of them gets forgotten.
+ *
+ * Everything except the status change is optional, and all of it is idempotent
+ * in the way that matters: a quote already attached to a project does not get a
+ * second one, and `acceptedAt` keeps the date it was first accepted rather than
+ * being reset by a later conversion.
+ *
+ * The project is created before the invoice deliberately, so the deposit can be
+ * attached to it. A project that fails to create — a folder that cannot be
+ * written, a name that collides — throws before any invoice exists, rather than
+ * leaving a deposit invoice pointing at nothing.
+ */
 export async function convertQuote(
   db: Database,
   workspacePath: string,
@@ -228,6 +247,16 @@ export async function convertQuote(
 ): Promise<{ quote: QuoteWithContext; projectId: number | null; invoiceId: number | null }> {
   const quote = getQuote(db, id)
 
+  /*
+    Only when asked, and only if the quote is not already on a project. A quote
+    raised against existing work converts without making a second copy of that
+    work — which is the difference between accepting a quote for phase two and
+    accidentally splitting a job in half.
+
+    The fallback name is the client and the quote number rather than something
+    generic, so a project created this way is identifiable in a list a year
+    later without opening it.
+  */
   let projectId: number | null = quote.projectId
   if (options.createProject && projectId === null) {
     const project = await createProject(db, workspacePath, {
@@ -239,6 +268,17 @@ export async function convertQuote(
     projectId = project.id
   }
 
+  /*
+    A deposit, as a draft rather than a sent invoice.
+
+    Draft because accepting a quote is not the same as having billed for it:
+    the deposit wants looking at, possibly dating differently, and sending
+    deliberately. An invoice that marked itself sent here would put a number in
+    the overdue calculation for something the client has never received.
+
+    Zero or no percentage means no invoice at all, which is the common case —
+    plenty of work is quoted, accepted and invoiced only on completion.
+  */
   let invoiceId: number | null = null
   const percent = options.depositPercent ?? 0
   if (percent > 0) {

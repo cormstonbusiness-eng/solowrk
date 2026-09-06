@@ -26,9 +26,18 @@ const BLANK: GoalInput = {
   colour: DEFAULT_ENTITY_COLOUR
 }
 
+/**
+ * Whether this kind of goal counts money or things.
+ *
+ * The distinction runs through the whole page: a money goal stores pence and
+ * renders as currency, a count goal stores a plain number. The kinds themselves
+ * declare which they are, so adding a kind does not mean finding every place
+ * that formats one.
+ */
 const isMoney = (kind: GoalKind): boolean =>
   GOAL_KINDS.find((entry) => entry.value === kind)?.money ?? false
 
+/** A target or a total, rendered as pounds or as a count. */
 function formatValue(value: number, kind: GoalKind): string {
   return isMoney(kind) ? formatMoney(value) : String(value)
 }
@@ -151,6 +160,12 @@ function GoalCard({
   onDelete: () => void
   onBump: (manual: number) => void
 }): React.JSX.Element {
+  /*
+    `target > 0` guards both of these. A goal with no target set is not met the
+    instant it is created, which is what a bare `current >= target` would say
+    when both are zero — and a card announcing success before any work has been
+    done is the fastest way to make every other tick on the page meaningless.
+  */
   const met = goal.target > 0 && goal.current >= goal.target
 
   // Only meaningful once there is a projection to compare against.
@@ -202,6 +217,13 @@ function GoalCard({
           {met && <Check size={14} strokeWidth={2.5} className="text-success" />}
         </div>
 
+        {/*
+          `share` is basis points, not a percentage — the same convention as
+          every other proportion in this codebase, where 2000 is 20%. Hence the
+          divide by 100 to reach a CSS percentage. The main process clamps it,
+          so a goal at 300% of target still draws a full bar rather than one
+          three times the width of its card.
+        */}
         <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-raised">
           <motion.div
             initial={{ width: 0 }}
@@ -227,6 +249,16 @@ function GoalCard({
             </span>
           )}
 
+          {/*
+            The only goal you can move by hand, and the only one that needs to
+            be. Every other kind is counted from real records — revenue from
+            paid invoices, hours from time entries — so a plus button on one of
+            those would let somebody edit the answer rather than the work, which
+            is the failure this whole page exists to avoid.
+
+            Clamped at zero: a count of things done cannot be negative, and the
+            minus button is easier to press twice than to undo.
+          */}
           {goal.kind === 'custom' && (
             <div className="ml-auto flex items-center gap-1">
               <button

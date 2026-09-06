@@ -15,6 +15,25 @@ import { transition } from '@/lib/motion'
 import { Expand } from '@/components/ui/Expand'
 import { cn } from '@/lib/utils'
 
+/**
+ * The post as the form holds it, which is not the shape it is stored in.
+ *
+ * Three differences, and each exists to make editing behave:
+ *
+ *   - **`day` and `time` are separate**, where a stored post has one
+ *     `scheduledAt` or null. Two fields is what the two inputs need, and
+ *     `scheduled` carries the difference between "no date yet" and "midnight",
+ *     which a single nullable timestamp cannot express while somebody is
+ *     halfway through filling it in.
+ *   - **`platforms` is a plain list**, where storage has a `targets` row per
+ *     platform carrying an account, a board and a body. Ticking a platform on
+ *     and off would otherwise mean building and discarding whole target rows.
+ *   - **`media` carries `name`**, which is only the file's basename for
+ *     display. It is dropped again on the way out.
+ *
+ * `toDraft` and `toInput` are the two halves of the conversion, and any field
+ * added here has to be handled in both.
+ */
 interface Draft {
   title: string
   body: string
@@ -40,6 +59,20 @@ const EVERGREEN_CHOICES = [
   { value: 365, label: 'Every year' }
 ]
 
+/**
+ * A stored post, or nothing, as a form draft.
+ *
+ * `defaults` is how the calendar opens this already knowing something: clicking
+ * an empty Tuesday passes that day, and clicking one of the dashed
+ * "you said you would post here" outlines passes the day and the channel too.
+ *
+ * The `targets` loop is the important half. A target whose body is the empty
+ * string is not an override — it means that platform uses the shared body — so
+ * only non-empty ones become entries in `overrides`. Copying every body across
+ * would turn every platform into a permanent override the moment a post was
+ * reopened, and editing the main text would then silently stop reaching any of
+ * them.
+ */
 function toDraft(post: PostWithContext | null, defaults: Partial<Draft>): Draft {
   if (!post) {
     return {
@@ -112,6 +145,21 @@ export function Composer({
   const [draft, setDraft] = useState<Draft>(() => toDraft(post, defaults ?? {}))
   const [active, setActive] = useState<Platform>('linkedin')
 
+  /*
+    Rebuild the draft when the modal opens, or when it opens on a different
+    post.
+
+    Keyed on `post?.id` rather than `post`: the query refetches in the
+    background and hands back a new object for the same post, and depending on
+    the object itself would throw away whatever was half-typed every time that
+    happened. `defaults` is excluded for the same reason — it is a fresh object
+    literal from the caller on every render, so including it would reset the
+    form continuously.
+
+    The rule cannot see either of those, which is why the disable stands. The
+    guarantee it is asserting is narrow and worth stating: nothing inside reads
+    a value that can change while the modal is open on one post.
+  */
   useEffect(() => {
     if (!open) return
     const next = toDraft(post, defaults ?? {})
@@ -141,8 +189,27 @@ export function Composer({
   const update = <K extends keyof Draft>(key: K, value: Draft[K]): void =>
     setDraft((current) => ({ ...current, [key]: value }))
 
+  /**
+   * What this platform will actually say.
+   *
+   * `??` and not `||`: an override that has been deliberately emptied is still
+   * an override, and `||` would fall back to the shared body and quietly
+   * un-diverge a platform somebody was in the middle of clearing.
+   */
   const bodyFor = (platform: Platform): string => draft.overrides[platform] ?? draft.body
 
+  /**
+   * Every platform's complaints, recomputed as you type.
+   *
+   * `validateTarget` in `@shared/social` owns the rules — length limits,
+   * hashtag counts, media a platform requires, a Pinterest post with no board —
+   * so they are the same rules wherever a post is checked, rather than this
+   * form's own idea of what Instagram accepts.
+   *
+   * Every selected platform is validated, not just the visible tab. Somebody
+   * writing on the LinkedIn tab needs to see that the X tab has gone over its
+   * limit without going to look.
+   */
   const problems = useMemo(
     () =>
       Object.fromEntries(
@@ -159,14 +226,44 @@ export function Composer({
           })
         ])
       ) as Record<Platform, ReturnType<typeof validateTarget>>,
+    /*
+      `draft` covers everything `bodyFor` reads — the shared body, the
+      overrides, the boards — so listing the closure's own helper as well would
+      add a dependency that changes on every render and defeat the memo.
+    */
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [draft, accounts]
   )
 
+  /**
+   * Errors stop a save; warnings do not.
+   *
+   * The distinction is the point of having two levels. "This is 40 characters
+   * over the limit" is a fact about what the platform will refuse, and saving
+   * it would schedule something that cannot go out. "No hashtags" is an opinion
+   * about what performs well, and an app that refuses to let somebody post
+   * without hashtags is an app arguing with its owner.
+   */
   const blocked = Object.values(problems).some((list) =>
     list.some((problem) => problem.level === 'error')
   )
 
+  /**
+   * The draft, back in the shape the database stores.
+   *
+   * Three conversions worth knowing about:
+   *
+   *   - **No day means no `scheduledAt`**, which is what puts a post in the
+   *     backlog rather than on the calendar. Unticking "scheduled" does the
+   *     same thing without losing the day already typed.
+   *   - **An absent override is stored as `''`**, not omitted. Empty is the
+   *     storage convention for "use the shared body", and `toDraft` reads it
+   *     back the same way.
+   *   - **`title` is only sent for Pinterest**, which is the one platform that
+   *     posts a title publicly. Everywhere else the title is the internal name
+   *     — the field is labelled "never posted", and sending it would make that
+   *     a lie.
+   */
   const toInput = (): PostInput => ({
     title: draft.title.trim(),
     body: draft.body,
