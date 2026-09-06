@@ -16,6 +16,18 @@ import { keys, useInvalidate } from '@/lib/api'
 import { formatDuration, formatMoney } from '@/lib/format'
 import { listItemVariants, listVariants } from '@/lib/motion'
 
+/**
+ * Time: one timer, this week's entries, and a way to log what you forgot.
+ *
+ * The page is scoped to the current week and does not offer a date range.
+ * Tracking is a thing you do today; looking back over months is a question
+ * about money, and that is Finance's job. Keeping this page short is what makes
+ * it usable as a daily surface rather than a report.
+ *
+ * Two things decide whether an hour ever earns anything, and both are set
+ * elsewhere: `billable`, and the rate, which falls back from the project to the
+ * client to the default in Settings. This page only reads the result.
+ */
 export function Time(): React.JSX.Element {
   const invalidate = useInvalidate()
   const [projectId, setProjectId] = useState<number | null>(null)
@@ -24,6 +36,15 @@ export function Time(): React.JSX.Element {
 
   const week = rangeFor('week')
 
+  /**
+   * The running timer, polled rather than pushed.
+   *
+   * Five seconds is enough to notice a timer started from the command palette
+   * or stopped from the title bar, and cheap because it is a single row from a
+   * local database. The elapsed figure people watch tick is drawn by the title
+   * bar from `startedAt`, so this interval decides how quickly the Start button
+   * becomes a Stop button, not how smoothly a clock counts.
+   */
   const { data: running } = useQuery({
     queryKey: ['time', 'running'],
     queryFn: () => window.solo.invoke('time:running'),
@@ -48,6 +69,14 @@ export function Time(): React.JSX.Element {
     }
   })
 
+  /*
+    Stopping touches three things, which is why it invalidates three.
+
+    The entry gains a duration (`time`), the project's tracked hours and
+    profitability change (`projects`), and the unbilled figure Finance reports
+    moves (`finance`). Starting a timer changes none of those yet, which is why
+    `start` above only invalidates `time`.
+  */
   const stop = useMutation({
     mutationFn: (id: number) => window.solo.invoke('time:stop', { id }),
     onSuccess: () => invalidate(['time', 'projects', 'finance'])
@@ -59,11 +88,32 @@ export function Time(): React.JSX.Element {
   })
 
   const totalSeconds = entries.reduce((sum, entry) => sum + entry.duration, 0)
+
+  /**
+   * Work done and not yet charged for.
+   *
+   * Both halves of the filter matter. `billable` excludes the hours you were
+   * never going to invoice; `invoiceLineId === null` excludes the ones already
+   * on an invoice, which is what stops the same hour being counted as owing
+   * twice — once here and once in what the client has been billed.
+   *
+   * Shown in the warning colour rather than the success one on purpose: this is
+   * money you have earned and not asked for, which is a prompt rather than an
+   * achievement.
+   */
   const billableValue = entries
     .filter((entry) => entry.billable && entry.invoiceLineId === null)
     .reduce((sum, entry) => sum + timeValue(entry.duration, entry.rate), 0)
 
-  // Group by calendar day so a week reads as days rather than a flat list.
+  /*
+    Group by calendar day so a week reads as days rather than a flat list.
+
+    The key is the first ten characters of the ISO timestamp — the local date as
+    it was stored. Sliced rather than parsed to a `Date` and reformatted, which
+    would push entries near midnight into the wrong day whenever the machine's
+    timezone differs from the one the entry was recorded in. A day is what the
+    person remembers working, not a moment on a clock.
+  */
   const byDay = entries.reduce<Record<string, typeof entries>>((groups, entry) => {
     const day = entry.startedAt.slice(0, 10)
     ;(groups[day] ??= []).push(entry)
@@ -95,6 +145,12 @@ export function Time(): React.JSX.Element {
             <TextInput
               value={notes}
               onChange={(event) => setNotes(event.target.value)}
+              /*
+                Enter starts the timer, but only when one is not already
+                running — otherwise typing a note while tracking and pressing
+                Enter out of habit would start a second timer and silently
+                orphan the first.
+              */
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !running) start.mutate()
               }}
@@ -146,6 +202,10 @@ export function Time(): React.JSX.Element {
         }
       >
         <motion.div variants={listVariants} initial="initial" animate="animate">
+          {/*
+            Newest day first, sorted on the `yyyy-mm-dd` key itself: ISO dates
+            compare correctly as strings, so this needs no date parsing.
+          */}
           {Object.entries(byDay)
             .sort(([a], [b]) => b.localeCompare(a))
             .map(([day, dayEntries]) => (
@@ -176,6 +236,13 @@ export function Time(): React.JSX.Element {
                       >
                         <Dot colour={entry.projectColour ?? '#5a5a63'} />
                         <div className="min-w-0 flex-1">
+                          {/*
+                            The note leads, because it is what distinguishes one
+                            entry from another; the project name is the fallback
+                            when there is no note, and drops to the second line
+                            when there is. Showing both on one line would put
+                            the same project name down the whole day.
+                          */}
                           <p className="truncate text-[13px] text-ink">
                             {entry.notes || entry.projectName || 'Untitled'}
                           </p>
@@ -215,6 +282,13 @@ export function Time(): React.JSX.Element {
   )
 }
 
+/**
+ * Time you did without the timer running, which is most of it.
+ *
+ * Hours as a decimal rather than a start and end time: somebody logging
+ * yesterday afternoon knows it was about two hours and does not know, and
+ * should not have to invent, that it ran from 14:10 to 16:05.
+ */
 function ManualEntryModal({
   open,
   onClose
@@ -250,6 +324,12 @@ function ManualEntryModal({
     }
   })
 
+  /*
+    The field is a text input holding a number, so it can be empty, a minus
+    sign, or "1.2.3" mid-typing. Both checks are needed: `Number.isFinite`
+    rejects NaN, and `> 0` rejects zero and negatives — an entry of no hours is
+    a row that clutters the day and can never be invoiced.
+  */
   const parsed = Number.parseFloat(hours)
   const valid = Number.isFinite(parsed) && parsed > 0
 

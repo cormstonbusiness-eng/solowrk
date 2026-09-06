@@ -27,6 +27,21 @@ import { cn } from '@/lib/utils'
 import { BulkRename } from './files/BulkRename'
 import { Health } from './files/Health'
 
+/**
+ * Files: a browser for the workspace folder, not a store of its own.
+ *
+ * Everything on this page is the real folder on disk. Adding a file here copies
+ * it there; a file dropped into the folder in Explorer appears here. There is
+ * no import step, no second copy and no database of file records — which is why
+ * the only state below is where you are looking (`path`), and why every action
+ * ends in a `refetch` rather than in updating a list held in memory.
+ *
+ * Paths are Windows paths with backslash separators, relative to the workspace
+ * root, and the empty string is the root itself. The main process resolves them
+ * through `resolveInWorkspace`, which is the boundary that stops any of this
+ * reaching the rest of the disk.
+ */
+
 /** Icon by extension — a folder of PDFs should be scannable at a glance. */
 function iconFor(entry: FileEntry): typeof FileIcon {
   if (entry.isDirectory) return FolderOpen
@@ -37,6 +52,18 @@ function iconFor(entry: FileEntry): typeof FileIcon {
   return FileIcon
 }
 
+/**
+ * A byte count as something readable, or nothing at all.
+ *
+ * Zero returns an empty string rather than "0 B", because the rows that report
+ * zero are folders, and a size column reading "0 B" beside every folder is
+ * noise that looks like a bug.
+ *
+ * Whole numbers for bytes and one decimal above that: "900 B" and "1.4 MB" are
+ * both what somebody would say out loud, where "900.0 B" is not. Clamped to GB
+ * so a very large file reads as thousands of gigabytes rather than falling off
+ * the end of the unit list.
+ */
 function formatSize(bytes: number): string {
   if (bytes === 0) return ''
   const units = ['B', 'KB', 'MB', 'GB']
@@ -63,6 +90,19 @@ export function Files(): React.JSX.Element {
     queryFn: () => window.solo.invoke('files:list', { path })
   })
 
+  /**
+   * Do something to the disk, then show what the disk now says.
+   *
+   * Every file operation goes through here rather than updating a list in
+   * memory, because the folder is shared with Explorer and with the user: an
+   * optimistic update would be this page's opinion of a directory it does not
+   * own. Refetching is cheap — one directory read — and is always right.
+   *
+   * Failures land in `error` rather than being thrown. A file operation fails
+   * for ordinary reasons — the file is open in Word, the name already exists,
+   * the drive is read-only — and each of those deserves the message the main
+   * process wrote, in the page, rather than a crash.
+   */
   const runAndRefresh = <T,>(promise: Promise<T>): Promise<void> =>
     promise.then(
       () => void refetch(),
@@ -77,11 +117,23 @@ export function Files(): React.JSX.Element {
       setError(cause instanceof Error ? cause.message : 'Those files could not be imported')
   })
 
+  /**
+   * Files dropped from Explorer, copied into the folder being viewed.
+   *
+   * Copied, never moved: the original stays where it was. Somebody dragging a
+   * contract out of their downloads folder is filing a copy, and a file manager
+   * that silently removes the thing you dragged is one you stop trusting.
+   */
   const onDrop = (event: React.DragEvent): void => {
     event.preventDefault()
     setDragOver(false)
 
-    // Electron removed File.path; the preload bridge exposes webUtils instead.
+    /*
+      Electron removed `File.path`; the preload bridge exposes `webUtils`
+      instead. Anything it cannot resolve to a real path comes back as an empty
+      string and is dropped here — that is what a dragged selection from a
+      browser or another app produces, and it has no file on disk to copy.
+    */
     const sources = Array.from(event.dataTransfer.files)
       .map((file) => window.solo.pathForFile(file))
       .filter((source) => source.length > 0)
@@ -89,6 +141,11 @@ export function Files(): React.JSX.Element {
     if (sources.length > 0) importFiles.mutate(sources)
   }
 
+  /*
+    The breadcrumb trail. The empty path is the workspace root and has no
+    crumbs of its own — the Workspace button is drawn separately, so splitting
+    `''` here would produce one empty crumb sitting next to it.
+  */
   const crumbs = path === '' ? [] : path.split('\\')
 
   return (
@@ -214,6 +271,14 @@ export function Files(): React.JSX.Element {
                       transition={transition.layout}
                       className="group flex items-center gap-3 rounded-control px-2.5 py-2 transition-colors duration-150 hover:bg-raised"
                     >
+                      {/*
+                        Explorer's conventions, because this is a file browser
+                        and muscle memory is the whole interface: one click
+                        opens a folder, and a file needs a double click to open
+                        in whatever Windows associates with it. A single click
+                        launching an application would make scanning a folder
+                        hazardous.
+                      */}
                       <button
                         type="button"
                         onDoubleClick={() =>
