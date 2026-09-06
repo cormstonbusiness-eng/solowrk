@@ -85,19 +85,34 @@ export function FirstRun({
   }
 
   const browse = async (): Promise<void> => {
-    const chosen = await window.solo.invoke('workspace:browse', { startIn: path })
-    if (!chosen) return
+    /*
+      Wrapped like its two neighbours, and it was not before.
 
-    const result = await inspect(chosen)
-    // Dropping SoloWrk's folders into someone's busy Documents folder would be
-    // rude, so a non-empty pick gets its own subfolder unless it is already a
-    // workspace we can adopt.
-    if (!result.hasExistingWorkspace && result.exists && !result.isEmpty) {
-      const nested = joinPath(chosen, 'SoloWrk')
-      setPath(nested)
-      await inspect(nested)
-    } else {
-      setPath(chosen)
+      `adoptExisting` and `create` both catch and put the reason on screen. This
+      one let a rejection escape into an unhandled promise, which on the very
+      first screen of the app means pressing Browse and having absolutely
+      nothing happen — no folder picker, no error, nothing to retry against.
+      An unreadable drive or a dialog that will not open is rare, but it is
+      exactly the case where somebody has no idea what to do next.
+    */
+    setError(null)
+    try {
+      const chosen = await window.solo.invoke('workspace:browse', { startIn: path })
+      if (!chosen) return
+
+      const result = await inspect(chosen)
+      // Dropping SoloWrk's folders into someone's busy Documents folder would be
+      // rude, so a non-empty pick gets its own subfolder unless it is already a
+      // workspace we can adopt.
+      if (!result.hasExistingWorkspace && result.exists && !result.isEmpty) {
+        const nested = joinPath(chosen, 'SoloWrk')
+        setPath(nested)
+        await inspect(nested)
+      } else {
+        setPath(chosen)
+      }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not open that folder')
     }
   }
 

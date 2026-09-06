@@ -6,7 +6,46 @@ import { CornerDownLeft, Search } from 'lucide-react'
 import { fuzzyRank, highlight } from '@/lib/fuzzy'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
+import { toast } from '@/lib/celebrate'
 import { useCommands, type Command } from './commands'
+
+/**
+ * Run a command and make sure a failure is seen.
+ *
+ * Several commands are async — logging time, starting a timer, creating a
+ * record — and their failures used to vanish. The palette closes on the way
+ * out, so a rejected promise meant the panel disappeared and nothing happened,
+ * with no error anywhere: indistinguishable from the command having worked.
+ *
+ * Not awaited by the callers, deliberately. The palette should close the
+ * instant Enter is pressed rather than waiting on the main process, so the
+ * result is reported through a toast rather than by holding the UI open.
+ */
+function runCommand(command: Command): void {
+  try {
+    const result = command.run()
+    if (result instanceof Promise) {
+      void result.catch((cause: unknown) => {
+        toast('That did not work', {
+          // `late` is the kind that renders in the warning colour; there is no
+          // 'warning' kind, and inventing one for this would mean a new colour
+          // and a new icon for a case that is already rare.
+          kind: 'late',
+          body: cause instanceof Error ? cause.message : 'The command could not be completed.'
+        })
+      })
+    }
+  } catch (cause) {
+    // A command that throws synchronously, before any promise exists.
+    toast('That did not work', {
+      // `late` is the kind that renders in the warning colour; there is no
+          // 'warning' kind, and inventing one for this would mean a new colour
+          // and a new icon for a case that is already rare.
+          kind: 'late',
+      body: cause instanceof Error ? cause.message : 'The command could not be completed.'
+    })
+  }
+}
 
 /** Nothing typed: show a useful shortlist rather than every record in the app. */
 const RESTING_LIMIT = 8
@@ -79,7 +118,8 @@ export function Palette(): React.JSX.Element {
       )
     } else if (event.key === 'Enter') {
       event.preventDefault()
-      results[active]?.item.run()
+      const chosen = results[active]?.item
+      if (chosen) runCommand(chosen)
     }
   }
 
@@ -171,7 +211,7 @@ function Row({
       type="button"
       data-index={index}
       onMouseMove={onHover}
-      onClick={() => command.run()}
+      onClick={() => runCommand(command)}
       className={cn(
         'flex w-full items-center gap-3 rounded-control px-2.5 py-2 text-left transition-colors',
         active ? 'bg-raised' : 'hover:bg-raised/60'

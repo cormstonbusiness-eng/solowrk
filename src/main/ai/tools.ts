@@ -75,12 +75,48 @@ const asJson = (value: unknown): { content: { type: 'text'; text: string }[] } =
   ok(JSON.stringify(value, null, 2))
 
 /**
+ * An unknown value as text, without ever producing `[object Object]`.
+ *
+ * Null and undefined become an empty string so a missing optional field reads
+ * as absent rather than as the word "undefined". Primitives stringify as you
+ * would expect. Everything else is JSON, which is at least a true account of
+ * what arrived.
+ */
+function text(value: unknown): string {
+  if (value === null || value === undefined) return ''
+  if (typeof value === 'string') return value
+
+  // Listed rather than reached by elimination: narrowing `unknown` by ruling
+  // types out still leaves `unknown`, and `String()` on that is the very
+  // problem this function exists to avoid.
+  if (typeof value === 'number' || typeof value === 'boolean' || typeof value === 'bigint') {
+    return String(value)
+  }
+
+  // Objects and arrays as JSON. A symbol or a function returns undefined from
+  // JSON.stringify, and an empty string is a better thing to put in a sentence
+  // somebody is being asked to approve.
+  return JSON.stringify(value) ?? ''
+}
+
+/**
  * A short, plain sentence describing what a call will do, shown on the
  * confirmation card. Written here rather than in the UI because this module is
  * the one that knows what each tool actually does.
  */
 export function describeCall(toolName: string, input: Record<string, unknown>): string {
-  const name = (key: string): string => String(input[key] ?? '')
+  /**
+   * One field of a tool call, as text fit for the confirmation card.
+   *
+   * `input` is whatever the model sent, so a field typed as a string in the
+   * tool schema can still arrive as an object or an array. Plain `String()`
+   * renders those as `[object Object]`, and this sentence is the thing
+   * somebody reads before deciding whether to let the assistant write to their
+   * business — a description they cannot read is a description they cannot
+   * judge. Anything that is not a primitive is shown as its JSON instead:
+   * still ugly, but honest about what was actually asked for.
+   */
+  const name = (key: string): string => text(input[key])
 
   switch (toolName) {
     case 'write_file':
@@ -101,7 +137,7 @@ export function describeCall(toolName: string, input: Record<string, unknown>): 
       return `Create the campaign “${name('name')}”`
     case 'create_post':
       return `Create the post “${name('title')}”${
-        input.scheduledAt ? ` for ${String(input.scheduledAt).replace('T', ' at ')}` : ''
+        input.scheduledAt ? ` for ${text(input.scheduledAt).replace('T', ' at ')}` : ''
       }`
     case 'update_post':
       return `Update post #${name('id')}`

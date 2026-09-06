@@ -209,7 +209,6 @@ export function TimeGrid({
       totals.set(day, minutes)
     }
     return totals
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [days, timed])
 
   /* ---------------- pointer → calendar ---------------- */
@@ -309,7 +308,6 @@ export function TimeGrid({
         }
 
     set(advance(current, { x, y }, point, options, { duplicate: ctrl }))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pointAt, settings.snapMinutes, timed, set])
 
   function begin(
@@ -571,7 +569,23 @@ export function TimeGrid({
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('keydown', onKey)
     }
-  }, [pendingTask, pointAt, settings.snapMinutes, today, onScheduleTask, onCancelTaskDrag])
+    /*
+      `defaultBlockMinutes` is in here because smart drop reads it for a task
+      with no estimate. Without it these listeners close over whatever the
+      setting was when the drag began, so changing the default block length
+      mid-session had no effect on where a dropped task landed until something
+      else re-registered them. Re-registering is cheap: this effect only runs
+      while a task is actually being dragged.
+    */
+  }, [
+    pendingTask,
+    pointAt,
+    settings.snapMinutes,
+    settings.defaultBlockMinutes,
+    today,
+    onScheduleTask,
+    onCancelTaskDrag
+  ])
 
   // Read on pointerup, by which time the state above is a frame stale.
   const dropTarget = useRef<GridPoint | null>(null)

@@ -93,7 +93,12 @@ export async function checkProject(
   const template = expectedFor(db, templateId)
   const root = resolveInWorkspace(workspacePath, project.folder)
 
-  let exists = true
+  // Declared without a value: both branches below assign one, and an
+  // initialiser here would read as a default that never actually applies.
+  // A path that exists but is a file rather than a directory counts as
+  // missing, which is why this is `isDirectory()` and not simply "stat did
+  // not throw".
+  let exists: boolean
   try {
     exists = (await stat(root)).isDirectory()
   } catch {

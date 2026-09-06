@@ -162,6 +162,21 @@ export function Clients(): React.JSX.Element {
 
       return String(left).localeCompare(String(right), 'en-GB') * direction
     })
+    /*
+      Depended on by value, not by identity, and deliberately so.
+
+      `list.values()` builds a new array every render, so depending on `stages`
+      itself would recompute this on every render and the memo would be doing
+      nothing but adding work. Joining it compares the contents instead, which
+      is what actually decides the result. `tagFilter.keep` is the exact
+      function the filter calls, so it is the honest dependency rather than the
+      whole `tagFilter` object, which gets a new `facet` each render.
+
+      exhaustive-deps cannot evaluate a computed dependency and so reports both
+      as missing. They are not: this list is complete in the only sense that
+      matters, which is that every value the body reads is represented in it.
+    */
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clients, search, stages.join(','), sort, tagFilter.keep])
 
   const toggleSort = (key: SortKey): void =>

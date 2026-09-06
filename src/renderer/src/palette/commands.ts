@@ -40,7 +40,16 @@ export interface Command {
   colour?: string
   /** Everything the fuzzy matcher searches: label plus context. */
   searchText: string
-  run: () => void
+  /**
+   * What pressing Enter does.
+   *
+   * Declared as possibly async because several commands are: logging time,
+   * starting a timer and creating a record all await the main process. This
+   * used to be typed `() => void`, which TypeScript accepts an async function
+   * for, so the promise was real but invisible — and a rejection had nowhere
+   * to go. `runCommand` in Palette.tsx is where that is now handled.
+   */
+  run: () => void | Promise<void>
 }
 
 /**
@@ -433,5 +442,40 @@ export function useCommands({
     }
 
     return commands
-  }, [projects, clients, tasks, invoices, documents, posts, running, navigate, queryClient, close])
+
+    /*
+      `query` belongs here, and its absence was a real bug.
+
+      The "log 2h yesterday" command is built by parsing `query`, so a memo
+      that does not depend on `query` builds it once — from the empty string
+      the palette opens with — and never again. `parseLoggedTime('')` returns
+      nothing, so the command was never pushed and the feature simply did not
+      appear, however carefully somebody typed the sentence. Only an unrelated
+      change to one of the other dependencies could make it show up, which is
+      why it looked intermittent rather than broken.
+
+      `notes`, `quotes` and `expenses` were missing for the same reason: each
+      arrives from its own query, and whether it made it into the list came
+      down to which request happened to resolve last.
+
+      Rebuilding on every keystroke costs what it sounds like it costs, and is
+      the right trade anyway: `Palette.tsx` already runs `fuzzyRank` across the
+      whole list on each keystroke, so the list is being walked either way.
+    */
+  }, [
+    projects,
+    clients,
+    tasks,
+    invoices,
+    documents,
+    notes,
+    quotes,
+    expenses,
+    posts,
+    running,
+    query,
+    navigate,
+    queryClient,
+    close
+  ])
 }
