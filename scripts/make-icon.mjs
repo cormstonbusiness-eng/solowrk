@@ -6,11 +6,12 @@ import { fileURLToPath } from 'node:url'
 /**
  * Draws a fallback app icon.
  *
- * `resources/icon.png` now holds the real WRK artwork, so this is a safety net
- * rather than the source of truth: it exists so the build still produces
- * something deliberate rather than the default Electron atom if that file ever
- * goes missing. It refuses to overwrite an existing icon — run it with
- * `--force` if you actually want the drawn mark back.
+ * `resources/icon.png` holds the real SoloWork mark — the orange W on a dark
+ * squircle — so this is a safety net rather than the source of truth: it exists
+ * so the build still produces something deliberate rather than the default
+ * Electron atom if that file ever goes missing. It refuses to overwrite an
+ * existing icon — run it with `--force` if you actually want the drawn mark
+ * back.
  *
  * Written with zlib and nothing else. A fallback is not worth adding an image
  * dependency to a project that has none.
@@ -18,9 +19,16 @@ import { fileURLToPath } from 'node:url'
 
 const SIZE = 1024
 
-/** Straight from the midnight theme, so the icon matches the app it opens. */
-const GROUND = [0x14, 0x14, 0x18]
-const ACCENT = [0x6e, 0x56, 0xcf]
+/**
+ * Straight from the theme, so the icon matches the app it opens.
+ *
+ * The accent was violet when this was written and is orange now — `#ff7a2f`,
+ * the same `--color-accent` the real icon's W is drawn in. A fallback in last
+ * season's brand colour is worse than no fallback: it would ship an icon
+ * nobody recognises at exactly the moment something has already gone wrong.
+ */
+const GROUND = [0x0a, 0x0a, 0x0c]
+const ACCENT = [0xff, 0x7a, 0x2f]
 
 /** Proportions taken from the titlebar mark: a squircle inside a squircle. */
 const OUTER_RADIUS = SIZE * 0.22
