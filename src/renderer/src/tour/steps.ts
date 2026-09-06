@@ -98,7 +98,7 @@ export const tourSteps: TourStep[] = [
   {
     id: 'palette',
     title: 'Ctrl K finds anything',
-    body: 'One keystroke, from any screen. Search every project, client, task, invoice and document, or type a command — "start timer on Rebrand", "new invoice" — and press Enter. Ctrl Shift I catches a stray idea without leaving what you are doing.',
+    body: 'One keystroke, from any screen. Search every project, client, task, invoice and document, or type a command — "start timer on Rebrand", "new invoice", "log 2h yesterday" — and press Enter. Ctrl Shift I catches a stray idea without leaving what you are doing.',
     route: '/'
   },
   {

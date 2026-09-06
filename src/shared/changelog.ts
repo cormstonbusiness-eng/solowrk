@@ -41,6 +41,65 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.1.16',
+    date: '2026-09-06',
+    headline: 'The guides move to the website, and four things that quietly did not work now do.',
+    changes: [
+      {
+        kind: 'changed',
+        text: 'Guides have moved to the website',
+        detail:
+          'Every guide is now a page at solowrk-website.vercel.app/guides, which means a search engine can find the answer for you and a confusing paragraph can be fixed the same day rather than waiting for an app update. The trade is honest: reading them now needs an internet connection, where the in-app version did not.'
+      },
+      {
+        kind: 'changed',
+        text: 'Settings is reached from your account menu',
+        detail:
+          'It had a row in the sidebar and an entry in the account menu a few pixels above it, both going to the same place. The row has gone. Ctrl K still finds Settings like any other section.'
+      },
+      {
+        kind: 'changed',
+        text: 'A new app icon'
+      },
+      {
+        kind: 'fixed',
+        text: 'Ctrl K now understands "log 2h yesterday"',
+        detail:
+          'Typing a duration and a day was supposed to offer to record the time. The offer was worked out once, when the panel opened and before you had typed anything, and never again — so it never appeared, however exactly you phrased it. It is now worked out as you type, which is what it always claimed to do.'
+      },
+      {
+        kind: 'fixed',
+        text: 'Notes, quotes and expenses could be missing from search',
+        detail:
+          'Whether they appeared in Ctrl K depended on which part of your workspace finished loading last, so the same search could find a note one day and not the next.'
+      },
+      {
+        kind: 'fixed',
+        text: 'Changing your default block length now affects dropped tasks',
+        detail:
+          'Dragging a task onto the calendar with a gap found for it used whatever the default block length was when the app started, so changing it in your calendar settings had no effect until you restarted.'
+      },
+      {
+        kind: 'fixed',
+        text: 'Browse on the first-run screen could do nothing at all',
+        detail:
+          'If the folder picker could not open — an unreadable drive, a permission it did not have — pressing Browse produced no picker, no message and nothing to try again against, on the very first screen of the app. It now tells you what went wrong.'
+      },
+      {
+        kind: 'fixed',
+        text: 'A command that fails now says so',
+        detail:
+          'Commands run from Ctrl K that could not finish closed the panel and said nothing, which looks exactly like having worked. Failures now appear as a notification.'
+      },
+      {
+        kind: 'improved',
+        text: 'The guided tour covers the whole app again',
+        detail:
+          'It was written in August and had not moved since, while the app gained workspaces, a Library, notifications and an assistant. It now walks through all of them. Replay it any time from Settings.'
+      }
+    ]
+  },
+  {
     version: '0.1.15',
     date: '2026-09-03',
     headline: 'A licence server having a bad minute no longer signs you out.',
