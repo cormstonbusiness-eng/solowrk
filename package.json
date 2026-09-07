@@ -1,6 +1,6 @@
 {
   "name": "solowork",
-  "version": "0.1.18",
+  "version": "0.1.19",
   "private": true,
   "description": "Freelance business and project management, entirely on your own PC",
   "main": "./out/main/index.js",
