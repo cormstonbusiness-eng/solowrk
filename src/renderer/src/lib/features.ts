@@ -104,7 +104,7 @@ export function useTier(): Tier | undefined {
 /**
  * What to call the tier on screen.
  *
- * A trial says "Trial" rather than "Pro", because somebody fourteen days in
+ * A trial says "Trial" rather than "Pro", because somebody seven days in
  * needs to know which of those they are on far more than they need the feature
  * list — and being told they are on Pro right up to the moment they are not is
  * how a trial ends in a complaint.

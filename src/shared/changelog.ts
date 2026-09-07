@@ -41,6 +41,25 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.1.18',
+    date: '2026-09-07',
+    headline: 'The free Pro trial is a week rather than a fortnight.',
+    changes: [
+      {
+        kind: 'changed',
+        text: 'The free Pro trial is now seven days',
+        detail:
+          'It was fourteen. If you are already on a trial you keep the fourteen days you were given — this applies to accounts made from now on. What happens at the end has not changed: SoloWork drops to Free, which is a smaller app rather than a locked one, and everything you made during the trial stays exactly where it is.'
+      },
+      {
+        kind: 'changed',
+        text: 'The trial countdown starts on day four',
+        detail:
+          'It used to appear on day ten of fourteen, which on a seven-day trial would have meant it never appeared at all and the trial ended with no warning. Four gives three days of notice, which is enough to still be there on a weekday.'
+      }
+    ]
+  },
+  {
     version: '0.1.17',
     date: '2026-09-06',
     headline: 'The app is called SoloWork now, which is what the website has called it all along.',

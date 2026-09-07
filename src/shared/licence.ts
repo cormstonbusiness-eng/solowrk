@@ -182,11 +182,33 @@ export function tierFor(licence: Licence | null, now: Date = new Date()): Tier {
  * The trial
  * ------------------------------------------------------------------ */
 
-/** 14 days of Pro on install, no card and no account (§1.4). */
-export const TRIAL_DAYS = 14
+/**
+ * 7 days of Pro on install, no card and no account (§1.4).
+ *
+ * Was fourteen. Shortened because a fourteen-day trial means a launch earns
+ * nothing for a fortnight, and the first weeks are when a new product most
+ * needs to know whether anybody will pay for it.
+ *
+ * Not to be confused with the fourteen days above, which is the offline grace
+ * window and is a different promise entirely: one is how long somebody gets Pro
+ * for free, the other is how long a paying customer keeps working when the
+ * licence server cannot be reached.
+ */
+export const TRIAL_DAYS = 7
 
-/** The countdown bar appears from day 10, never before (§5.4). */
-export const TRIAL_COUNTDOWN_FROM_DAY = 10
+/**
+ * The countdown bar appears from day 4, never before (§5.4).
+ *
+ * Rescaled with the trial rather than left alone, and it had to be: the bar
+ * shows while `elapsed >= this && daysLeft > 0`, so a threshold of 10 against a
+ * seven-day trial is a bar that can never appear at all — the trial would end
+ * with no warning ever having been shown.
+ *
+ * Four gives three days of notice out of seven. The old pairing gave four days
+ * out of fourteen, and a straight proportion would have been two — too late to
+ * act on for somebody who only opens the app on weekdays.
+ */
+export const TRIAL_COUNTDOWN_FROM_DAY = 4
 
 export interface Trial {
   active: boolean

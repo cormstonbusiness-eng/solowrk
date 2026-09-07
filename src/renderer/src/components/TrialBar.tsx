@@ -6,14 +6,14 @@ import { useAuthState } from '@/lib/features'
 /**
  * The trial countdown (§5.4).
  *
- * Appears from day 10 of the fourteen, never before. Earlier than that it is a
+ * Appears from day 4 of the seven, never before. Earlier than that it is a
  * nag about something that has not happened yet; later than that and the first
  * a person hears of the deadline is the day it passes.
  *
  * **Never modal, never blocking.** It is a slim strip at the top of the content
  * area and it can be dismissed — but only for the session, so it comes back on
- * the next launch. Somebody who dismisses it on day 10 still gets told on 11,
- * 12 and 13, which is the point.
+ * the next launch. Somebody who dismisses it on day 4 still gets told on 5
+ * and 6, which is the point.
  *
  * The button goes straight to checkout with annual preselected (§1.2), because
  * a trial ending is exactly the moment not to make somebody navigate a pricing

@@ -225,14 +225,17 @@ describe('a tier that changes with no server involved', () => {
     // The trial bar reads `daysLeft`, so a day passing has to reach it.
     const { sent } = watchPushes()
 
-    await updateConfig({ installedAt: new Date(Date.now() - 10 * 864e5).toISOString() })
+    // Days 4 and 5 of seven. These were 10 and 11 of fourteen; both are past
+    // the countdown threshold and inside the trial, which is what the test
+    // needs — a change in `daysLeft` while the bar is actually showing.
+    await updateConfig({ installedAt: new Date(Date.now() - 4 * 864e5).toISOString() })
     await checkLicence()
     sent.length = 0
 
-    await updateConfig({ installedAt: new Date(Date.now() - 11 * 864e5).toISOString() })
+    await updateConfig({ installedAt: new Date(Date.now() - 5 * 864e5).toISOString() })
     await checkLicence()
 
     expect(sent).toHaveLength(1)
-    expect(sent[0]).toMatchObject({ trial: { daysLeft: 3, showCountdown: true } })
+    expect(sent[0]).toMatchObject({ trial: { daysLeft: 2, showCountdown: true } })
   })
 })

@@ -157,19 +157,25 @@ describe('the trial', () => {
     expect(trialStatus(installed, at('2026-08-01T10:00:00Z')).active).toBe(true)
   })
 
-  it('lasts a fortnight and then becomes Free, not a wall', () => {
-    expect(effectiveTier(null, installed, at('2026-08-14T09:00:00Z'))).toBe('pro')
-    expect(effectiveTier(null, installed, at('2026-08-15T09:00:00Z'))).toBe('free')
+  it('lasts a week and then becomes Free, not a wall', () => {
+    // Installed on the 1st, so the 7th is the last day of Pro and the 8th is
+    // the first day of Free. Free is a smaller app, never a locked one.
+    expect(effectiveTier(null, installed, at('2026-08-07T09:00:00Z'))).toBe('pro')
+    expect(effectiveTier(null, installed, at('2026-08-08T09:00:00Z'))).toBe('free')
   })
 
-  it('shows the countdown from day 10 and not before', () => {
+  it('shows the countdown from day 4 and not before', () => {
     // §5.4. Earlier than this and it is a nag rather than a reminder.
-    expect(trialStatus(installed, at('2026-08-10T09:00:00Z')).showCountdown).toBe(false)
-    expect(trialStatus(installed, at('2026-08-11T09:00:00Z')).showCountdown).toBe(true)
+    //
+    // The threshold moved with the trial length, and had to. Left at 10 against
+    // a seven-day trial the bar could never appear at all — the trial is over
+    // before the tenth day arrives — and nothing would have failed to say so.
+    expect(trialStatus(installed, at('2026-08-04T09:00:00Z')).showCountdown).toBe(false)
+    expect(trialStatus(installed, at('2026-08-05T09:00:00Z')).showCountdown).toBe(true)
   })
 
   it('stops showing the countdown once it has run out', () => {
-    expect(trialStatus(installed, at('2026-08-20T09:00:00Z')).showCountdown).toBe(false)
+    expect(trialStatus(installed, at('2026-08-09T09:00:00Z')).showCountdown).toBe(false)
   })
 
   it('does not cost anybody Pro when the anchor is missing', () => {
