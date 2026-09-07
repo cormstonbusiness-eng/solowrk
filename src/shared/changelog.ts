@@ -41,6 +41,25 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.1.20',
+    date: '2026-09-07',
+    headline: 'Search is a bar at the top of the window rather than a shortcut you had to know.',
+    changes: [
+      {
+        kind: 'changed',
+        text: 'The search bar is at the top of the window',
+        detail:
+          'It does everything the Ctrl K panel did — finds every project, client, task, invoice, note and document, and runs commands like "new invoice" or "log 2h yesterday" — except that you can see it. A shortcut you have to be told about is a feature most people never find. Nothing opens over the app now either, so the page you were on stays visible behind the results.'
+      },
+      {
+        kind: 'improved',
+        text: 'Ctrl K puts the cursor in the search bar',
+        detail:
+          'The panel it used to open has gone, but the key still works and now just focuses the bar. Anyone who built the habit keeps it, and there is nothing to dismiss afterwards.'
+      }
+    ]
+  },
+  {
     version: '0.1.19',
     date: '2026-09-07',
     headline: 'Updating is one click and a few seconds, with no setup wizard in the middle.',

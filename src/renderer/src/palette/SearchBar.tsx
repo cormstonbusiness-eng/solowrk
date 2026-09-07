@@ -7,19 +7,20 @@ import { fuzzyRank, highlight } from '@/lib/fuzzy'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { toast } from '@/lib/celebrate'
+import { useWorkspace } from '@/hooks/useWorkspace'
 import { useCommands, type Command } from './commands'
 
 /**
  * Run a command and make sure a failure is seen.
  *
  * Several commands are async — logging time, starting a timer, creating a
- * record — and their failures used to vanish. The palette closes on the way
- * out, so a rejected promise meant the panel disappeared and nothing happened,
- * with no error anywhere: indistinguishable from the command having worked.
+ * record — and their failures used to vanish. The bar closes on the way out, so
+ * a rejected promise meant the results disappeared and nothing happened, with
+ * no error anywhere: indistinguishable from the command having worked.
  *
- * Not awaited by the callers, deliberately. The palette should close the
+ * Not awaited by the callers, deliberately. The results should close the
  * instant Enter is pressed rather than waiting on the main process, so the
- * result is reported through a toast rather than by holding the UI open.
+ * outcome is reported through a toast rather than by holding the list open.
  */
 function runCommand(command: Command): void {
   try {
@@ -38,10 +39,7 @@ function runCommand(command: Command): void {
   } catch (cause) {
     // A command that throws synchronously, before any promise exists.
     toast('That did not work', {
-      // `late` is the kind that renders in the warning colour; there is no
-          // 'warning' kind, and inventing one for this would mean a new colour
-          // and a new icon for a case that is already rare.
-          kind: 'late',
+      kind: 'late',
       body: cause instanceof Error ? cause.message : 'The command could not be completed.'
     })
   }
@@ -52,43 +50,82 @@ const RESTING_LIMIT = 8
 const RESULT_LIMIT = 30
 
 /**
- * Ctrl+K. Searches everything in the workspace and runs verb commands, over
- * one keyboard path: type, arrow, Enter.
+ * The search bar, in the title bar.
  *
- * The data is fetched only while the palette is open and filtered in the
- * renderer. A freelancer's workspace is hundreds of records, not millions, so
- * a search index in the main process would be machinery without a payoff — and
- * filtering here means results respond to keystrokes with no IPC round trip.
+ * Searches everything in the workspace and runs verb commands, over one
+ * keyboard path: type, arrow, Enter. It replaces a Ctrl+K modal that did the
+ * same job — same commands, same ranking, same keys — behind a shortcut that
+ * had to be known about before it could be used. A search bar that is simply
+ * there is discoverable by looking at the window.
+ *
+ * Ctrl+K still works and now focuses this rather than opening anything. Nothing
+ * appears over the app, so there is nothing to dismiss, and the habit survives
+ * for anyone who had it.
+ *
+ * The data is fetched only while the bar has something in it and is filtered in
+ * the renderer. A freelancer's workspace is hundreds of records, not millions,
+ * so a search index in the main process would be machinery without a payoff —
+ * and filtering here means results respond to keystrokes with no IPC round
+ * trip.
  */
-export function Palette(): React.JSX.Element {
+export function SearchBar(): React.JSX.Element | null {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const [open, setOpen] = useState(false)
+  const { status } = useWorkspace()
   const [query, setQuery] = useState('')
+  const [focused, setFocused] = useState(false)
   const [active, setActive] = useState(0)
+  const inputRef = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const boxRef = useRef<HTMLDivElement>(null)
 
+  /*
+    Results show while the bar has focus, not merely while it has text. Typing
+    something, clicking into the app and coming back should show the list again
+    rather than leaving a filled box with nothing under it.
+  */
+  const open = focused
+
+  const close = useCallback(() => {
+    setQuery('')
+    setActive(0)
+    inputRef.current?.blur()
+  }, [])
+
+  /*
+    Ctrl+K focuses rather than opening. `select()` as well as `focus()` so a
+    second press over a stale query replaces it by typing, which is what the
+    same key does in every browser address bar.
+  */
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
         event.preventDefault()
-        setOpen((current) => !current)
+        inputRef.current?.focus()
+        inputRef.current?.select()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Reopening should feel like a fresh start, not resume a stale search.
+  /*
+    A click anywhere else closes the results. Listening on the window rather
+    than using the input's blur, because blur fires before a result's click
+    lands and would close the list out from under the thing being clicked.
+  */
   useEffect(() => {
-    if (open) {
-      setQuery('')
-      setActive(0)
+    if (!open) return
+
+    const onDown = (event: MouseEvent): void => {
+      if (!boxRef.current?.contains(event.target as Node)) setFocused(false)
     }
+
+    window.addEventListener('mousedown', onDown)
+    return () => window.removeEventListener('mousedown', onDown)
   }, [open])
 
   // Stable, so the command list is not rebuilt on every keystroke.
-  const close = useCallback(() => setOpen(false), [])
   const commands = useCommands({ enabled: open, query, navigate, queryClient, close })
 
   const results = useMemo(() => {
@@ -106,7 +143,10 @@ export function Palette(): React.JSX.Element {
   }, [active])
 
   function onKeyDown(event: React.KeyboardEvent): void {
-    if (event.key === 'Escape') return setOpen(false)
+    if (event.key === 'Escape') {
+      close()
+      return
+    }
 
     if (event.key === 'ArrowDown' || (event.key === 'n' && event.ctrlKey)) {
       event.preventDefault()
@@ -123,45 +163,66 @@ export function Palette(): React.JSX.Element {
     }
   }
 
+  /*
+    Nothing to search until a workspace is open.
+
+    The title bar is on screen during first-run setup too, where there are no
+    projects, clients or invoices to find and every command would act on a
+    database that does not exist yet. A search box on that screen is an
+    invitation to a dead end.
+
+    After the hooks above, never before them: React counts hooks per render,
+    and returning early ahead of them would change the count the moment a
+    workspace opened.
+  */
+  if (status?.state !== 'ready') return null
+
   return (
-    <AnimatePresence>
-      {open && (
-        <div className="fixed inset-0 z-50 flex justify-center px-6 pt-[12vh]">
+    // `no-drag` because the title bar is the window's drag region, and an input
+    // inside it would otherwise move the window instead of taking a cursor.
+    <div ref={boxRef} className="no-drag relative w-full max-w-[440px]">
+      <div
+        className={cn(
+          'flex items-center gap-2 rounded-full border px-3 py-1 transition-colors',
+          open ? 'border-line-strong bg-surface' : 'border-line bg-raised hover:border-line-strong'
+        )}
+      >
+        <Search size={13} strokeWidth={1.75} className="shrink-0 text-faint" />
+        <input
+          ref={inputRef}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onFocus={() => setFocused(true)}
+          onKeyDown={onKeyDown}
+          placeholder="Search or run a command"
+          className="h-5 flex-1 bg-transparent text-[12.5px] text-ink placeholder:text-faint focus:outline-none"
+        />
+        {!open && (
+          <kbd className="shrink-0 rounded border border-line px-1 py-px text-[9.5px] text-faint">
+            Ctrl K
+          </kbd>
+        )}
+      </div>
+
+      <AnimatePresence>
+        {open && (
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
             transition={transition.press}
-            onClick={() => setOpen(false)}
-            className="absolute inset-0 bg-[rgba(6,6,8,0.6)]"
-          />
-
-          <motion.div
-            initial={{ opacity: 0, scale: 0.98, y: -6 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98, y: -4 }}
-            transition={transition.modal}
-            className="relative h-fit w-full max-w-[600px] overflow-hidden rounded-panel border border-line-strong bg-surface shadow-2xl"
+            /*
+              Anchored under the input rather than centred on the screen. The
+              title bar does not clip it, so it can hang over the page — which
+              is the point: the app stays visible behind its own search instead
+              of being covered by it.
+            */
+            className="absolute top-[calc(100%+6px)] left-0 z-50 w-[520px] max-w-[92vw] overflow-hidden rounded-panel border border-line-strong bg-surface shadow-2xl"
           >
-            <div className="flex items-center gap-2.5 border-b border-line px-4">
-              <Search size={15} strokeWidth={1.75} className="shrink-0 text-faint" />
-              <input
-                autoFocus
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                onKeyDown={onKeyDown}
-                placeholder="Search projects, clients, invoices — or type a command"
-                className="h-12 flex-1 bg-transparent text-[14px] text-ink placeholder:text-faint focus:outline-none"
-              />
-              <kbd className="shrink-0 rounded border border-line px-1.5 py-0.5 text-[10px] text-faint">
-                Esc
-              </kbd>
-            </div>
-
-            <div ref={listRef} className="max-h-[46vh] overflow-y-auto p-1.5">
+            <div ref={listRef} className="max-h-[52vh] overflow-y-auto p-1.5">
               {results.length === 0 ? (
                 <p className="px-3 py-6 text-center text-[12.5px] text-faint">
-                  Nothing matches “{query}”.
+                  {query === '' ? 'Start typing to search' : `Nothing matches “${query}”.`}
                 </p>
               ) : (
                 results.map(({ item, indices }, index) => (
@@ -182,12 +243,12 @@ export function Palette(): React.JSX.Element {
                 <CornerDownLeft size={10} strokeWidth={2} /> to run
               </span>
               <span>↑↓ to move</span>
-              <span className="ml-auto">Ctrl K</span>
+              <span className="ml-auto">Esc to clear</span>
             </div>
           </motion.div>
-        </div>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
+    </div>
   )
 }
 

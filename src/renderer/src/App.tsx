@@ -12,7 +12,6 @@ import { SignIn } from '@/setup/SignIn'
 import { WorkspaceContext } from '@/hooks/useWorkspace'
 import { ThemeContext, useThemeState } from '@/hooks/useTheme'
 import { TourProvider } from '@/tour/TourProvider'
-import { Palette } from '@/palette/Palette'
 import { Trash } from '@/pages/Trash'
 import { DetailDrawer } from '@/components/detail/DetailDrawer'
 import { UndoProvider } from '@/hooks/useUndo'
@@ -112,10 +111,12 @@ function AnimatedRoutes(): React.JSX.Element {
 
 function Shell(): React.JSX.Element {
   return (
-    <HashRouter>
-      {/* Inside the router: the drawer keeps which record it is showing in the
-          URL, so a notification or the palette can open one, and the back
-          button closes it. */}
+    /*
+      The router is above this now, around the title bar, so that the search bar
+      up there can navigate. Everything here is still inside it — the drawer
+      keeps which record it is showing in the URL, so a notification or a search
+      result can open one and the back button closes it.
+    */
       <DrawerProvider>
         {/* Wraps everything that can delete, which is everything. */}
         <UndoProvider>
@@ -130,8 +131,6 @@ function Shell(): React.JSX.Element {
                 <AnimatedRoutes />
               </main>
             </div>
-            {/* Inside the router too: every command it runs is a navigation. */}
-            <Palette />
             {/* Same reason — a toast is a shortcut to the page it is about. */}
             <Toasts />
             <WhatsNew />
@@ -144,7 +143,6 @@ function Shell(): React.JSX.Element {
           </TourProvider>
         </UndoProvider>
       </DrawerProvider>
-    </HashRouter>
   )
 }
 
@@ -241,6 +239,16 @@ export function App(): React.JSX.Element {
       <QueryClientProvider client={queryClient}>
         <WorkspaceContext.Provider value={workspace}>
           <ThemeContext.Provider value={theme}>
+          {/*
+            The router wraps the title bar, not only the pages.
+
+            The search bar lives up there and every result it runs is a
+            navigation, so it needs router context. This used to sit inside
+            `Shell`, which put it below the title bar and made `useNavigate`
+            throw the moment the search bar moved into the chrome — a blank
+            window, not a warning.
+          */}
+          <HashRouter>
           <div className="flex h-full flex-col bg-ground">
             <TitleBar />
             {auth?.paymentFailed && <PaymentFailedBar />}
@@ -321,6 +329,7 @@ export function App(): React.JSX.Element {
               )}
             </AnimatePresence>
           </div>
+          </HashRouter>
           </ThemeContext.Provider>
         </WorkspaceContext.Provider>
       </QueryClientProvider>

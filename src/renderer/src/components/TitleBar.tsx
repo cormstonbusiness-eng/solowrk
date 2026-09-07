@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ArrowUpCircle, Check, Copy, Minus, RotateCw, Square, X } from 'lucide-react'
 import type { WindowState } from '@shared/ipc'
 import { Timer } from './Timer'
+import { SearchBar } from '@/palette/SearchBar'
 import { themeById, type DecorKind } from '@shared/themes'
 import { useTheme } from '@/hooks/useTheme'
 import { useUpdates } from '@/hooks/useUpdates'
@@ -249,7 +250,9 @@ export function TitleBar(): React.JSX.Element {
   return (
     <header
       className={cn(
-        'drag-region flex h-8 shrink-0 items-center justify-between',
+        // h-11 rather than h-8: the search bar lives here now, and 32px is not
+        // enough to sit an input in without it touching both edges.
+        'drag-region flex h-11 shrink-0 items-center justify-between',
         'border-b border-line bg-ground select-none',
         // Unfocused windows recede, the way native ones do.
         !state.isFocused && 'opacity-60'
@@ -272,10 +275,23 @@ export function TitleBar(): React.JSX.Element {
         <Flourish />
       </div>
 
-      {/* Centred so it reads as a status, not another control. */}
-      <div className="flex flex-1 justify-center">
-        <UpdatePrompt />
-        <Timer />
+      {/*
+        The search bar takes the centre, with the timer and the update prompt
+        beside it.
+
+        Those two used to have the middle to themselves and were centred so they
+        read as status rather than as controls. They keep that job — they are
+        still not buttons in the ordinary sense — but the centre now belongs to
+        the one thing in this bar somebody actively reaches for. `min-w-0` so a
+        running timer with a long project name shortens itself rather than
+        squeezing the search bar.
+      */}
+      <div className="flex min-w-0 flex-1 items-center justify-center gap-2 px-3">
+        <SearchBar />
+        <div className="flex shrink-0 items-center">
+          <UpdatePrompt />
+          <Timer />
+        </div>
       </div>
 
       <div className="flex items-center">

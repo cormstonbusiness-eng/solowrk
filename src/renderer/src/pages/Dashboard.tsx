@@ -14,7 +14,6 @@ import {
   Megaphone,
   Plus,
   ReceiptText,
-  Search,
   ShieldAlert,
   Wallet,
   X
@@ -617,21 +616,18 @@ export function Dashboard(): React.JSX.Element {
         transition={{ ...transition.page, delay: 0.2 }}
         className="mt-4 grid grid-cols-3 gap-4"
       >
-        {/* The one place the palette advertises itself: a shortcut nobody has
-            been told about is a shortcut nobody uses. */}
+        {/*
+          This card existed because a shortcut nobody has been told about is a
+          shortcut nobody uses. The search bar sits in the title bar now, in
+          plain view, so it no longer needs advertising — but it is still worth
+          saying that the box up there does more than find things by name.
+        */}
         <Card>
           <CardHeader title="Jump to anything" />
           <p className="type-body mb-3 leading-relaxed text-muted">
-            Search every project, client, invoice and document, or start a timer, from one
-            keystroke.
+            The search bar at the top finds every project, client, invoice and document — and runs
+            commands. Type “new invoice”, or “log 2h yesterday”.
           </p>
-          <div className="flex items-center gap-2 rounded-control border border-line bg-raised px-3 py-2">
-            <Search size={13} strokeWidth={1.5} className="text-faint" />
-            <span className="flex-1 text-[12px] text-faint">Search or run a command</span>
-            <kbd className="rounded-chip border border-line-strong px-1.5 py-0.5 text-[10px] text-muted">
-              Ctrl K
-            </kbd>
-          </div>
 
           <div className="mt-3 flex flex-wrap gap-1.5">
             <QuickLink icon={CalendarDays} label="Calendar" onClick={() => navigate('/calendar')} />
