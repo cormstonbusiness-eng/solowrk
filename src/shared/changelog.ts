@@ -41,6 +41,31 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.1.19',
+    date: '2026-09-07',
+    headline: 'Updating is one click and a few seconds, with no setup wizard in the middle.',
+    changes: [
+      {
+        kind: 'improved',
+        text: 'Updates install without the setup wizard',
+        detail:
+          'Pressing the update button used to walk you through the same install screens you saw the first time — Next, install location, Finish — for a version you had already agreed to install by pressing the button. Now the window closes, the update goes in, and SoloWork reopens on the new version. It installs where it already is and asks nothing.'
+      },
+      {
+        kind: 'improved',
+        text: 'The update button says when it is working',
+        detail:
+          'The installer\'s own progress was the only sign anything was happening, and it has gone with the wizard. The button now reads "Installing" until the window closes, so a press that is being acted on does not look like a press that was ignored.'
+      },
+      {
+        kind: 'fixed',
+        text: 'This is the last update that shows the wizard',
+        detail:
+          'The part of the app that installs an update belongs to the version you are updating from, so this one still runs the old way. From here on it is silent.'
+      }
+    ]
+  },
+  {
     version: '0.1.18',
     date: '2026-09-07',
     headline: 'The free Pro trial is a week rather than a fortnight.',

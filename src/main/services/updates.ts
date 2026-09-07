@@ -243,9 +243,33 @@ export async function check(): Promise<UpdateState> {
  */
 export function installNow(): void {
   if (state.status !== 'ready') return
-  // isSilent false so the installer's own progress is visible; forceRunAfter
-  // so the app comes back rather than leaving the user at a closed window.
-  autoUpdater.quitAndInstall(false, true)
+
+  /*
+    Silent, and back on its own.
+
+    `isSilent` was false, which meant every update walked the person through the
+    same NSIS wizard they saw when they first installed — Next, install
+    location, Finish — for a version they had already agreed to install by
+    pressing the button. Nobody reads that dialog the second time, and a routine
+    update should not look like a decision.
+
+    True passes `/S` to the installer, which reuses the location already in the
+    registry rather than asking again. `forceRunAfter` brings the app back, so
+    the whole thing is: window closes, a few seconds, window returns on the new
+    version.
+
+    Two conditions make this safe here, and both are set in
+    `electron-builder.yml`. `perMachine: false` means a per-user install with no
+    UAC prompt — a silent install that needs elevation would fail against a
+    prompt nobody can see. And `oneClick: false` only decides what the *first*
+    install looks like; `/S` still applies to an update over the top.
+
+    What is given up is the installer's progress bar, which was the only sign
+    anything was happening. The window is simply gone for those seconds. That is
+    the right trade for something that takes a moment, and it is what every
+    other desktop app does.
+  */
+  autoUpdater.quitAndInstall(true, true)
 }
 
 export function stopUpdates(): void {

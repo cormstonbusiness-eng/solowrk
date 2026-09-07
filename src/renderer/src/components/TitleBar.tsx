@@ -79,6 +79,15 @@ function Flourish(): React.JSX.Element | null {
 function UpdatePrompt(): React.JSX.Element | null {
   const updates = useUpdates()
 
+  /*
+    The install is silent now, so the window simply closes a moment after this
+    is pressed. Without this the last thing somebody sees is a button that
+    appeared to do nothing, and the natural response to that is to press it
+    again. Local state rather than an update status: the main process is on its
+    way to quitting and has better things to do than round-trip a label.
+  */
+  const [installing, setInstalling] = useState(false)
+
   const downloading = updates.status === 'downloading'
   const ready = updates.status === 'ready'
   if (!downloading && !ready) return null
@@ -89,10 +98,18 @@ function UpdatePrompt(): React.JSX.Element | null {
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={transition.press}
-      onClick={ready ? updates.install : undefined}
+      onClick={
+        ready && !installing
+          ? () => {
+              setInstalling(true)
+              updates.install()
+            }
+          : undefined
+      }
       // Not a button yet while it downloads — pressing it could not do
       // anything, and a button that ignores you is worse than a label.
-      disabled={!ready}
+      // Not a button any more once installing, for the same reason.
+      disabled={!ready || installing}
       title={
         ready
           ? `Version ${updates.version} is downloaded — click to restart and update`
@@ -109,9 +126,11 @@ function UpdatePrompt(): React.JSX.Element | null {
       <ArrowUpCircle
         size={11}
         strokeWidth={2}
-        className={cn('shrink-0', downloading && 'animate-pulse')}
+        className={cn('shrink-0', (downloading || installing) && 'animate-pulse')}
       />
-      {ready ? (
+      {installing ? (
+        `Installing ${updates.version}…`
+      ) : ready ? (
         `Update to ${updates.version} — restart`
       ) : (
         <>
