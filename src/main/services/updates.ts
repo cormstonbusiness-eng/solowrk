@@ -29,8 +29,19 @@ const { autoUpdater } = electronUpdater
 /** How often to look, once the first check has happened. */
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000
 
-/** Long enough after launch that startup is not competing with a download. */
-const FIRST_CHECK_DELAY_MS = 20_000
+/**
+ * Long enough after launch that startup is not competing with a download.
+ *
+ * Was twenty seconds, which was more caution than the situation needs. The
+ * check itself is one small request for a manifest — it is the *download* that
+ * costs anything, and that only begins once an update actually exists, by
+ * which time the window has long since drawn.
+ *
+ * Five keeps the workspace opening and the first paint clear of it, and means
+ * somebody who opens the app to a waiting update is told about it while they
+ * are still looking at the window rather than a quarter of a minute later.
+ */
+const FIRST_CHECK_DELAY_MS = 5_000
 
 let state: UpdateState = { status: 'idle', version: '', notes: '', percent: 0, error: '' }
 let timer: NodeJS.Timeout | null = null
@@ -96,16 +107,16 @@ function fileLogger(): { info: (m: unknown) => void; warn: (m: unknown) => void;
  * workspace database, and there is nowhere to put one during first-run setup.
  * The titlebar still shows the button, so nothing is lost.
  */
-function announce(version: string): void {
+function announce(title: string, body: string, dedupeKey: string): void {
   if (!session.isOpen) return
 
   try {
     push(session.requireDb(), getWindow ?? (() => null), {
       kind: 'info',
-      title: `SoloWork ${version} is ready`,
-      body: 'Restart when it suits you and the update applies. Nothing installs on its own.',
+      title,
+      body,
       link: '/settings',
-      dedupeKey: `update-${version}`
+      dedupeKey
     })
   } catch {
     // A notification is a courtesy. Failing to file one must never stop the
@@ -140,14 +151,34 @@ export function startUpdates(windowGetter: () => BrowserWindow | null): void {
 
   autoUpdater.on('checking-for-update', () => publish({ status: 'checking', error: '' }))
 
-  autoUpdater.on('update-available', (info) =>
+  autoUpdater.on('update-available', (info) => {
     publish({
       status: 'downloading',
       version: info.version,
       notes: typeof info.releaseNotes === 'string' ? info.releaseNotes : '',
       percent: 0
     })
-  )
+
+    /*
+      Said when the update is found, not only when it has finished arriving.
+
+      The titlebar has always shown a pill at this moment, but a pill is only
+      seen by somebody already looking at the top of the window. The installer
+      is 190 MB: on a slow connection the gap between finding an update and
+      being able to install it is minutes, and staying silent for those minutes
+      means the only announcement lands long after the app was opened — which
+      is exactly when nobody is watching.
+
+      Its own dedupe key, so this and the "ready" notification below are one
+      each rather than one replacing the other. Two per version is the right
+      number here: this one is news, and that one is a thing to do.
+    */
+    announce(
+      `SoloWork ${info.version} is available`,
+      'It is downloading now. Nothing installs on its own — you will be told when it is ready.',
+      `update-found-${info.version}`
+    )
+  })
 
   autoUpdater.on('update-not-available', () => publish({ status: 'current', percent: 0 }))
 
@@ -157,7 +188,11 @@ export function startUpdates(windowGetter: () => BrowserWindow | null): void {
 
   autoUpdater.on('update-downloaded', (info) => {
     publish({ status: 'ready', version: info.version, percent: 100 })
-    announce(info.version)
+    announce(
+      `SoloWork ${info.version} is ready`,
+      'Restart when it suits you and the update applies. Nothing installs on its own.',
+      `update-${info.version}`
+    )
   })
 
   autoUpdater.on('error', (error: Error) => {

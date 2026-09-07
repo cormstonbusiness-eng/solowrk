@@ -41,6 +41,25 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.1.22',
+    date: '2026-09-07',
+    headline: 'You are told an update exists when you open the app, not once it has finished arriving.',
+    changes: [
+      {
+        kind: 'improved',
+        text: 'A notification when an update is found',
+        detail:
+          'SoloWork has always checked for updates shortly after you open it, but the only announcement came when the download had finished — and the installer is 190 MB, so on a slow connection that could be several minutes after you stopped looking. You now get told as soon as one is found, and again when it is ready to install.'
+      },
+      {
+        kind: 'improved',
+        text: 'The check happens sooner after opening',
+        detail:
+          'It waited twenty seconds. Checking is one small request — it is the download that costs anything, and that only starts once there is something to download — so it now waits five, and a waiting update is mentioned while you are still looking at the window.'
+      }
+    ]
+  },
+  {
     version: '0.1.21',
     date: '2026-09-07',
     headline: 'The dashboard is yours to arrange — add what you want, drag it where you want it.',
