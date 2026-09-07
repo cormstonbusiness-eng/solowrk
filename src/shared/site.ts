@@ -37,7 +37,14 @@ export const SITE_HOST = SITE.replace(/^https?:\/\//, '')
 
 export const ACCOUNT_URL = `${SITE}/account`
 export const PRICING_URL = `${SITE}/pricing`
-export const SUPPORT_EMAIL = 'support@solo-work.online'
+/**
+ * Where people write to.
+ *
+ * On blockoutdigital.com, not the product domain: that is the mailbox someone
+ * actually reads. Mirrors `site.support` in the website repo, which is also
+ * the address every email from the site is sent from.
+ */
+export const SUPPORT_EMAIL = 'support@blockoutdigital.com'
 
 export type BillingPeriod = 'monthly' | 'annual'
 
