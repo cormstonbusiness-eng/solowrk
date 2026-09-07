@@ -41,6 +41,31 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.1.21',
+    date: '2026-09-07',
+    headline: 'The dashboard is yours to arrange — add what you want, drag it where you want it.',
+    changes: [
+      {
+        kind: 'added',
+        text: 'The dashboard is built from modules you choose',
+        detail:
+          'It was a fixed set of panels in a fixed order, which meant everybody got the same screen whether or not it matched how they work. Press the + at the end of the dashboard to add a module, drag the handle in the corner of any card to move it, and use the arrows to switch between compact and detailed. Your arrangement is saved with the workspace, so it travels with your business rather than sitting on one computer.'
+      },
+      {
+        kind: 'added',
+        text: 'Twelve modules, each linked to the thing it reports',
+        detail:
+          'Money, Needs attention, Today, Time, Tasks, Projects, Clients, Overdue invoices, Goals, Recent files, Marketing and the weekly review. Every line in every one of them opens the page that deals with it — an overdue invoice opens Invoices, a project opens that project.'
+      },
+      {
+        kind: 'improved',
+        text: 'A module you remove stops doing any work',
+        detail:
+          'Each one fetches its own figures, so taking one off the dashboard genuinely takes its cost with it rather than only hiding it.'
+      }
+    ]
+  },
+  {
     version: '0.1.20',
     date: '2026-09-07',
     headline: 'Search is a bar at the top of the window rather than a shortcut you had to know.',
