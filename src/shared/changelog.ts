@@ -41,6 +41,49 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.1.23',
+    date: '2026-09-07',
+    headline: 'A dashboard you arrange yourself, and every link in the app pointing somewhere real.',
+    changes: [
+      {
+        kind: 'improved',
+        text: 'Compact modules show everything, just smaller',
+        detail:
+          'A compact card used to show one number and drop the rest, so making your dashboard smaller quietly made it less useful. Both sizes now show the same figures and the same lists — compact simply sets them tighter.'
+      },
+      {
+        kind: 'improved',
+        text: 'Dragging a module now picks it up',
+        detail:
+          'The card follows your cursor from wherever you grabbed it, and the space it will drop into is outlined in orange while the others move around it. It used to reorder underneath you with nothing in your hand, which was correct and felt like the page twitching.'
+      },
+      {
+        kind: 'improved',
+        text: 'Modules look like different things',
+        detail:
+          'Each has its own colour on its icon — money green, lateness red, things needing a look amber — so you find one without reading its title. Money and Overdue carry six periods of history, Time draws your week as seven bars, and Clients and Tasks show their split as a bar rather than only as numbers.'
+      },
+      {
+        kind: 'improved',
+        text: 'The add menu says what each module does',
+        detail:
+          'Every module now describes the figures it shows, the list underneath them and where its rows take you, rather than naming its topic and leaving you to guess.'
+      },
+      {
+        kind: 'fixed',
+        text: 'Account settings and pricing links now go somewhere',
+        detail:
+          'The account menu and two links in Settings pointed at solo-wrk.com, a domain that was intended for months and never registered — so they had never worked. Everything now points at solo-work.online, including the support address, which could not receive mail before either.'
+      },
+      {
+        kind: 'fixed',
+        text: 'Invoices no longer carry a dead web address',
+        detail:
+          'The footer on unbranded PDFs read "Made with SoloWork — solo-wrk.com". That went out on documents to your clients, pointing at a domain that did not exist.'
+      }
+    ]
+  },
+  {
     version: '0.1.22',
     date: '2026-09-07',
     headline: 'You are told an update exists when you open the app, not once it has finished arriving.',

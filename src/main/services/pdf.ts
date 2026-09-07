@@ -10,6 +10,7 @@ import type {
   YearSummaryForPdf
 } from '@shared/types'
 import { resolveInWorkspace } from './workspace'
+import { SITE_HOST } from '@shared/site'
 
 /**
  * The documents SoloWork produces for someone else to read.
@@ -271,7 +272,7 @@ function lineItemBody(doc: LineItemDocument, settings: Settings, branded: boolea
  * and an unfair thing to extract.
  */
 function mark(branded: boolean): string {
-  return branded ? '' : '<div class="mark">Made with SoloWork — solo-wrk.com</div>'
+  return branded ? '' : `<div class="mark">Made with SoloWork — ${SITE_HOST}</div>`
 }
 
 /** The invoices, what is left owing, and how long it has been owing. */

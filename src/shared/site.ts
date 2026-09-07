@@ -11,7 +11,16 @@ import type { Tier } from './entitlements'
  *
  * If the domain ever changes, it changes here.
  */
-export const SITE = 'https://solowrk-website.vercel.app'
+/*
+  The www host, deliberately, and not the bare domain.
+
+  `solo-work.online` answers with a 308 to `www.solo-work.online` — Vercel
+  serves www as the primary. Every licence check and every update check would
+  therefore begin with a redirect, and `auth.ts` clears the stored token for
+  any unexpected non-2xx: anything that ever failed to follow one would read
+  as a revoked licence and sign the customer out.
+*/
+export const SITE = 'https://www.solo-work.online'
 
 /** What the app appends its licence paths to. */
 export const API_BASE = `${SITE}/api`
@@ -28,7 +37,7 @@ export const SITE_HOST = SITE.replace(/^https?:\/\//, '')
 
 export const ACCOUNT_URL = `${SITE}/account`
 export const PRICING_URL = `${SITE}/pricing`
-export const SUPPORT_EMAIL = 'support@solo-wrk.com'
+export const SUPPORT_EMAIL = 'support@solo-work.online'
 
 export type BillingPeriod = 'monthly' | 'annual'
 

@@ -8,6 +8,7 @@ import { useAuthState, useFeature } from '@/lib/features'
 import { useUpdates } from '@/hooks/useUpdates'
 import { footerNav, navGroups, type NavItem } from '@/lib/nav'
 import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher'
+import { ACCOUNT_URL } from '@shared/site'
 import { themeById } from '@shared/themes'
 import { useTheme } from '@/hooks/useTheme'
 import { ConfirmModal } from '@/components/ui/Modal'
@@ -290,8 +291,8 @@ function AccountChip(): React.JSX.Element {
           >
             {auth?.configured && (
               <>
-                <MenuLink href={`${SITE}/account`}>Account settings</MenuLink>
-                <MenuLink href={`${SITE}/account`}>Manage subscription</MenuLink>
+                <MenuLink href={ACCOUNT_URL}>Account settings</MenuLink>
+                <MenuLink href={ACCOUNT_URL}>Manage subscription</MenuLink>
               </>
             )}
             <MenuButton
@@ -364,7 +365,6 @@ function AccountChip(): React.JSX.Element {
   )
 }
 
-const SITE = 'https://solo-wrk.com'
 
 /** Initials on a tinted circle, until there is a logo to put here instead. */
 function Avatar({ name }: { name: string }): React.JSX.Element {

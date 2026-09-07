@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import type { BusinessSettings, Settings as SettingsType } from '@shared/types'
 import { DATASETS } from '@shared/types'
+import { PRICING_URL } from '@shared/site'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { DEFAULT_CHASE_DAYS, describeSchedule, parseChaseDays } from '@shared/chasing'
 import { type ChangeKind, type Release, changelog, releaseFor } from '@shared/changelog'
@@ -449,7 +450,7 @@ function ChasingCard({
               Invoices page — that has never been part of the upgrade.
             </p>
             <a
-              href="https://solo-wrk.com/pricing"
+              href={PRICING_URL}
               target="_blank"
               rel="noreferrer"
               className="mt-2 inline-block text-[12px] text-accent hover:underline"
@@ -769,7 +770,7 @@ function ExportCard(): React.JSX.Element {
             </div>
           ) : (
             <a
-              href="https://solo-wrk.com/pricing"
+              href={PRICING_URL}
               target="_blank"
               rel="noreferrer"
               className="shrink-0 text-[12px] whitespace-nowrap text-accent hover:underline"

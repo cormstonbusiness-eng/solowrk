@@ -33,10 +33,17 @@ import { cn } from '@/lib/utils'
  * React Query de-duplicates, so two modules reading the same figure still make
  * one request.
  *
- * **Two sizes, not a resize handle.** `compact` is one column and answers a
- * single question — a number, or three lines. `detailed` is two columns and
- * shows the working. Free resizing would mean every module coping with any
- * dimension, which is a lot of layout code to make most dashboards look worse.
+ * **Compact is the same information, smaller.** It is not a summary and it is
+ * not a subset. Compact first shipped as one headline number per module, which
+ * meant shrinking a card silently threw away the other figures and the whole
+ * list — so a smaller dashboard was a less informative one, and the only way to
+ * find out what had gone was to make everything detailed again.
+ *
+ * Every module therefore computes its figures and its rows once and hands the
+ * same values to both sizes. `size` reaches `Figures`, `Row` and `List`, which
+ * change the density: one column instead of three, label beside the figure
+ * rather than above it, tighter type and padding. Nothing decides *what* to
+ * show from it.
  *
  * Every module links somewhere. A dashboard that reports a problem it cannot
  * take you to is a dashboard people stop reading.
@@ -46,53 +53,121 @@ export type ModuleSize = 'compact' | 'detailed'
 
 export interface DashboardModule {
   name: string
-  /** One line, shown in the add menu. */
+  /**
+   * What the module actually puts on screen, for the add menu.
+   *
+   * A sentence or two, and specific: the figures it shows, the list underneath
+   * them, and where its rows go when clicked. These were one-liners naming the
+   * topic — "What is still open" — which is a label rather than a description
+   * and leaves somebody choosing between twelve cards they have never seen.
+   */
   description: string
   icon: LucideIcon
+  /**
+   * The module's hue, from the theme's semantic colours.
+   *
+   * Twelve cards in one grid, each a header and a figure and a list, all in the
+   * same greys, is a screen where nothing is findable — you read every title
+   * every time because nothing else tells them apart. A colour on the icon
+   * gives each one a mark the eye learns.
+   *
+   * Semantic tokens rather than a new palette, so the colour means what it
+   * means everywhere else in the app: money is `success`, lateness is `danger`,
+   * things needing a look are `warning`. Only the icon chip and a faint corner
+   * wash are tinted — the design keeps orange under a tenth of any screen, and
+   * twelve saturated cards would be a different app.
+   */
+  accent: Accent
   /** Gated modules are offered but locked, never hidden — see the add menu. */
   feature?: Feature
   Render: (props: { size: ModuleSize }) => React.JSX.Element
 }
 
+export type Accent = 'accent' | 'success' | 'warning' | 'danger' | 'info' | 'neutral'
+
+/** The CSS variable behind each, so a module names a meaning and not a hex. */
+export const ACCENT_VAR: Record<Accent, string> = {
+  accent: 'var(--color-accent)',
+  success: 'var(--color-success)',
+  warning: 'var(--color-warning)',
+  danger: 'var(--color-danger)',
+  info: 'var(--color-info)',
+  neutral: 'var(--color-muted)'
+}
+
 /* ------------------------------------------------------------------ *
- * Shared pieces
+ * Density
  * ------------------------------------------------------------------ */
 
-/** A number with its label, the shape most compact modules take. */
-function Stat({
-  label,
-  value,
-  tone,
-  hint
-}: {
+interface Figure {
   label: string
   value: string
   tone?: 'ink' | 'warning' | 'success'
-  hint?: string
-}): React.JSX.Element {
+}
+
+const TONE: Record<'ink' | 'warning' | 'success', string> = {
+  ink: 'text-ink',
+  warning: 'text-warning',
+  success: 'text-success'
+}
+
+/**
+ * A module's headline numbers, at either density.
+ *
+ * Detailed stacks a label above a large figure, across as many columns as
+ * there are figures. Compact turns each one into a single row — label left,
+ * figure right — which fits three or four numbers into about the height one of
+ * them took, and keeps every one of them.
+ */
+function Figures({ size, items }: { size: ModuleSize; items: Figure[] }): React.JSX.Element {
+  if (size === 'compact') {
+    return (
+      <div className="flex flex-col gap-1">
+        {items.map((item) => (
+          <div key={item.label} className="flex items-baseline justify-between gap-2">
+            <span className="truncate text-[11.5px] text-muted">{item.label}</span>
+            <span
+              className={cn('numeric shrink-0 text-[13px] font-medium', TONE[item.tone ?? 'ink'])}
+            >
+              {item.value}
+            </span>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   return (
-    <div>
-      <p className="mb-1.5 text-[11px] tracking-[0.06em] text-faint uppercase">{label}</p>
-      <p
-        className={cn(
-          'numeric text-[24px] leading-none font-medium',
-          tone === 'warning' ? 'text-warning' : tone === 'success' ? 'text-success' : 'text-ink'
-        )}
-      >
-        {value}
-      </p>
-      {hint && <p className="mt-1.5 text-[11.5px] text-muted">{hint}</p>}
+    <div
+      className="grid gap-4"
+      style={{ gridTemplateColumns: `repeat(${Math.min(items.length, 3)}, minmax(0, 1fr))` }}
+    >
+      {items.map((item) => (
+        <div key={item.label}>
+          <p className="mb-1.5 text-[11px] tracking-[0.06em] text-faint uppercase">{item.label}</p>
+          <p className={cn('numeric text-[24px] leading-none font-medium', TONE[item.tone ?? 'ink'])}>
+            {item.value}
+          </p>
+        </div>
+      ))}
     </div>
   )
 }
 
-/** One line in a module's list, with the thing it opens. */
-function Line({
+/**
+ * One line in a module's list, and the thing it opens.
+ *
+ * Compact keeps the row and its meta — the same items, not fewer — and buys the
+ * space back from type size and padding rather than by dropping anything.
+ */
+function Row({
+  size,
   label,
   meta,
   onClick,
   tone
 }: {
+  size: ModuleSize
   label: string
   meta?: string
   onClick: () => void
@@ -102,24 +177,153 @@ function Line({
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full items-baseline gap-2 rounded-control px-1.5 py-1 text-left transition-colors hover:bg-raised"
+      className={cn(
+        'flex w-full items-baseline gap-2 rounded-control text-left transition-colors hover:bg-raised',
+        size === 'compact' ? 'px-1 py-px' : 'px-1.5 py-1'
+      )}
     >
       <span
         className={cn(
-          'min-w-0 flex-1 truncate text-[12.5px]',
+          'min-w-0 flex-1 truncate',
+          size === 'compact' ? 'text-[11.5px]' : 'text-[12.5px]',
           tone === 'warning' ? 'text-warning' : 'text-ink'
         )}
       >
         {label}
       </span>
-      {meta && <span className="numeric shrink-0 text-[11px] text-faint">{meta}</span>}
+      {meta && (
+        <span
+          className={cn(
+            'numeric shrink-0 text-faint',
+            size === 'compact' ? 'text-[10.5px]' : 'text-[11px]'
+          )}
+        >
+          {meta}
+        </span>
+      )}
     </button>
   )
 }
 
+/** A module's list, spaced for its density. */
+function List({
+  size,
+  children
+}: {
+  size: ModuleSize
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <div className={cn('flex flex-col', size === 'compact' ? 'gap-0' : 'gap-0.5')}>{children}</div>
+  )
+}
+
+/** The thin rule between a module's figures and its list. */
+function Divide({ size }: { size: ModuleSize }): React.JSX.Element {
+  return <div className={cn('border-t border-line', size === 'compact' ? 'my-2' : 'my-3')} />
+}
+
 /** What a module shows when there is genuinely nothing to report. */
-function Quiet({ children }: { children: React.ReactNode }): React.JSX.Element {
-  return <p className="py-2 text-[12px] text-faint">{children}</p>
+function Quiet({
+  size,
+  children
+}: {
+  size: ModuleSize
+  children: React.ReactNode
+}): React.JSX.Element {
+  return (
+    <p className={cn('text-faint', size === 'compact' ? 'py-1 text-[11.5px]' : 'py-2 text-[12px]')}>
+      {children}
+    </p>
+  )
+}
+
+/**
+ * Six periods of history, as bars.
+ *
+ * The point is the shape, not the values — whether the last six months went up
+ * or fell off a cliff, answered without reading a number. So there are no axes,
+ * no labels and no tooltip: anything that invites study belongs on the Finance
+ * page, which is one click away and built for it.
+ *
+ * Heights are a share of the largest bar, with a floor of 2% so an empty period
+ * is still a visible tick rather than a gap that reads as missing data. The
+ * newest period is the brightest, because the eye should land on the right-hand
+ * end where the present is.
+ */
+function Spark({
+  points,
+  colour,
+  size
+}: {
+  points: { label: string; value: number }[]
+  colour: string
+  size: ModuleSize
+}): React.JSX.Element | null {
+  if (points.length === 0) return null
+
+  const peak = Math.max(...points.map((point) => point.value), 1)
+
+  return (
+    <div
+      className={cn('flex items-end gap-[3px]', size === 'compact' ? 'h-6' : 'h-10')}
+      aria-hidden
+    >
+      {points.map((point, index) => (
+        <div
+          key={point.label}
+          title={point.label}
+          className="flex-1 rounded-[2px]"
+          style={{
+            height: `${Math.max(2, (point.value / peak) * 100)}%`,
+            backgroundColor: colour,
+            // Older periods recede. The last bar is the one being asked about.
+            opacity: 0.25 + (index / Math.max(points.length - 1, 1)) * 0.75
+          }}
+        />
+      ))}
+    </div>
+  )
+}
+
+/**
+ * A proportion, as one bar in segments.
+ *
+ * Where `Spark` shows change over time, this shows a split at one moment — how
+ * a pipeline divides, how much of a list is done. Segments below 2% still draw,
+ * for the same reason the bars have a floor: a stage with one client in it
+ * should be visible, not rounded away.
+ */
+function Split({
+  parts,
+  size
+}: {
+  parts: { value: number; colour: string; label: string }[]
+  size: ModuleSize
+}): React.JSX.Element | null {
+  const total = parts.reduce((sum, part) => sum + part.value, 0)
+  if (total === 0) return null
+
+  return (
+    <div
+      className={cn(
+        'flex w-full overflow-hidden rounded-full bg-raised',
+        size === 'compact' ? 'h-1.5' : 'h-2'
+      )}
+      aria-hidden
+    >
+      {parts.map((part) => (
+        <div
+          key={part.label}
+          title={`${part.label}: ${part.value}`}
+          style={{
+            width: `${Math.max(part.value === 0 ? 0 : 2, (part.value / total) * 100)}%`,
+            backgroundColor: part.colour
+          }}
+        />
+      ))}
+    </div>
+  )
 }
 
 /* ------------------------------------------------------------------ *
@@ -133,33 +337,42 @@ function Money({ size }: { size: ModuleSize }): React.JSX.Element {
     queryFn: () => window.solo.invoke('finance:summary', { period: 'month' })
   })
 
-  if (size === 'compact') {
-    return (
-      <Stat
-        label="Paid this month"
-        value={formatMoney(summary?.income ?? 0)}
-        tone="success"
-        hint={`${formatMoney(summary?.outstanding ?? 0)} still owed`}
-      />
-    )
-  }
+  /*
+    Six periods of history behind the headline. Cached hard — it walks every
+    invoice ever raised, and the past does not change minute to minute.
+  */
+  const { data: trends } = useQuery({
+    queryKey: ['dashboard', 'trends'],
+    queryFn: () => window.solo.invoke('dashboard:trends'),
+    staleTime: 5 * 60_000
+  })
 
   return (
-    <div className="grid grid-cols-3 gap-4">
-      <Stat label="Paid this month" value={formatMoney(summary?.income ?? 0)} tone="success" />
-      <Stat label="Awaiting payment" value={formatMoney(summary?.outstanding ?? 0)} />
-      <Stat
-        label="Overdue"
-        value={formatMoney(summary?.overdue ?? 0)}
-        tone={(summary?.overdue ?? 0) > 0 ? 'warning' : 'ink'}
+    <div>
+      <Figures
+        size={size}
+        items={[
+          { label: 'Paid this month', value: formatMoney(summary?.income ?? 0), tone: 'success' },
+          { label: 'Awaiting payment', value: formatMoney(summary?.outstanding ?? 0) },
+          {
+            label: 'Overdue',
+            value: formatMoney(summary?.overdue ?? 0),
+            tone: (summary?.overdue ?? 0) > 0 ? 'warning' : 'ink'
+          }
+        ]}
       />
-      <div className="col-span-3 border-t border-line pt-3">
-        <Line
-          label="Open Finance"
-          meta={`Expenses ${formatMoney(summary?.expenses ?? 0)}`}
-          onClick={() => navigate('/finance')}
-        />
-      </div>
+      {trends?.paid && trends.paid.length > 0 && (
+        <div className="mt-3.5">
+          <Spark points={trends.paid} colour={ACCENT_VAR.success} size={size} />
+        </div>
+      )}
+      <Divide size={size} />
+      <Row
+        size={size}
+        label="Open Finance"
+        meta={`Expenses ${formatMoney(summary?.expenses ?? 0)}`}
+        onClick={() => navigate('/finance')}
+      />
     </div>
   )
 }
@@ -173,32 +386,35 @@ function Overdue({ size }: { size: ModuleSize }): React.JSX.Element {
 
   const total = overdue.reduce((sum, invoice) => sum + invoice.gross, 0)
 
-  if (size === 'compact') {
-    return (
-      <Stat
-        label="Overdue invoices"
-        value={String(overdue.length)}
-        tone={overdue.length > 0 ? 'warning' : 'ink'}
-        hint={overdue.length > 0 ? `${formatMoney(total)} outstanding` : 'Nothing is late'}
-      />
-    )
-  }
+  const { data: trends } = useQuery({
+    queryKey: ['dashboard', 'trends'],
+    queryFn: () => window.solo.invoke('dashboard:trends'),
+    staleTime: 5 * 60_000
+  })
 
   return (
     <div>
-      <Stat
-        label="Overdue"
-        value={formatMoney(total)}
-        tone={total > 0 ? 'warning' : 'ink'}
-        hint={`${overdue.length} invoice${overdue.length === 1 ? '' : 's'}`}
+      <Figures
+        size={size}
+        items={[
+          { label: 'Overdue', value: formatMoney(total), tone: total > 0 ? 'warning' : 'ink' },
+          { label: 'Invoices', value: String(overdue.length) }
+        ]}
       />
-      <div className="mt-3 flex flex-col gap-0.5 border-t border-line pt-2">
+      {trends?.overdue && trends.overdue.length > 0 && (
+        <div className="mt-3.5">
+          <Spark points={trends.overdue} colour={ACCENT_VAR.danger} size={size} />
+        </div>
+      )}
+      <Divide size={size} />
+      <List size={size}>
         {overdue.length === 0 ? (
-          <Quiet>Nothing is late. </Quiet>
+          <Quiet size={size}>Nothing is late.</Quiet>
         ) : (
           overdue.slice(0, 5).map((invoice) => (
-            <Line
+            <Row
               key={invoice.id}
+              size={size}
               tone="warning"
               label={`${invoice.number} · ${invoice.clientName ?? 'No client'}`}
               meta={formatMoney(invoice.gross)}
@@ -206,7 +422,7 @@ function Overdue({ size }: { size: ModuleSize }): React.JSX.Element {
             />
           ))
         )}
-      </div>
+      </List>
     </div>
   )
 }
@@ -227,41 +443,43 @@ function Today({ size }: { size: ModuleSize }): React.JSX.Element {
 
   const open = due.filter((task) => task.status !== 'done')
 
-  if (size === 'compact') {
-    return (
-      <Stat
-        label="Today"
-        value={`${blocks.length + open.length}`}
-        hint={`${blocks.length} booked · ${open.length} due`}
-      />
-    )
-  }
-
   return (
-    <div className="flex flex-col gap-0.5">
-      {blocks.length === 0 && open.length === 0 ? (
-        <Quiet>Your day is clear.</Quiet>
-      ) : (
-        <>
-          {blocks.slice(0, 4).map((block) => (
-            <Line
-              key={`block-${block.id}`}
-              label={block.title}
-              meta={block.startsAt.slice(11, 16)}
-              onClick={() => navigate('/calendar')}
-            />
-          ))}
-          {open.slice(0, 4).map((task) => (
-            <Line
-              key={`task-${task.id}`}
-              label={task.title}
-              meta="due"
-              tone="warning"
-              onClick={() => navigate('/tasks')}
-            />
-          ))}
-        </>
-      )}
+    <div>
+      <Figures
+        size={size}
+        items={[
+          { label: 'Booked', value: String(blocks.length) },
+          { label: 'Due', value: String(open.length), tone: open.length > 0 ? 'warning' : 'ink' }
+        ]}
+      />
+      <Divide size={size} />
+      <List size={size}>
+        {blocks.length === 0 && open.length === 0 ? (
+          <Quiet size={size}>Your day is clear.</Quiet>
+        ) : (
+          <>
+            {blocks.slice(0, 4).map((block) => (
+              <Row
+                key={`block-${block.id}`}
+                size={size}
+                label={block.title}
+                meta={block.startsAt.slice(11, 16)}
+                onClick={() => navigate('/calendar')}
+              />
+            ))}
+            {open.slice(0, 4).map((task) => (
+              <Row
+                key={`task-${task.id}`}
+                size={size}
+                label={task.title}
+                meta="due"
+                tone="warning"
+                onClick={() => navigate('/tasks')}
+              />
+            ))}
+          </>
+        )}
+      </List>
     </div>
   )
 }
@@ -284,27 +502,42 @@ function TimeWeek({ size }: { size: ModuleSize }): React.JSX.Element {
     .filter((entry) => entry.billable && entry.invoiceLineId === null)
     .reduce((sum, entry) => sum + timeValue(entry.duration, entry.rate), 0)
 
-  if (size === 'compact') {
-    return (
-      <Stat
-        label="Tracked this week"
-        value={`${secondsToHours(seconds)}h`}
-        hint={`${formatMoney(unbilled)} unbilled`}
-      />
-    )
-  }
+  /*
+    Monday to Sunday, in hours. Built from the entries already fetched rather
+    than asked for separately, and always seven bars — a day with nothing on it
+    is a gap worth seeing, so it has to be drawn rather than skipped.
+  */
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const date = new Date(`${week.from}T00:00:00`)
+    date.setDate(date.getDate() + index)
+    const key = dayFromDate(date)
+    return {
+      label: date.toLocaleDateString('en-GB', { weekday: 'short' }),
+      value: entries
+        .filter((entry) => entry.startedAt.slice(0, 10) === key)
+        .reduce((sum, entry) => sum + entry.duration, 0)
+    }
+  })
 
   return (
-    <div className="grid grid-cols-2 gap-4">
-      <Stat label="Tracked this week" value={`${secondsToHours(seconds)}h`} />
-      <Stat label="Unbilled value" value={formatMoney(unbilled)} tone="warning" />
-      <div className="col-span-2 border-t border-line pt-2">
-        <Line
-          label="Open Time"
-          meta={`${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}`}
-          onClick={() => navigate('/time')}
-        />
+    <div>
+      <Figures
+        size={size}
+        items={[
+          { label: 'Tracked this week', value: `${secondsToHours(seconds)}h` },
+          { label: 'Unbilled value', value: formatMoney(unbilled), tone: 'warning' }
+        ]}
+      />
+      <div className="mt-3.5">
+        <Spark points={days} colour={ACCENT_VAR.accent} size={size} />
       </div>
+      <Divide size={size} />
+      <Row
+        size={size}
+        label="Open Time"
+        meta={`${entries.length} entr${entries.length === 1 ? 'y' : 'ies'}`}
+        onClick={() => navigate('/time')}
+      />
     </div>
   )
 }
@@ -318,32 +551,36 @@ function Projects({ size }: { size: ModuleSize }): React.JSX.Element {
 
   const active = projects.filter((project) => project.status === 'active')
 
-  if (size === 'compact') {
-    return (
-      <Stat
-        label="Active projects"
-        value={String(active.length)}
-        hint={`${active.reduce((sum, project) => sum + project.openTaskCount, 0)} tasks open`}
-      />
-    )
-  }
-
   return (
-    <div className="flex flex-col gap-0.5">
-      {active.length === 0 ? (
-        <Quiet>No active projects.</Quiet>
-      ) : (
-        active
-          .slice(0, 6)
-          .map((project) => (
-            <Line
-              key={project.id}
-              label={project.name}
-              meta={`${project.openTaskCount} open`}
-              onClick={() => navigate(`/projects/${project.id}`)}
-            />
-          ))
-      )}
+    <div>
+      <Figures
+        size={size}
+        items={[
+          { label: 'Active projects', value: String(active.length) },
+          {
+            label: 'Open tasks',
+            value: String(active.reduce((sum, project) => sum + project.openTaskCount, 0))
+          }
+        ]}
+      />
+      <Divide size={size} />
+      <List size={size}>
+        {active.length === 0 ? (
+          <Quiet size={size}>No active projects.</Quiet>
+        ) : (
+          active
+            .slice(0, 6)
+            .map((project) => (
+              <Row
+                key={project.id}
+                size={size}
+                label={project.name}
+                meta={`${project.openTaskCount} open`}
+                onClick={() => navigate(`/projects/${project.id}`)}
+              />
+            ))
+        )}
+      </List>
     </div>
   )
 }
@@ -361,24 +598,28 @@ function Clients({ size }: { size: ModuleSize }): React.JSX.Element {
     active: clients.filter((client) => client.relationshipStage === 'active').length
   }
 
-  if (size === 'compact') {
-    return (
-      <Stat
-        label="Active clients"
-        value={String(counts.active)}
-        hint={`${counts.lead + counts.prospect} in the pipeline`}
-      />
-    )
-  }
-
   return (
-    <div className="grid grid-cols-3 gap-4">
-      <Stat label="Leads" value={String(counts.lead)} />
-      <Stat label="Prospects" value={String(counts.prospect)} />
-      <Stat label="Active" value={String(counts.active)} tone="success" />
-      <div className="col-span-3 border-t border-line pt-2">
-        <Line label="Open Clients" onClick={() => navigate('/clients')} />
+    <div>
+      <Figures
+        size={size}
+        items={[
+          { label: 'Leads', value: String(counts.lead) },
+          { label: 'Prospects', value: String(counts.prospect) },
+          { label: 'Active', value: String(counts.active), tone: 'success' }
+        ]}
+      />
+      <div className="mt-3.5">
+        <Split
+          size={size}
+          parts={[
+            { label: 'Leads', value: counts.lead, colour: ACCENT_VAR.info },
+            { label: 'Prospects', value: counts.prospect, colour: ACCENT_VAR.warning },
+            { label: 'Active', value: counts.active, colour: ACCENT_VAR.success }
+          ]}
+        />
       </div>
+      <Divide size={size} />
+      <Row size={size} label="Open Clients" onClick={() => navigate('/clients')} />
     </div>
   )
 }
@@ -392,44 +633,57 @@ function Goals({ size }: { size: ModuleSize }): React.JSX.Element {
 
   const met = goals.filter((goal) => goal.target > 0 && goal.current >= goal.target).length
 
-  if (size === 'compact') {
-    return (
-      <Stat
-        label="Goals met"
-        value={`${met}/${goals.length}`}
-        tone={goals.length > 0 && met === goals.length ? 'success' : 'ink'}
-      />
-    )
-  }
-
   return (
-    <div className="flex flex-col gap-2">
-      {goals.length === 0 ? (
-        <Quiet>No goals set.</Quiet>
-      ) : (
-        goals.slice(0, 4).map((goal) => (
-          <button
-            key={goal.id}
-            type="button"
-            onClick={() => navigate('/goals')}
-            className="rounded-control px-1.5 py-1 text-left transition-colors hover:bg-raised"
-          >
-            <div className="mb-1 flex items-baseline justify-between gap-2">
-              <span className="truncate text-[12.5px] text-ink">{goal.name}</span>
-              {/* `share` is basis points — 2000 is 20% — as everywhere else. */}
-              <span className="numeric shrink-0 text-[11px] text-faint">
-                {Math.round(goal.share / 100)}%
-              </span>
-            </div>
-            <div className="h-1 overflow-hidden rounded-full bg-raised">
-              <div
-                style={{ width: `${goal.share / 100}%`, backgroundColor: goal.colour }}
-                className="h-full rounded-full"
-              />
-            </div>
-          </button>
-        ))
-      )}
+    <div>
+      <Figures
+        size={size}
+        items={[
+          {
+            label: 'Goals met',
+            value: `${met}/${goals.length}`,
+            tone: goals.length > 0 && met === goals.length ? 'success' : 'ink'
+          }
+        ]}
+      />
+      <Divide size={size} />
+      <div className={cn('flex flex-col', size === 'compact' ? 'gap-1.5' : 'gap-2')}>
+        {goals.length === 0 ? (
+          <Quiet size={size}>No goals set.</Quiet>
+        ) : (
+          goals.slice(0, 4).map((goal) => (
+            <button
+              key={goal.id}
+              type="button"
+              onClick={() => navigate('/goals')}
+              className={cn(
+                'rounded-control text-left transition-colors hover:bg-raised',
+                size === 'compact' ? 'px-1 py-px' : 'px-1.5 py-1'
+              )}
+            >
+              <div className="mb-1 flex items-baseline justify-between gap-2">
+                <span
+                  className={cn(
+                    'truncate text-ink',
+                    size === 'compact' ? 'text-[11.5px]' : 'text-[12.5px]'
+                  )}
+                >
+                  {goal.name}
+                </span>
+                {/* `share` is basis points — 2000 is 20% — as everywhere else. */}
+                <span className="numeric shrink-0 text-[10.5px] text-faint">
+                  {Math.round(goal.share / 100)}%
+                </span>
+              </div>
+              <div className="h-1 overflow-hidden rounded-full bg-raised">
+                <div
+                  style={{ width: `${goal.share / 100}%`, backgroundColor: goal.colour }}
+                  className="h-full rounded-full"
+                />
+              </div>
+            </button>
+          ))
+        )}
+      </div>
     </div>
   )
 }
@@ -449,43 +703,52 @@ function Attention({ size }: { size: ModuleSize }): React.JSX.Element {
 
   const count = overdue.length + expiring.length
 
-  if (size === 'compact') {
-    return (
-      <Stat
-        label="Needs attention"
-        value={String(count)}
-        tone={count > 0 ? 'warning' : 'success'}
-        hint={count === 0 ? 'Nothing overdue or expiring' : undefined}
-      />
-    )
-  }
-
   return (
-    <div className="flex flex-col gap-0.5">
-      {count === 0 ? (
-        <Quiet>Nothing overdue, nothing expiring.</Quiet>
-      ) : (
-        <>
-          {overdue.slice(0, 3).map((invoice) => (
-            <Line
-              key={`inv-${invoice.id}`}
-              tone="warning"
-              label={`${invoice.number} is overdue`}
-              meta={formatMoney(invoice.gross)}
-              onClick={() => navigate('/invoices')}
-            />
-          ))}
-          {expiring.slice(0, 3).map((document) => (
-            <Line
-              key={`doc-${document.id}`}
-              tone="warning"
-              label={`${document.title} expires`}
-              meta={formatDate(document.expiryAt)}
-              onClick={() => navigate('/documents')}
-            />
-          ))}
-        </>
-      )}
+    <div>
+      <Figures
+        size={size}
+        items={[
+          {
+            label: 'Overdue invoices',
+            value: String(overdue.length),
+            tone: overdue.length > 0 ? 'warning' : 'ink'
+          },
+          {
+            label: 'Expiring documents',
+            value: String(expiring.length),
+            tone: expiring.length > 0 ? 'warning' : 'ink'
+          }
+        ]}
+      />
+      <Divide size={size} />
+      <List size={size}>
+        {count === 0 ? (
+          <Quiet size={size}>Nothing overdue, nothing expiring.</Quiet>
+        ) : (
+          <>
+            {overdue.slice(0, 3).map((invoice) => (
+              <Row
+                key={`inv-${invoice.id}`}
+                size={size}
+                tone="warning"
+                label={`${invoice.number} is overdue`}
+                meta={formatMoney(invoice.gross)}
+                onClick={() => navigate('/invoices')}
+              />
+            ))}
+            {expiring.slice(0, 3).map((document) => (
+              <Row
+                key={`doc-${document.id}`}
+                size={size}
+                tone="warning"
+                label={`${document.title} expires`}
+                meta={formatDate(document.expiryAt)}
+                onClick={() => navigate('/documents')}
+              />
+            ))}
+          </>
+        )}
+      </List>
     </div>
   )
 }
@@ -497,27 +760,24 @@ function RecentFiles({ size }: { size: ModuleSize }): React.JSX.Element {
     queryFn: () => window.solo.invoke('files:recent', { limit: 8 })
   })
 
-  if (size === 'compact') {
-    return <Stat label="Recent files" value={String(files.length)} hint="In your workspace" />
-  }
-
   return (
-    <div className="flex flex-col gap-0.5">
+    <List size={size}>
       {files.length === 0 ? (
-        <Quiet>Nothing recent.</Quiet>
+        <Quiet size={size}>Nothing recent.</Quiet>
       ) : (
         files
           .slice(0, 6)
           .map((file) => (
-            <Line
+            <Row
               key={file.path}
+              size={size}
               label={file.name}
               meta={formatDate(file.modifiedAt)}
               onClick={() => navigate('/files')}
             />
           ))
       )}
-    </div>
+    </List>
   )
 }
 
@@ -530,25 +790,26 @@ function Marketing({ size }: { size: ModuleSize }): React.JSX.Element {
     queryFn: () => window.solo.invoke('marketing:posts', { from: day, to: day })
   })
 
-  if (size === 'compact') {
-    return <Stat label="Posts due today" value={String(due.length)} />
-  }
-
   return (
-    <div className="flex flex-col gap-0.5">
-      {due.length === 0 ? (
-        <Quiet>Nothing scheduled today.</Quiet>
-      ) : (
-        due
-          .slice(0, 6)
-          .map((post) => (
-            <Line
-              key={post.id}
-              label={post.title || 'Untitled post'}
-              onClick={() => navigate('/marketing')}
-            />
-          ))
-      )}
+    <div>
+      <Figures size={size} items={[{ label: 'Posts due today', value: String(due.length) }]} />
+      <Divide size={size} />
+      <List size={size}>
+        {due.length === 0 ? (
+          <Quiet size={size}>Nothing scheduled today.</Quiet>
+        ) : (
+          due
+            .slice(0, 6)
+            .map((post) => (
+              <Row
+                key={post.id}
+                size={size}
+                label={post.title || 'Untitled post'}
+                onClick={() => navigate('/marketing')}
+              />
+            ))
+        )}
+      </List>
     </div>
   )
 }
@@ -562,32 +823,42 @@ function Tasks({ size }: { size: ModuleSize }): React.JSX.Element {
 
   const open = tasks.filter((task) => task.status !== 'done')
 
-  if (size === 'compact') {
-    return (
-      <Stat
-        label="Open tasks"
-        value={String(open.length)}
-        hint={`${tasks.length - open.length} done`}
-      />
-    )
-  }
-
   return (
-    <div className="flex flex-col gap-0.5">
-      {open.length === 0 ? (
-        <Quiet>Nothing outstanding.</Quiet>
-      ) : (
-        open
-          .slice(0, 6)
-          .map((task) => (
-            <Line
-              key={task.id}
-              label={task.title}
-              meta={task.dueAt ? formatDate(task.dueAt) : undefined}
-              onClick={() => navigate('/tasks')}
-            />
-          ))
-      )}
+    <div>
+      <Figures
+        size={size}
+        items={[
+          { label: 'Open tasks', value: String(open.length) },
+          { label: 'Done', value: String(tasks.length - open.length), tone: 'success' }
+        ]}
+      />
+      <div className="mt-3.5">
+        <Split
+          size={size}
+          parts={[
+            { label: 'Done', value: tasks.length - open.length, colour: ACCENT_VAR.success },
+            { label: 'Open', value: open.length, colour: ACCENT_VAR.info }
+          ]}
+        />
+      </div>
+      <Divide size={size} />
+      <List size={size}>
+        {open.length === 0 ? (
+          <Quiet size={size}>Nothing outstanding.</Quiet>
+        ) : (
+          open
+            .slice(0, 6)
+            .map((task) => (
+              <Row
+                key={task.id}
+                size={size}
+                label={task.title}
+                meta={task.dueAt ? formatDate(task.dueAt) : undefined}
+                onClick={() => navigate('/tasks')}
+              />
+            ))
+        )}
+      </List>
     </div>
   )
 }
@@ -631,17 +902,23 @@ function Review({ size }: { size: ModuleSize }): React.JSX.Element {
     }
   })
 
-  if (!review) return <Quiet>Nothing to review yet.</Quiet>
-
-  const focus = size === 'compact' ? review.focus.slice(0, 1) : review.focus
+  if (!review) return <Quiet size={size}>Nothing to review yet.</Quiet>
 
   return (
     <div className="flex flex-col">
-      <ol className="flex flex-col gap-2">
-        {focus.map((one, index) => (
-          <li key={index} className="flex gap-2.5">
-            <span className="numeric mt-px shrink-0 text-[11px] text-faint">{index + 1}</span>
-            <span className="text-[12.5px] leading-relaxed text-muted">{one}</span>
+      {/* All three either way — the three are the point of the review. */}
+      <ol className={cn('flex flex-col', size === 'compact' ? 'gap-1' : 'gap-2')}>
+        {review.focus.map((one, index) => (
+          <li key={index} className="flex gap-2">
+            <span className="numeric mt-px shrink-0 text-[10.5px] text-faint">{index + 1}</span>
+            <span
+              className={cn(
+                'leading-relaxed text-muted',
+                size === 'compact' ? 'text-[11.5px]' : 'text-[12.5px]'
+              )}
+            >
+              {one}
+            </span>
           </li>
         ))}
       </ol>
@@ -650,7 +927,10 @@ function Review({ size }: { size: ModuleSize }): React.JSX.Element {
         type="button"
         onClick={() => file.mutate()}
         disabled={file.isPending}
-        className="mt-3 flex items-center gap-1 self-start text-[11.5px] text-faint transition-colors hover:text-ink"
+        className={cn(
+          'mt-3 flex items-center gap-1 self-start text-faint transition-colors hover:text-ink',
+          size === 'compact' ? 'text-[11px]' : 'text-[11.5px]'
+        )}
       >
         Save the whole review as a note
       </button>
@@ -662,82 +942,102 @@ function Review({ size }: { size: ModuleSize }): React.JSX.Element {
  * The registry
  * ------------------------------------------------------------------ */
 
-/**
- * Keyed by the id stored in the layout, so a rename here is invisible to
- * anybody's saved dashboard and a deletion is handled by `parse` in `layout.ts`.
- */
 export const MODULES = {
   money: {
     name: 'Money',
-    description: 'Paid, owed and overdue this month.',
+    description:
+      'What you have been paid this month, what is still owed and what is overdue, with your expenses. Opens Finance.',
     icon: PoundSterling,
+    accent: 'success',
     Render: Money
   },
   attention: {
     name: 'Needs attention',
-    description: 'Overdue invoices and documents about to expire.',
+    description:
+      'How many invoices are late and how many documents expire within 45 days, then lists both. Each one opens where it is dealt with.',
     icon: TriangleAlert,
+    accent: 'warning',
     Render: Attention
   },
   today: {
     name: 'Today',
-    description: 'What is booked and what is due.',
+    description:
+      'How many hours are booked today and how many tasks are due, then both lists with their times. Opens the calendar or the task.',
     icon: CalendarDays,
+    accent: 'info',
     Render: Today
   },
   time: {
     name: 'Time',
-    description: 'Hours tracked this week and what they are worth.',
+    description:
+      'Hours tracked since Monday and the value of the billable ones not yet on an invoice. Opens Time.',
     icon: Clock,
+    accent: 'accent',
     Render: TimeWeek
   },
   tasks: {
     name: 'Tasks',
-    description: 'What is still open.',
+    description:
+      'How many tasks are open and how many are done, then the open ones with their due dates. Opens Tasks.',
     icon: CircleCheckBig,
+    accent: 'info',
     Render: Tasks
   },
   projects: {
     name: 'Projects',
-    description: 'Active jobs and their open tasks.',
+    description:
+      'How many projects are active and how many tasks they hold between them, then each project. Opens that project.',
     icon: FolderKanban,
+    accent: 'accent',
     Render: Projects
   },
   clients: {
     name: 'Clients',
-    description: 'Your pipeline, by stage.',
+    description:
+      'How many clients are leads, prospects and active — the shape of your pipeline in three numbers. Opens Clients.',
     icon: Users,
+    accent: 'success',
     Render: Clients
   },
   overdue: {
     name: 'Overdue invoices',
-    description: 'What is late, and how much.',
+    description:
+      'The total owed on late invoices and how many there are, then each one with its client and amount. Opens Invoices.',
     icon: ReceiptText,
+    accent: 'danger',
     Render: Overdue
   },
   goals: {
     name: 'Goals',
-    description: 'Progress, measured from your real numbers.',
+    description:
+      'How many goals you have met, then each one with a progress bar. Progress is counted from your records, never typed in. Opens Goals.',
     icon: Target,
+    accent: 'accent',
     Render: Goals
   },
   files: {
     name: 'Recent files',
-    description: 'What changed in your workspace folder.',
+    description:
+      'The files most recently changed in your workspace folder, with the date each was touched. Opens Files.',
     icon: FileText,
+    accent: 'neutral',
     Render: RecentFiles
   },
   review: {
     name: 'Weekly review',
-    description: 'Three things to do this week, computed from your workspace.',
+    description:
+      'Three things worth doing this week, worked out from your own records rather than written by a model. Files the full review as a note.',
     icon: NotebookPen,
+    accent: 'accent',
     feature: 'aireview',
     Render: Review
   },
   marketing: {
     name: 'Marketing',
-    description: 'Posts due today.',
+    description:
+      'How many posts are scheduled for today, and which. Opens Marketing.',
     icon: Megaphone,
+    accent: 'warning',
     feature: 'marketing',
     Render: Marketing
   }
@@ -762,9 +1062,8 @@ export const MODULE_IDS = Object.keys(MODULES) as ModuleId[]
  * What a dashboard looks like before anybody has arranged one.
  *
  * The money first, because it is the question the app exists to answer, and
- * detailed because a single number is not enough to act on. Everything else is
- * compact: a new dashboard should fit on one screen, and somebody who wants
- * more can say so.
+ * detailed because a figure that size is worth the room. Everything else is
+ * compact — which now costs no information, only height.
  */
 export const DEFAULT_LAYOUT: { id: ModuleId; size: ModuleSize }[] = [
   { id: 'money', size: 'detailed' },
