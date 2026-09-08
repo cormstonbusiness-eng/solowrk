@@ -61,6 +61,21 @@ export interface LicenceClaims {
    * this set to false. Features never lapse; only the update feed refuses.
    */
   updates: boolean
+
+  /**
+   * Whether this licence is a trial rather than something paid for.
+   *
+   * A trial and a paid subscription are otherwise identical on the wire — both
+   * `tier: 'pro'` with an `expires_at` — so without this the app showed "Pro"
+   * for seven days and then dropped somebody to Free having never once
+   * mentioned a deadline. `TrialBar` existed the whole time and could not fire,
+   * because the only trial the app knew about was the local one anchored to
+   * installation, which is switched off the moment any licence arrives.
+   *
+   * Optional, so a token issued by a server that predates it reads as false —
+   * which is exactly the behaviour this build had before.
+   */
+  trial?: boolean
 }
 
 /** The only version this app understands. A token from the future is refused. */
@@ -86,6 +101,8 @@ export interface Licence {
   issuedAt: string
   grandfatheredPriceId: string | null
   updates: boolean
+  /** A trial rather than a purchase. Drives the countdown and the label. */
+  trial: boolean
 }
 
 /**
@@ -121,7 +138,8 @@ export function toLicence(claims: LicenceClaims): Licence | null {
     foundingNumber: claims.founding_number,
     issuedAt: claims.issued_at,
     grandfatheredPriceId: claims.grandfathered_price_id,
-    updates: claims.updates
+    updates: claims.updates,
+    trial: claims.trial === true
   }
 }
 
@@ -237,6 +255,35 @@ export function trialStatus(installedAt: string | null, now: Date = new Date()):
     active: daysLeft > 0,
     daysLeft,
     showCountdown: daysLeft > 0 && elapsed >= TRIAL_COUNTDOWN_FROM_DAY
+  }
+}
+
+/**
+ * How a *licensed* trial stands — the seven days the account server grants on
+ * sign-up, as opposed to the local one `trialStatus` measures from install.
+ *
+ * Two trials exist and they are not the same thing. The local one runs before
+ * anybody has an account at all (§1.4 — no sign-up before the trial). This one
+ * belongs to an account, is decided on the server, and ends the instant a
+ * subscription is bought: `onCheckoutCompleted` clears `trialEndsOn` and sets
+ * the status to active, so the next licence issued simply is not a trial any
+ * more and this returns inactive without being told anything special.
+ *
+ * The countdown threshold is expressed in days remaining rather than days
+ * elapsed, because a licence carries an end date and no start date. It works
+ * out to the same three days of notice `TRIAL_COUNTDOWN_FROM_DAY` gives.
+ */
+export function licenceTrial(licence: Licence, now: Date = new Date()): Trial {
+  if (!licence.trial || !licence.expiresAt) {
+    return { active: false, daysLeft: 0, showCountdown: false }
+  }
+
+  const daysLeft = Math.ceil((new Date(licence.expiresAt).getTime() - now.getTime()) / DAY_MS)
+
+  return {
+    active: daysLeft > 0,
+    daysLeft,
+    showCountdown: daysLeft > 0 && daysLeft <= TRIAL_DAYS - TRIAL_COUNTDOWN_FROM_DAY
   }
 }
 

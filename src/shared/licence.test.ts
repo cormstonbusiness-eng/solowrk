@@ -5,6 +5,7 @@ import {
   daysPastExpiry,
   effectiveTier,
   hasExpired,
+  licenceTrial,
   tierFor,
   toLicence,
   trialStatus,
@@ -34,7 +35,8 @@ const SUBSCRIPTION: Licence = {
   foundingNumber: null,
   issuedAt: '2025-08-01T00:00:00Z',
   grandfatheredPriceId: null,
-  updates: true
+  updates: true,
+  trial: false
 }
 
 const LIFETIME: Licence = {
@@ -191,6 +193,79 @@ describe('the trial', () => {
     const free: Licence = { ...SUBSCRIPTION, tier: 'free', expiresAt: null }
 
     expect(effectiveTier(free, installed, at('2026-08-02T09:00:00Z'))).toBe('free')
+  })
+})
+
+describe("the account server's trial", () => {
+  /*
+    The other trial, and the one a paying customer actually meets.
+
+    The block above covers the local one, anchored to installation and running
+    before anybody signs up. This is the seven days granted on sign-up, which
+    arrives inside a licence — and which the app could not see at all until the
+    token started carrying `trial`. The symptom was a customer shown "Pro" for
+    a week and dropped to Free on day eight with no countdown ever displayed.
+  */
+  const trialLicence: Licence = {
+    ...SUBSCRIPTION,
+    trial: true,
+    expiresAt: '2026-08-08T00:00:00Z'
+  }
+
+  it('is active while it runs, and counts down', () => {
+    expect(licenceTrial(trialLicence, at('2026-08-02T09:00:00Z')).active).toBe(true)
+    expect(licenceTrial(trialLicence, at('2026-08-02T09:00:00Z')).daysLeft).toBe(6)
+  })
+
+  it('shows the countdown for the last three days, matching the local trial', () => {
+    expect(licenceTrial(trialLicence, at('2026-08-04T09:00:00Z')).showCountdown).toBe(false)
+    expect(licenceTrial(trialLicence, at('2026-08-05T09:00:00Z')).showCountdown).toBe(true)
+  })
+
+  it('is over once the date passes', () => {
+    const done = licenceTrial(trialLicence, at('2026-08-09T09:00:00Z'))
+    expect(done.active).toBe(false)
+    expect(done.showCountdown).toBe(false)
+  })
+
+  it('is not a trial once somebody has paid', () => {
+    /*
+      Buying mid-trial, which is the case this whole thing exists for.
+
+      `onCheckoutCompleted` on the server sets the status to active and clears
+      `trialEndsOn` in the same write that grants the tier, so the very next
+      licence issued is an ordinary paid one. Nothing here has to detect the
+      purchase or unwind anything: the countdown stops because the licence
+      being counted is gone.
+    */
+    const paid: Licence = { ...trialLicence, trial: false }
+
+    expect(licenceTrial(paid, at('2026-08-02T09:00:00Z')).active).toBe(false)
+    expect(licenceTrial(paid, at('2026-08-02T09:00:00Z')).showCountdown).toBe(false)
+    expect(effectiveTier(paid, null, at('2026-08-02T09:00:00Z'))).toBe('pro')
+  })
+
+  it('reads as not-a-trial from a server that predates the claim', () => {
+    // The claim is optional on the wire, so an older token must not read as a
+    // trial and start counting down somebody's paid subscription.
+    const older: LicenceClaims = {
+      v: 1,
+      account_id: 'acc_1',
+      licence_id: 'lic_1',
+      licence_type: 'subscription',
+      tier: 'pro',
+      billing_period: 'annual',
+      expires_at: '2027-01-01T00:00:00Z',
+      device_limit: 2,
+      device_fingerprint: 'sha256:abc',
+      referral_code: null,
+      founding_number: null,
+      issued_at: '2026-08-28T10:14:00Z',
+      grandfathered_price_id: null,
+      updates: true
+    }
+
+    expect(toLicence(older)?.trial).toBe(false)
   })
 })
 

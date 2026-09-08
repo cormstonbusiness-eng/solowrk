@@ -41,6 +41,37 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.1.24',
+    date: '2026-09-08',
+    headline: 'Your plan is the one the app actually gives you, and a trial says so before it ends.',
+    changes: [
+      {
+        kind: 'fixed',
+        text: 'The app could show Pro while behaving as Free',
+        detail:
+          'Your plan name and your actual permissions came from two different places, and nothing checked they agreed. If a licence failed to arrive, the corner of the window said Pro while Marketing stayed locked and you were held to three clients — with nothing anywhere explaining why. Both now come from the same answer, so what it says is what you get.'
+      },
+      {
+        kind: 'added',
+        text: 'A trial now counts down',
+        detail:
+          'The seven days you get on signing up are shown from day four, in a strip you can dismiss, with a note that nothing you have made will be locked or deleted when it ends. Before this the app said Pro right up to the day it stopped saying Pro.'
+      },
+      {
+        kind: 'improved',
+        text: 'Buying part-way through a trial takes effect at once',
+        detail:
+          'Pay on the website and click back to the app: the countdown goes, the plan changes, and everything it unlocks is open. No restart, no waiting for a check, no signing out and back in.'
+      },
+      {
+        kind: 'fixed',
+        text: 'A licence the app cannot read now says why',
+        detail:
+          'It used to drop silently to Free, which looks identical whether the licence never arrived, was signed with the wrong key, or came from a newer version. The reason is written to the log, so a support email can be answered with a fact.'
+      }
+    ]
+  },
+  {
     version: '0.1.23',
     date: '2026-09-07',
     headline: 'A dashboard you arrange yourself, and every link in the app pointing somewhere real.',

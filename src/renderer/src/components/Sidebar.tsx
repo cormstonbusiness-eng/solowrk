@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Bell, ChevronUp, Lock, Sparkles } from 'lucide-react'
 import { EASE, transition } from '@/lib/motion'
-import { useAuthState, useFeature } from '@/lib/features'
+import { useAuthState, useFeature, useTierLabel } from '@/lib/features'
 import { useUpdates } from '@/hooks/useUpdates'
 import { footerNav, navGroups, type NavItem } from '@/lib/nav'
 import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher'
@@ -216,6 +216,7 @@ function AccountChip(): React.JSX.Element {
 
   const auth = useAuthState()
   const updates = useUpdates()
+  const tierLabel = useTierLabel()
 
   const signOut = useMutation({
     mutationFn: () => window.solo.invoke('auth:signOut'),
@@ -247,7 +248,31 @@ function AccountChip(): React.JSX.Element {
   }, [open])
 
   const name = auth?.account?.name?.trim() || auth?.account?.email?.split('@')[0] || 'Your account'
-  const tier = auth?.configured ? (auth.account?.plan ?? 'Not signed in') : 'Unlicensed'
+  /*
+    What this machine may actually do, not what the server said the account is.
+
+    These are two different facts and they can disagree. `account.plan` is a
+    string the account server sent and we stored; the tier is derived from the
+    signed licence token, and the licence token is what every gate in the app
+    consults. If a sign-in comes back with an account but no licence — the
+    server unable to sign one, or a token that fails verification — then
+    `account.plan` says Pro while `entitlement()` finds no licence and falls
+    back to Free.
+
+    This line used to print the first of those. So the sidebar read "Pro" while
+    Marketing sat behind a padlock and the caps were three clients, and the one
+    place claiming everything was fine was the only place not consulting the
+    thing that decides. Showing the effective tier means the sidebar and the
+    locks can no longer contradict each other: if it says Free, that is why the
+    feature is shut.
+
+    `useTierLabel` also says "Trial" rather than "Pro" while a trial is running,
+    which is the distinction somebody seven days in most needs to see.
+  */
+  const tier =
+    !auth?.configured ? 'Unlicensed'
+    : auth.account ? tierLabel
+    : 'Not signed in'
 
   return (
     <div className="relative" onPointerDown={(event) => event.stopPropagation()}>

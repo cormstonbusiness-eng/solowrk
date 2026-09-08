@@ -9,7 +9,7 @@ import {
   type Limit,
   type Tier
 } from '@shared/entitlements'
-import { effectiveTier, trialStatus, type Licence, type Trial } from '@shared/licence'
+import { effectiveTier, licenceTrial, trialStatus, type Licence, type Trial } from '@shared/licence'
 import { LimitReachedError } from '@shared/limitError'
 import { today } from '@shared/taxYear'
 import { readConfig, updateConfig } from './config'
@@ -68,6 +68,12 @@ async function installedAt(db: Database | null): Promise<string> {
 }
 
 /**
+ * The last rejection reported, so a bad licence says its piece once rather
+ * than on every IPC call. `entitlement()` runs constantly.
+ */
+let lastRejection: string | null = null
+
+/**
  * Everything about what this machine may do right now.
  *
  * Reads the config on every call. That is deliberate and cheap — the same
@@ -77,13 +83,48 @@ async function installedAt(db: Database | null): Promise<string> {
  */
 export async function entitlement(db: Database | null = null): Promise<Entitlement> {
   const config = await readConfig()
-  const { licence } = verifyLicence(config.licenceToken)
+  const { licence, reason } = verifyLicence(config.licenceToken)
   const anchor = await installedAt(db)
+
+  /*
+    Say why, once, when a licence we hold will not verify.
+
+    `verifyLicence` has always worked out the reason — 'bad signature', 'no
+    token', 'version 2' — and this line has always thrown it away. So the one
+    component that knows exactly what is wrong told nobody, and the symptom
+    reaching the user was a silent drop to Free with no way to tell a missing
+    token from a mismatched key from an outdated build.
+
+    Only when a token is present and bad. Having no token at all is the
+    ordinary state of a Free user and is not worth a line.
+  */
+  if (!licence && config.licenceToken) {
+    if (reason !== lastRejection) {
+      lastRejection = reason
+      console.warn(`[licence] holding a token that will not verify: ${reason}`)
+    }
+  } else if (licence) {
+    lastRejection = null
+  }
 
   return {
     tier: effectiveTier(licence, anchor),
     licence,
-    trial: licence ? { active: false, daysLeft: 0, showCountdown: false } : trialStatus(anchor),
+    /*
+      A licence's own trial when it has one, the local install trial otherwise.
+
+      This used to be a flat `active: false` for anything with a licence, on
+      the reasoning that holding a licence means the install trial is over.
+      True, and it threw away the other trial: the seven days the account
+      server grants on sign-up. So a new customer saw "Pro", got no countdown,
+      and dropped to Free on day eight having never been told a date.
+
+      Buying mid-trial needs nothing here. The server stops issuing a trial
+      licence the moment the subscription starts, so the next check returns
+      one with `trial: false` and a real expiry, the countdown goes, and the
+      tier is whatever was paid for.
+    */
+    trial: licence ? licenceTrial(licence) : trialStatus(anchor),
     // No licence at all still gets updates: a trial user and a Free user are
     // both people the product wants on the newest build. Only a lapsed
     // subscription turns this off, and only the server can say so.
