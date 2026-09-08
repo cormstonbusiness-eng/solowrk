@@ -314,7 +314,7 @@ import { rangeFor } from '@shared/taxYear'
 import { updateSettings } from '../services/settings'
 import { getState, setState } from '../services/appState'
 import { check, installNow, updateState } from '../services/updates'
-import { authState, signIn, signOut, signUp, verify } from '../services/auth'
+import { authState, resendVerification, signIn, signOut, signUp, verify } from '../services/auth'
 import {
   can,
   currentTier,
@@ -1156,6 +1156,26 @@ const handlers: Handlers = {
     const state = await verify()
     getWindow()?.webContents.send('auth:changed', state)
     return state
+  },
+
+  /**
+   * Send the confirmation link again, then re-check.
+   *
+   * The re-check is the point of doing it here rather than in the renderer.
+   * If the address turns out to be verified already — clicked on a phone while
+   * the app sat open — the server says so, and a fresh `verify()` writes that
+   * into the state and pushes it to the window, so the panel offering to send
+   * the email disappears on the spot instead of at the next launch.
+   */
+  'auth:resendVerification': async (getWindow) => {
+    const result = await resendVerification()
+
+    if (result.ok) {
+      const state = await verify()
+      getWindow()?.webContents.send('auth:changed', state)
+    }
+
+    return result
   },
 
   'entitlements:meters': async () =>

@@ -841,6 +841,15 @@ export interface AuthAccount {
   features: string[]
   /** yyyy-mm-dd, or empty for a licence that does not expire. */
   expiresOn: string
+  /**
+   * Whether the address has been confirmed by clicking the emailed link.
+   *
+   * Optional so a build meeting an older account server reads as unset rather
+   * than as unverified — telling somebody their confirmed address is not
+   * confirmed, and offering to send a link they do not need, is worse than
+   * saying nothing. `undefined` means "the server did not say".
+   */
+  emailVerified?: boolean
 }
 
 export interface AuthState {

@@ -41,6 +41,31 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.1.25',
+    date: '2026-09-08',
+    headline: 'The app tells you whether your email address is confirmed, and can send the link again.',
+    changes: [
+      {
+        kind: 'added',
+        text: 'Email verification, where you can see it',
+        detail:
+          'Settings → Account now says whether your address is confirmed. Nothing is locked either way and the app works the same — but it is where we write about your licence, so an address that never got confirmed is one a renewal notice or a password reset would go missing from.'
+      },
+      {
+        kind: 'added',
+        text: 'Send the verification email again',
+        detail:
+          'A button, next to the status. The first one goes out when you sign up and lands in spam often enough to be worth a second try. It goes to the address on your account and nowhere else.'
+      },
+      {
+        kind: 'added',
+        text: 'The app notices when you confirm it',
+        detail:
+          'Click the link in your browser and switch back: the app picks it up on its next check and says "Account now verified". You no longer have to wonder whether it worked.'
+      }
+    ]
+  },
+  {
     version: '0.1.24',
     date: '2026-09-08',
     headline: 'Your plan is the one the app actually gives you, and a trial says so before it ends.',

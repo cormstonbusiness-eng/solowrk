@@ -1026,6 +1026,8 @@ function AccountCard(): React.JSX.Element {
               </Button>
             </div>
 
+            <EmailVerification />
+
             {auth.offline && (
               <p className="mt-2.5 text-[11.5px] text-warning">
                 Could not reach the account server at the last check. SoloWork keeps working —
@@ -1042,6 +1044,70 @@ function AccountCard(): React.JSX.Element {
 
       <UsageCard />
     </>
+  )
+}
+
+/**
+ * Whether the account server can actually reach this person.
+ *
+ * Shown in both states. A line that appears only when something is wrong is a
+ * line nobody recognises when it does appear, and "Email verified" beside your
+ * name is what stops somebody wondering whether the silence about their
+ * licence means an email went astray.
+ *
+ * Silent when the server never said. `emailVerified` is undefined against an
+ * account server too old to send it, and telling somebody their confirmed
+ * address is unconfirmed — then offering to send a link they do not need — is
+ * worse than saying nothing at all.
+ */
+function EmailVerification(): React.JSX.Element {
+  const auth = useAuthState()
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
+
+  const resend = useMutation({
+    mutationFn: () => window.solo.invoke('auth:resendVerification'),
+    onSuccess: (answer) => setResult(answer)
+  })
+
+  const verified = auth?.account?.emailVerified
+  if (verified === undefined) return <></>
+
+  if (verified) {
+    return (
+      <p className="mt-2.5 flex items-center gap-1.5 text-[11.5px] text-muted">
+        <span className="h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
+        Email verified
+      </p>
+    )
+  }
+
+  return (
+    <div className="mt-2.5 rounded-control border border-warning/25 bg-warning/8 px-3 py-2.5">
+      <p className="text-[11.5px] leading-relaxed text-ink">
+        Email not verified.{' '}
+        <span className="text-muted">
+          Nothing is locked and the app works either way — but it is where we write about
+          your licence, so it is worth doing. Check your spam folder first.
+        </span>
+      </p>
+
+      <div className="mt-2 flex items-center gap-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => resend.mutate()}
+          disabled={resend.isPending}
+        >
+          {resend.isPending ? 'Sending…' : 'Send verification email again'}
+        </Button>
+
+        {result && (
+          <span className={`text-[11px] ${result.ok ? 'text-muted' : 'text-warning'}`}>
+            {result.message}
+          </span>
+        )}
+      </div>
+    </div>
   )
 }
 

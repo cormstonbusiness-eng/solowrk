@@ -199,6 +199,60 @@ describe('signing in', () => {
   })
 })
 
+describe('whether the address is verified', () => {
+  /*
+    Three states, and the third is the one worth testing.
+
+    The server sends true or false. It can also send nothing at all — an
+    account server older than the field — and that must not read as false.
+    Telling somebody who verified months ago that their address is
+    unconfirmed, and offering to send a link they do not need, is a worse
+    failure than saying nothing, because it looks like the account is broken.
+  */
+  it('remembers a verified address', async () => {
+    useServer()
+    respondWith({
+      ...licence,
+      account: { ...licence.account, emailVerified: true }
+    })
+
+    const state = await signIn('alex@example.com', 'hunter2')
+    expect(state.account?.emailVerified).toBe(true)
+  })
+
+  it('remembers an unverified one', async () => {
+    useServer()
+    respondWith({
+      ...licence,
+      account: { ...licence.account, emailVerified: false }
+    })
+
+    const state = await signIn('alex@example.com', 'hunter2')
+    expect(state.account?.emailVerified).toBe(false)
+  })
+
+  it('says nothing when the server did not', async () => {
+    // The fixture has no `emailVerified`, which is exactly an older server.
+    useServer()
+    respondWith(licence)
+
+    const state = await signIn('alex@example.com', 'hunter2')
+    expect(state.account?.emailVerified).toBeUndefined()
+  })
+
+  it('forgets it on sign-out, like everything else about the account', async () => {
+    useServer()
+    respondWith({
+      ...licence,
+      account: { ...licence.account, emailVerified: true }
+    })
+    await signIn('alex@example.com', 'hunter2')
+
+    const state = await signOut()
+    expect(state.account?.emailVerified).toBeUndefined()
+  })
+})
+
 describe('the offline grace window', () => {
   beforeEach(async () => {
     useServer()

@@ -195,6 +195,14 @@ function accountFrom(config: Awaited<ReturnType<typeof readConfig>>): AuthAccoun
     email: config.accountEmail,
     name: config.accountName ?? '',
     plan: config.accountPlan ?? '',
+    /*
+      Three states, not two. '1' and '0' are the server's answer; null means it
+      never gave one, which is what an older account server looks like — and
+      `undefined` there keeps the app quiet rather than accusing somebody's
+      confirmed address of being unconfirmed.
+    */
+    emailVerified:
+      config.accountEmailVerified === null ? undefined : config.accountEmailVerified === '1',
     features: (config.accountFeatures ?? '')
       .split(',')
       .map((name) => name.trim())
@@ -211,6 +219,10 @@ async function store(result: SignInResult): Promise<void> {
     accountPlan: result.account.plan,
     accountFeatures: (result.account.features ?? []).join(','),
     accountExpiresOn: result.account.expiresOn,
+    accountEmailVerified:
+      result.account.emailVerified === undefined ? null
+      : result.account.emailVerified ? '1'
+      : '0',
     // Only overwritten when the server sent one. A response without a licence
     // must not silently revoke the one already held — that is how a server
     // hiccup would downgrade a paying customer.
@@ -306,6 +318,7 @@ export async function signOut(): Promise<AuthState> {
     accountPlan: null,
     accountFeatures: null,
     accountExpiresOn: null,
+    accountEmailVerified: null,
     lapsedReason: null,
     verifiedAt: null,
     // The licence goes too. It is what actually grants anything now, so
@@ -319,6 +332,58 @@ export async function signOut(): Promise<AuthState> {
   })
 
   return authState()
+}
+
+/**
+ * Ask for the confirmation email again.
+ *
+ * Deliberately not routed through `call()`. That helper exists for the licence
+ * endpoints and enforces their contract: a 401 throws "that email and password
+ * do not match", a 403 ends the session, a 5xx is swallowed as offline. All of
+ * that is right for a licence check and wrong here — this is a button, and its
+ * failures are the button not working, not the customer being signed out.
+ *
+ * The address is never sent. The server reads it from the session behind the
+ * bearer token, so this cannot be used to send mail to anybody else.
+ */
+export async function resendVerification(): Promise<{ ok: boolean; message: string }> {
+  const config = await readConfig()
+  if (!config.authToken || config.apiBaseUrl.trim() === '') {
+    return { ok: false, message: 'Sign in first.' }
+  }
+
+  try {
+    const response = await fetch(
+      `${config.apiBaseUrl.replace(/\/$/, '')}/account/resend-verification`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${config.authToken}`
+        },
+        body: JSON.stringify({})
+      }
+    )
+
+    const detail = (await response.json().catch(() => null)) as {
+      message?: string
+      verified?: boolean
+    } | null
+
+    /*
+      Already verified is a success with a side effect: the local copy is stale,
+      so write the truth down rather than leaving the app offering a button for
+      something already done.
+    */
+    if (detail?.verified) await updateConfig({ accountEmailVerified: '1' })
+
+    return {
+      ok: response.ok,
+      message: detail?.message ?? (response.ok ? 'Sent.' : 'That did not send.')
+    }
+  } catch {
+    return { ok: false, message: 'Could not reach the account server.' }
+  }
 }
 
 /**

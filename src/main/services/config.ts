@@ -49,6 +49,8 @@ export interface AppConfig {
   /** What the plan unlocks, comma-separated. Null until a server says. */
   accountFeatures: string | null
   accountExpiresOn: string | null
+  /** '1', '0', or null when the server has not said. */
+  accountEmailVerified: string | null
   /**
    * Set when the server says the licence has lapsed, in its own words. Its
    * presence is what puts the app into read-only; clearing it restores writing.
@@ -137,6 +139,7 @@ const DEFAULT_CONFIG: AppConfig = {
   accountPlan: null,
   accountFeatures: null,
   accountExpiresOn: null,
+  accountEmailVerified: null,
   lapsedReason: null,
   verifiedAt: null,
   deviceId: null,
@@ -264,6 +267,7 @@ function parseConfig(raw: string): AppConfig {
     accountPlan: text(parsed.accountPlan),
     accountFeatures: text(parsed.accountFeatures),
     accountExpiresOn: text(parsed.accountExpiresOn),
+    accountEmailVerified: text(parsed.accountEmailVerified),
     lapsedReason: text(parsed.lapsedReason),
     verifiedAt: text(parsed.verifiedAt),
     deviceId: text(parsed.deviceId),

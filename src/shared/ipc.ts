@@ -194,6 +194,7 @@ export interface IpcContract {
   'auth:signOut': { req: void; res: AuthState }
   /** Re-confirms the licence. Being offline is not a failure. */
   'auth:verify': { req: void; res: AuthState }
+  'auth:resendVerification': { req: void; res: { ok: boolean; message: string } }
   /** Points the app at an account server. Empty turns licensing off. */
 
   /**
@@ -1219,6 +1220,7 @@ export const IPC_CHANNELS = [
   'auth:signUp',
   'auth:signOut',
   'auth:verify',
+  'auth:resendVerification',
   'entitlements:meters',
   'entitlements:exceeded',
   'updates:get',

@@ -24,6 +24,7 @@ import { raiseLimit } from '@/lib/limits'
 import { LimitModal } from '@/components/LimitModal'
 import { QuickCapture } from '@/components/QuickCapture'
 import { TrialBar } from '@/components/TrialBar'
+import { VerifiedWatcher } from '@/components/VerifiedWatcher'
 import {
   ArchivedProjects,
   ArchivedTasks,
@@ -253,6 +254,7 @@ export function App(): React.JSX.Element {
             <TitleBar />
             {auth?.paymentFailed && <PaymentFailedBar />}
             <TrialBar />
+            <VerifiedWatcher />
 
             {/*
               No `mode="wait"` here, and no exits.
