@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/Button'
 import { Markdown } from '@/components/ui/Markdown'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
+import { messageFrom } from '@shared/ipcError'
 
 /**
  * The plan, one honest question at a time.
@@ -109,7 +110,7 @@ export function Interview({
       onDone(result.status, result.applied)
     },
     onError: (cause) =>
-      setError(cause instanceof Error ? cause.message : 'The plan could not be written')
+      setError(messageFrom(cause, 'The plan could not be written'))
   })
 
   const total = INTERVIEW_SECTIONS.length

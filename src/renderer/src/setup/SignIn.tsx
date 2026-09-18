@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
 import { Wordmark } from '@/components/Wordmark'
 import { transition } from '@/lib/motion'
+import { messageFrom } from '@shared/ipcError'
 
 /**
  * Signing in to the account a licence belongs to.
@@ -57,7 +58,7 @@ export function SignIn({
 
       onSignedIn(next)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'That did not work.')
+      setError(messageFrom(cause, 'That did not work.'))
       // Never the email — retyping an address you got right is a small insult.
       setPassword('')
     } finally {

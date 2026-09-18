@@ -26,6 +26,7 @@ import { listItemVariants, listVariants, transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { BulkRename } from './files/BulkRename'
 import { Health } from './files/Health'
+import { messageFrom } from '@shared/ipcError'
 
 /**
  * Files: a browser for the workspace folder, not a store of its own.
@@ -106,7 +107,7 @@ export function Files(): React.JSX.Element {
   const runAndRefresh = <T,>(promise: Promise<T>): Promise<void> =>
     promise.then(
       () => void refetch(),
-      (cause: unknown) => setError(cause instanceof Error ? cause.message : 'That did not work')
+      (cause: unknown) => setError(messageFrom(cause, 'That did not work'))
     )
 
   const importFiles = useMutation({
@@ -114,7 +115,7 @@ export function Files(): React.JSX.Element {
       window.solo.invoke('files:import', { destination: path, sources }),
     onSuccess: () => void refetch(),
     onError: (cause) =>
-      setError(cause instanceof Error ? cause.message : 'Those files could not be imported')
+      setError(messageFrom(cause, 'Those files could not be imported'))
   })
 
   /**

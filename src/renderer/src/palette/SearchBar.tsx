@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils'
 import { toast } from '@/lib/celebrate'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useCommands, type Command } from './commands'
+import { messageFrom } from '@shared/ipcError'
 
 /**
  * Run a command and make sure a failure is seen.
@@ -32,7 +33,7 @@ function runCommand(command: Command): void {
           // 'warning' kind, and inventing one for this would mean a new colour
           // and a new icon for a case that is already rare.
           kind: 'late',
-          body: cause instanceof Error ? cause.message : 'The command could not be completed.'
+          body: messageFrom(cause, 'The command could not be completed.')
         })
       })
     }
@@ -40,7 +41,7 @@ function runCommand(command: Command): void {
     // A command that throws synchronously, before any promise exists.
     toast('That did not work', {
       kind: 'late',
-      body: cause instanceof Error ? cause.message : 'The command could not be completed.'
+      body: messageFrom(cause, 'The command could not be completed.')
     })
   }
 }

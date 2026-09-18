@@ -25,6 +25,7 @@ import { LimitModal } from '@/components/LimitModal'
 import { QuickCapture } from '@/components/QuickCapture'
 import { TrialBar } from '@/components/TrialBar'
 import { VerifiedWatcher } from '@/components/VerifiedWatcher'
+import { messageFrom } from '@shared/ipcError'
 import {
   ArchivedProjects,
   ArchivedTasks,
@@ -207,7 +208,7 @@ export function App(): React.JSX.Element {
       .invoke('workspace:status')
       .then(setStatus)
       .catch((cause: unknown) =>
-        setError(cause instanceof Error ? cause.message : 'SoloWork could not start')
+        setError(messageFrom(cause, 'SoloWork could not start'))
       )
   }, [])
 

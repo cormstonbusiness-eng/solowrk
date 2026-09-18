@@ -41,6 +41,7 @@ import { useWorkspace } from '@/hooks/useWorkspace'
 import { useAuthState, useFeature } from '@/lib/features'
 import { LIMIT_LABELS, TIER_NAMES } from '@shared/entitlements'
 import { useTour } from '@/tour/TourProvider'
+import { messageFrom } from '@shared/ipcError'
 
 type Tab = 'business' | 'money' | 'automations' | 'account' | 'assistant' | 'appearance' | 'app'
 
@@ -669,7 +670,7 @@ function ExportCard(): React.JSX.Element {
       // has to go and find is half an export.
       void window.solo.invoke('files:reveal', { path })
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Export failed')
+      setError(messageFrom(cause, 'Export failed'))
     } finally {
       setBusy('')
     }
@@ -1130,7 +1131,7 @@ function BusinessPlanCard(): React.JSX.Element {
     onMutate: () => setError(null),
     onSuccess: (status) => status && queryClient.setQueryData(['ai', 'businessPlan'], status),
     onError: (cause: unknown) =>
-      setError(cause instanceof Error ? cause.message : 'Could not read that file')
+      setError(messageFrom(cause, 'Could not read that file'))
   })
 
   const detach = useMutation({

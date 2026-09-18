@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import { unwrapIpcError } from '@shared/ipcError'
 import {
   IPC_CHANNELS,
   IPC_EVENTS,
@@ -21,7 +22,31 @@ const api = {
     if (!channelAllowlist.has(channel)) {
       return Promise.reject(new Error(`Blocked IPC channel: ${channel}`))
     }
-    return ipcRenderer.invoke(channel, payload) as Promise<IpcResponse<C>>
+    /*
+      Rejections come back wearing Electron's plumbing:
+
+        Error invoking remote method 'auth:signIn': Error: That email and
+        password do not match.
+
+      The message the main process wrote is perfectly clear on its own; the
+      prefix names an internal channel and makes a mistyped password look like
+      broken software. Taken off here so every channel benefits rather than
+      each screen remembering to do it — and so nothing downstream has to know
+      the envelope exists.
+
+      The error is re-thrown rather than replaced, keeping the original as
+      `cause`, so a stack trace in the console still points at the real thing.
+    */
+    return (ipcRenderer.invoke(channel, payload) as Promise<IpcResponse<C>>).catch(
+      (cause: unknown) => {
+        const message = cause instanceof Error ? cause.message : String(cause)
+        const clean = unwrapIpcError(message)
+
+        if (clean === message) throw cause
+
+        throw new Error(clean, { cause })
+      }
+    )
   },
 
   /**

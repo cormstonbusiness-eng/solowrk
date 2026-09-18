@@ -17,6 +17,7 @@ import { Mark } from '@/setup/Mark'
 import { Field, MoneyInput, NumberInput, TextInput, Toggle } from '@/components/ui/Field'
 import { EASE, transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
+import { messageFrom } from '@shared/ipcError'
 
 type Step = 'welcome' | 'workspace' | 'business' | 'creating'
 
@@ -112,7 +113,7 @@ export function FirstRun({
         setPath(chosen)
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not open that folder')
+      setError(messageFrom(cause, 'Could not open that folder'))
     }
   }
 
@@ -121,7 +122,7 @@ export function FirstRun({
     try {
       onReady(await window.solo.invoke('workspace:adopt', { path }))
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not open that workspace')
+      setError(messageFrom(cause, 'Could not open that workspace'))
     }
   }
 
@@ -145,7 +146,7 @@ export function FirstRun({
       await new Promise((resolve) => setTimeout(resolve, 700))
       onReady(result)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not create the workspace')
+      setError(messageFrom(cause, 'Could not create the workspace'))
       goTo('business', -1)
     }
   }

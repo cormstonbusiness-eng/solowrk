@@ -35,6 +35,7 @@ import { ConfirmModal } from '@/components/ui/Modal'
 import { formatDate, formatMoney } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
+import { messageFrom } from '@shared/ipcError'
 
 /**
  * The business plan, laid out as a plan rather than as a file.
@@ -74,7 +75,7 @@ export function BusinessPlan(): React.JSX.Element {
   }
 
   const fail = (cause: unknown): void =>
-    setError(cause instanceof Error ? cause.message : 'That did not work')
+    setError(messageFrom(cause, 'That did not work'))
 
   const write = useMutation({
     mutationFn: (next: string) => window.solo.invoke('ai:writeBusinessPlan', { text: next }),

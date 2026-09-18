@@ -41,6 +41,25 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.1.26',
+    date: '2026-09-18',
+    headline: 'When something goes wrong, the app says what — not which internal channel failed.',
+    changes: [
+      {
+        kind: 'fixed',
+        text: 'Error messages no longer arrive wrapped in plumbing',
+        detail:
+          'A mistyped password used to read "error invoking remote method \'auth:signIn\': Error: that email and password do not match". The useful sentence was at the end, behind a prefix naming an internal part of the app — which made a typo look like broken software. Every message in the app now arrives on its own.'
+      },
+      {
+        kind: 'improved',
+        text: 'A failure can no longer show an empty box',
+        detail:
+          'Where an error carried no message at all, the space where the explanation goes was simply blank, which reads as the app freezing. It now says something.'
+      }
+    ]
+  },
+  {
     version: '0.1.25',
     date: '2026-09-08',
     headline: 'The app tells you whether your email address is confirmed, and can send the link again.',

@@ -15,6 +15,7 @@ import { formatWhen } from '@/lib/format'
 import { listItemVariants, listVariants } from '@/lib/motion'
 import { useUndo } from '@/hooks/useUndo'
 import { RETENTION_DAYS } from '@shared/retention'
+import { messageFrom } from '@shared/ipcError'
 
 /**
  * What has been deleted, and how to get it back.
@@ -50,7 +51,7 @@ export function Trash(): React.JSX.Element {
       )
     },
     onError: (error) => {
-      offer(error instanceof Error ? error.message : 'That could not be restored')
+      offer(messageFrom(error, 'That could not be restored'))
     }
   })
 
