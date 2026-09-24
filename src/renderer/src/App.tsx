@@ -29,7 +29,6 @@ import { messageFrom } from '@shared/ipcError'
 import {
   ArchivedProjects,
   ArchivedTasks,
-  Assistant,
   BusinessPlan,
   Calendar,
   ClientDetail,
@@ -103,7 +102,6 @@ function AnimatedRoutes(): React.JSX.Element {
         <Route path="/files" element={<Files />} />
         <Route path="/documents" element={<Documents />} />
         <Route path="/trash" element={<Trash />} />
-        <Route path="/assistant" element={<Assistant />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="*" element={<Dashboard />} />
       </Routes>

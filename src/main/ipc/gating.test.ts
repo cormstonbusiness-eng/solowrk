@@ -41,12 +41,18 @@ describe('marketing is Pro', () => {
 })
 
 describe('the assistant', () => {
-  it('is no longer gated as a feature at all', () => {
-    // §2.1 gives Free twenty messages a month and the paid tiers unlimited, so
-    // sending is governed by a limit rather than by a gate. A gate here would
-    // refuse a Free user their first message.
-    expect(gateFor('ai:send')).toBeNull()
-    expect(limitsFor('ai:send')).toEqual(['assistantMessages'])
+  it('is gone, channel and limit together', () => {
+    /*
+      Removed in 0.1.27. It ran the user's own Claude Code installation, which
+      made it the one feature that could fail for a reason we could neither
+      see nor fix — and the one a customer could be sold without having what
+      it needed to run.
+
+      Asserted as an absence rather than deleted outright, because a channel
+      quietly reappearing is exactly how a half-removed feature comes back.
+    */
+    expect(IPC_CHANNELS).not.toContain('ai:send')
+    expect(LIMITS).not.toContain('assistantMessages')
   })
 
   it('leaves the rest of ai: alone', () => {

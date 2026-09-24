@@ -41,6 +41,31 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.1.27',
+    date: '2026-09-24',
+    headline: 'The assistant has been removed.',
+    changes: [
+      {
+        kind: 'changed',
+        text: 'The assistant is gone',
+        detail:
+          'It needed your own Claude Code installation to run, which made it the one part of SoloWork that could fail for a reason we could neither see nor fix — and the one thing you could be sold without having what it needed. Everything else works exactly as before. The idea may come back when it can stand on its own.'
+      },
+      {
+        kind: 'changed',
+        text: 'Settings calls its tab Business plan',
+        detail:
+          'It was headed Assistant and has always held the business plan card. The plan itself is unchanged: attach a document and the app lays out what it contains and what is missing, or answer plain questions and it writes a first draft.'
+      },
+      {
+        kind: 'improved',
+        text: 'Nothing else moved',
+        detail:
+          'Your projects, clients, invoices, time, finance, marketing, the weekly review and the business plan are all untouched. Every figure in the app was always computed from your own workspace rather than written by a model, which is why none of it depended on the assistant.'
+      }
+    ]
+  },
+  {
     version: '0.1.26',
     date: '2026-09-18',
     headline: 'When something goes wrong, the app says what — not which internal channel failed.',

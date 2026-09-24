@@ -178,22 +178,6 @@ const COUNTS: Record<Limit, (db: Database) => number> = {
   activeTimers: (db) => count(db, 'SELECT COUNT(*) AS n FROM time_entries WHERE ended_at IS NULL'),
 
   /**
-   * `created_at` is written as `datetime('now')`, which is UTC to the second,
-   * so the first seven characters are the month.
-   *
-   * Deleting a conversation cascades and would take its messages — and so a
-   * month's usage — with it. That is accepted: the cap exists to shape a
-   * Free user towards upgrading, not to withstand somebody who has worked out
-   * they can reset it by clearing their chat history.
-   */
-  assistantMessages: (db) =>
-    count(
-      db,
-      "SELECT COUNT(*) AS n FROM ai_messages WHERE role = 'user' AND substr(created_at, 1, 7) = ?",
-      [today().slice(0, 7)]
-    ),
-
-  /**
    * Active channels only. Retiring one gives the allowance back, which is the
    * honest reading of a cap on how many you are running — a channel you have
    * stopped posting to is not one of the three.

@@ -47,11 +47,6 @@ const CATALOGUE: Record<string, Omit<Unlocked, 'feature'>> = {
     body: 'One folder — or one ZIP — with everything your accountant asks for in January.',
     to: '/settings'
   },
-  assistant: {
-    title: 'The assistant',
-    body: 'Runs on your own Claude account, reads your real numbers, drafts from them.',
-    to: '/assistant'
-  },
   bank: {
     title: 'Bank import',
     body: 'Read a statement you downloaded and match it against your invoices.',

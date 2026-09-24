@@ -138,7 +138,6 @@ describe("Free's numbers", () => {
       invoicesPerMonth: 3,
       goals: 1,
       activeTimers: 1,
-      assistantMessages: 20,
       devices: 1
     })
   })

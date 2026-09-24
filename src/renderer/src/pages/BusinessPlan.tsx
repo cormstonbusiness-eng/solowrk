@@ -1,5 +1,4 @@
 import { useMemo, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import {
@@ -50,7 +49,6 @@ import { messageFrom } from '@shared/ipcError'
  * lose all of it.
  */
 export function BusinessPlan(): React.JSX.Element {
-  const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [error, setError] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
@@ -149,7 +147,7 @@ export function BusinessPlan(): React.JSX.Element {
   return (
     <Page
       title="Business plan"
-      description="The standing brief for your business — yours to follow, and what the assistant reads before every answer."
+      description="The standing brief for your business — yours to write, yours to follow."
       actions={
         attached &&
         !building && (
@@ -157,10 +155,6 @@ export function BusinessPlan(): React.JSX.Element {
             <Button variant="ghost" onClick={() => setResetting(true)}>
               <RotateCcw size={14} strokeWidth={1.75} />
               Start again
-            </Button>
-            <Button variant="ghost" onClick={() => navigate('/assistant')}>
-              <Sparkles size={14} strokeWidth={1.75} />
-              Ask the assistant
             </Button>
             <Button variant="ghost" onClick={() => void window.solo.invoke('ai:openBusinessPlan')}>
               <SquareArrowOutUpRight size={14} strokeWidth={1.75} />
@@ -291,8 +285,8 @@ function Choice({
     <div className="max-w-[720px]">
       <h2 className="mb-1 text-[15px] font-medium text-ink">No business plan yet</h2>
       <p className="mb-4 text-[12.5px] leading-relaxed text-muted">
-        However it gets here, it becomes the standing brief for your business — and what the
-        assistant reads before every answer.
+        However it gets here, it becomes the standing brief for your business — the thing to
+        check a decision against when you are not sure.
       </p>
 
       <div className="grid grid-cols-2 gap-3">
@@ -515,9 +509,9 @@ function ReadOnlyNotice({
       <div className="min-w-0 flex-1">
         <p className="text-[12.5px] text-ink">Read-only</p>
         <p className="mt-0.5 text-[11.5px] leading-relaxed text-muted">
-          SoloWork can read {name} but not write to it, so nothing here can be edited — by you
-          or the assistant. An editable copy carries all of this text into a markdown file and
-          uses that instead. {name} stays where it is.
+          SoloWork can read {name} but not write to it, so nothing here can be edited. An
+          editable copy carries all of this text into a markdown file and uses that instead.
+          {name} stays where it is.
         </p>
       </div>
       <Button variant="ghost" size="sm" onClick={onConvert} disabled={busy}>
@@ -634,7 +628,7 @@ function SectionCard({
             {empty ? (
               <p className="text-[12px] text-faint italic">
                 Nothing written here yet.
-                {editable && ' Use the pencil, or ask the assistant to draft it.'}
+                {editable && ' Use the pencil to write it.'}
               </p>
             ) : (
               <Markdown text={section.body} />

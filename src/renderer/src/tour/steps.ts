@@ -103,16 +103,9 @@ export const tourSteps: TourStep[] = [
   },
   {
     id: 'sidebar-tools',
-    title: 'Two things that are not sections',
-    body: 'The bell collects what actually needs you — an invoice gone overdue, a document about to expire — so none of it depends on you remembering to go and look. Below it is the assistant.',
+    title: 'The bell',
+    body: 'It collects what actually needs you — an invoice gone overdue, a document about to expire — so none of it depends on you remembering to go and look.',
     target: 'sidebar-tools',
-    placement: 'right'
-  },
-  {
-    id: 'assistant',
-    title: 'An assistant that knows your business',
-    body: 'It reads your business plan before it answers, so the advice is about your business rather than freelancing in general. It asks before it creates, edits or deletes anything, and it cannot see past your workspace folder.',
-    target: 'nav-assistant',
     placement: 'right'
   },
   {

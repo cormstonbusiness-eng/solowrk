@@ -43,14 +43,14 @@ import { LIMIT_LABELS, TIER_NAMES } from '@shared/entitlements'
 import { useTour } from '@/tour/TourProvider'
 import { messageFrom } from '@shared/ipcError'
 
-type Tab = 'business' | 'money' | 'automations' | 'account' | 'assistant' | 'appearance' | 'app'
+type Tab = 'business' | 'money' | 'automations' | 'account' | 'plan' | 'appearance' | 'app'
 
 const TABS: { value: Tab; label: string }[] = [
   { value: 'business', label: 'Business' },
   { value: 'money', label: 'Invoicing & tax' },
   { value: 'automations', label: 'Automations' },
   { value: 'account', label: 'Account' },
-  { value: 'assistant', label: 'Assistant' },
+  { value: 'plan', label: 'Business plan' },
   { value: 'appearance', label: 'Appearance' },
   { value: 'app', label: 'App' }
 ]
@@ -104,7 +104,7 @@ export function Settings(): React.JSX.Element {
   return (
     <Page
       title="Settings"
-      description="Your business, your money, your assistant and the app itself."
+      description="Your business, your money, your plan and the app itself."
       actions={
         <AnimatePresence mode="wait">
           {dirty ? (
@@ -333,7 +333,7 @@ export function Settings(): React.JSX.Element {
 
           {tab === 'account' && <AccountCard />}
 
-          {tab === 'assistant' && <BusinessPlanCard />}
+          {tab === 'plan' && <BusinessPlanCard />}
 
           {tab === 'appearance' && (
             <>
@@ -1148,9 +1148,9 @@ function BusinessPlanCard(): React.JSX.Element {
     <Card>
       <CardHeader title="Business plan" />
       <p className="mb-3 text-[12px] leading-relaxed text-muted">
-        Attach your business plan and the assistant reads it before every answer, so advice is
-        about your business rather than freelancing in general. Word, PDF, markdown or plain
-        text — it takes the words out and keeps a copy in your workspace.
+        Attach your business plan and SoloWork reads it to show what it contains and what is
+        missing. Word, PDF, markdown or plain text — it takes the words out and keeps a copy
+        in your workspace, alongside everything else you have made.
       </p>
 
       {attached ? (
@@ -1166,7 +1166,7 @@ function BusinessPlanCard(): React.JSX.Element {
                   unusually large and had to be cut
                 </span>
               ) : (
-                `All ${plan.length.toLocaleString('en-GB')} characters are sent to the assistant`
+                `All ${plan.length.toLocaleString('en-GB')} characters read`
               )}
               {plan.readAt && ` · ${formatDate(plan.readAt)}`}
             </p>
@@ -1208,7 +1208,7 @@ function BusinessPlanCard(): React.JSX.Element {
       {attached && plan.preview && (
         <details className="mt-3 group">
           <summary className="cursor-pointer list-none text-[10.5px] tracking-[0.06em] text-faint uppercase transition-colors hover:text-muted">
-            What the assistant sees ▸
+            What SoloWork read ▸
           </summary>
           {/* The whole document, scrollable. Showing the first paragraph under
               that heading implied the rest was not being read. */}

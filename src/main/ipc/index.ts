@@ -296,13 +296,6 @@ import {
   writePlan
 } from '../ai/businessPlan'
 import { today } from '@shared/taxYear'
-import { assistant } from '../ai/assistant'
-import {
-  createConversation,
-  deleteConversation,
-  listConversations,
-  listMessages
-} from '../services/conversations'
 import { logoFor, writeHtmlPdf, writePdf } from '../services/pdf'
 import { buildStatement } from '../services/statements'
 import { writeDatasetCsv } from '../services/exports'
@@ -1295,20 +1288,6 @@ const handlers: Handlers = {
 
   'social:accounts': () => listAccounts(session.requireDb()),
 
-  'ai:status': () => assistant.status(),
-  'ai:conversations': () => listConversations(session.requireDb()),
-  'ai:messages': (_g, { conversationId }) => listMessages(session.requireDb(), conversationId),
-  'ai:newConversation': (_g, payload) =>
-    createConversation(session.requireDb(), payload?.projectId ?? null),
-  'ai:deleteConversation': (_g, { id }) => {
-    deleteConversation(session.requireDb(), id)
-  },
-  'ai:send': (getWindow, { conversationId, text, mode }) =>
-    assistant.send(getWindow, conversationId, text, mode),
-  'ai:interrupt': () => assistant.interrupt(),
-  'ai:permission': (_g, answer) => {
-    assistant.answerPermission(answer)
-  }
 }
 
 /**

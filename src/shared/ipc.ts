@@ -26,10 +26,7 @@ import type {
   TagWithCount,
   TrashEntry,
   AppNotification,
-  AssistantEvent,
-  AssistantStatus,
   AuthState,
-  AssistantMode,
   BusinessPlanStatus,
   BusinessSettings,
   CalendarBlockWithContext,
@@ -76,15 +73,12 @@ import type {
   PostCampaign,
   PostCampaignWithCounts,
   Category,
-  ChatMessage,
   ContentPillar,
-  Conversation,
   GoalInput,
   GoalProgress,
   MarketingSummary,
   Note,
   NoteWithContext,
-  PermissionAnswer,
   Platform,
   PostFilter,
   PostInput,
@@ -1152,16 +1146,6 @@ export interface IpcContract {
 
   'social:accounts': { req: void; res: SocialAccount[] }
 
-  'ai:status': { req: void; res: AssistantStatus }
-  'ai:conversations': { req: void; res: Conversation[] }
-  'ai:messages': { req: { conversationId: number }; res: ChatMessage[] }
-  'ai:newConversation': { req: { projectId?: number | null } | void; res: Conversation }
-  'ai:deleteConversation': { req: { id: number }; res: void }
-  /** Resolves when the turn finishes; progress arrives on the `ai:event` channel. */
-  'ai:send': { req: { conversationId: number; text: string; mode?: AssistantMode }; res: void }
-  'ai:interrupt': { req: void; res: void }
-  /** The user's answer to a confirmation card. */
-  'ai:permission': { req: PermissionAnswer; res: void }
 }
 
 export type IpcChannel = keyof IpcContract
@@ -1175,8 +1159,6 @@ export interface IpcEvents {
   'window:stateChanged': WindowState
   /** Sent when a reminder notification is clicked, to open that event. */
   'calendar:focusEvent': { id: number }
-  /** Streaming progress from the assistant — text, tool calls, confirmations. */
-  'ai:event': AssistantEvent
   /** Sent when a due-post notification is clicked, to open that post. */
   'marketing:focusPost': { id: number }
   /** A new notification, to slide into the corner of the window. */
@@ -1496,20 +1478,11 @@ export const IPC_CHANNELS = [
   'marketing:handoff',
   'marketing:summary',
   'social:accounts',
-  'ai:status',
-  'ai:conversations',
-  'ai:messages',
-  'ai:newConversation',
-  'ai:deleteConversation',
-  'ai:send',
-  'ai:interrupt',
-  'ai:permission'
 ] as const satisfies readonly IpcChannel[]
 
 export const IPC_EVENTS = [
   'window:stateChanged',
   'calendar:focusEvent',
-  'ai:event',
   'marketing:focusPost',
   'notifications:new',
   'updates:state',

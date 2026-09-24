@@ -864,7 +864,7 @@ function Tasks({ size }: { size: ModuleSize }): React.JSX.Element {
 }
 
 /**
- * The assistant's weekly review, as a module.
+ * The weekly review, as a module.
  *
  * The dashboard was this feature's only entry point, so making the dashboard
  * modular nearly deleted it by accident: nothing else in the app renders it.

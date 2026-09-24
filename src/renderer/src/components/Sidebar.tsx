@@ -2,15 +2,13 @@ import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'motion/react'
 import { useEffect, useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, ChevronUp, Lock, Sparkles } from 'lucide-react'
+import { Bell, ChevronUp, Lock } from 'lucide-react'
 import { EASE, transition } from '@/lib/motion'
 import { useAuthState, useFeature, useTierLabel } from '@/lib/features'
 import { useUpdates } from '@/hooks/useUpdates'
 import { footerNav, navGroups, type NavItem } from '@/lib/nav'
 import { WorkspaceSwitcher } from '@/components/WorkspaceSwitcher'
 import { ACCOUNT_URL } from '@shared/site'
-import { themeById } from '@shared/themes'
-import { useTheme } from '@/hooks/useTheme'
 import { ConfirmModal } from '@/components/ui/Modal'
 import { cn } from '@/lib/utils'
 
@@ -78,43 +76,6 @@ function NotificationsButton(): React.JSX.Element {
   )
 }
 
-function AssistantButton(): React.JSX.Element {
-  const { pathname } = useLocation()
-  const { themeId } = useTheme()
-  const isActive = pathname === '/assistant'
-
-  /**
-   * A tinted fill on a near-black sidebar reads as a warm button; the same
-   * tint on a white one reads as a smudge. Light themes get the solid fill.
-   */
-  const light = themeById(themeId).light
-
-  return (
-    <NavLink
-      to="/assistant"
-      data-tour="nav-assistant"
-      className={cn(
-        'flex items-center gap-2.5 rounded-control px-2.5 py-[9px] text-[13px] font-medium',
-        'transition-colors duration-press ease-solo',
-        /**
-         * The accent, not a second orange.
-         *
-         * This button used to carry its own hue precisely because the accent
-         * was violet and reusing it would have made the button disappear. Now
-         * that the accent *is* orange, keeping the old one would put two
-         * oranges a few pixels apart, which is the single most obvious way to
-         * make a palette look unfinished.
-         */
-        isActive || light
-          ? 'bg-accent text-accent-ink hover:bg-accent-hover'
-          : 'bg-accent-subtle text-accent hover:bg-accent/25'
-      )}
-    >
-      <Sparkles size={15} strokeWidth={2} />
-      Assistant
-    </NavLink>
-  )
-}
 
 /**
  * A padlock leaving.
@@ -510,24 +471,19 @@ export function Sidebar(): React.JSX.Element {
         ))}
       </div>
 
-      {/* The assistant sits above the divider as a filled button rather than
-          another grey nav row: it is the one destination people hunt for, and a
-          row that looks like every other row is a row you scan past. */}
       <div data-tour="sidebar-tools" className="flex flex-col gap-1 px-2.5 pb-1.5">
         <NotificationsButton />
-        <AssistantButton />
       </div>
 
       <div
         data-tour="nav-footer"
         className="flex flex-col gap-0.5 border-t border-line px-2.5 py-2.5"
       >
-        {/* Only the account chip now. Settings used to sit here as a row as
-            well as inside the chip's menu, which is one destination wearing two
+        {/* Only the account chip. Settings used to sit here as a row as well
+            as inside the chip's menu, which is one destination wearing two
             controls; the menu keeps it, because settings are about the person
-            rather than the work. `footerNav` is not mapped here at all any
-            more: the Assistant is its only member and it is drawn above as its
-            own button, so a map over this list could only ever render nothing. */}
+            rather than the work. `footerNav` is not mapped here either — it is
+            empty now that the assistant has gone. */}
         <AccountChip />
       </div>
     </nav>

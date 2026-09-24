@@ -234,7 +234,6 @@ export const LIMITS = [
   'invoicesPerMonth',
   'goals',
   'activeTimers',
-  'assistantMessages',
   'channels',
   'campaigns',
   'workspaces',
@@ -261,7 +260,6 @@ export const LIMIT_LABELS: Record<Limit, string> = {
   invoicesPerMonth: 'Invoices this month',
   goals: 'Goals',
   activeTimers: 'Running timers',
-  assistantMessages: 'Assistant messages this month',
   channels: 'Marketing channels',
   campaigns: 'Campaigns on the go',
   workspaces: 'Workspaces',
@@ -269,7 +267,7 @@ export const LIMIT_LABELS: Record<Limit, string> = {
 }
 
 /** The limits that reset with the calendar month, for the meters to say so. */
-export const MONTHLY_LIMITS: readonly Limit[] = ['invoicesPerMonth', 'assistantMessages']
+export const MONTHLY_LIMITS: readonly Limit[] = ['invoicesPerMonth']
 
 /**
  * Free's numbers come straight from §2.1.
@@ -285,7 +283,6 @@ export const TIER_LIMITS: Record<Tier, Record<Limit, number>> = {
     invoicesPerMonth: 3,
     goals: 1,
     activeTimers: 1,
-    assistantMessages: 20,
     /**
      * Zero, because Free has no Marketing module at all.
      *
@@ -314,7 +311,6 @@ export const TIER_LIMITS: Record<Tier, Record<Limit, number>> = {
     invoicesPerMonth: UNLIMITED,
     goals: UNLIMITED,
     activeTimers: UNLIMITED,
-    assistantMessages: UNLIMITED,
     // §12. Three is enough to commit to properly and few enough that a
     // freelancer running six channels badly is the one being sold Pro.
     channels: 3,
@@ -334,7 +330,6 @@ export const TIER_LIMITS: Record<Tier, Record<Limit, number>> = {
     invoicesPerMonth: UNLIMITED,
     goals: UNLIMITED,
     activeTimers: UNLIMITED,
-    assistantMessages: UNLIMITED,
     channels: UNLIMITED,
     campaigns: UNLIMITED,
     workspaces: UNLIMITED,

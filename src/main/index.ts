@@ -8,7 +8,6 @@ import { checkLicenceOnFocus, startLicenceChecks, stopLicenceChecks } from './se
 import { startReminders, stopReminders } from './services/reminders'
 import { startScheduler, stopScheduler } from './services/scheduler'
 import { startUpdates, stopUpdates } from './services/updates'
-import { assistant } from './ai/assistant'
 
 /** Matches `--ground` in the renderer theme so there is no white flash on launch. */
 const GROUND = '#0A0A0B'
@@ -116,8 +115,5 @@ app.on('before-quit', () => {
   stopUpdates()
   stopScheduler()
   stopLicenceChecks()
-  // Ends any in-flight turn and drops the "always allow" grants, which are
-  // deliberately per-run rather than persisted.
-  assistant.reset()
   session.close()
 })

@@ -12,7 +12,6 @@ import {
   NotebookPen,
   ReceiptText,
   Settings,
-  Sparkles,
   Target,
   Trash2,
   Users,
@@ -76,8 +75,14 @@ export const navGroups: NavGroup[] = [
   }
 ]
 
-/** Pinned to the bottom of the sidebar, away from the day-to-day navigation. */
-export const footerNav: NavItem[] = [{ label: 'Assistant', path: '/assistant', icon: Sparkles }]
+/**
+ * Pinned to the bottom of the sidebar, away from the day-to-day navigation.
+ *
+ * Empty since the assistant was removed, and kept rather than deleted because
+ * the sidebar still reads it and the next thing that belongs down here — away
+ * from the work, reached deliberately — will want somewhere to go.
+ */
+export const footerNav: NavItem[] = []
 
 /**
  * Settings: a destination, but not a sidebar row.
