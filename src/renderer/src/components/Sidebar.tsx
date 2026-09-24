@@ -22,7 +22,7 @@ function ActivePill(): React.JSX.Element {
     <motion.span
       layoutId="nav-active-pill"
       transition={transition.layout}
-      className="absolute inset-0 rounded-control border border-sidebar-active-border bg-sidebar-active"
+      className="absolute inset-0 rounded-control border border-sidebar-active-border bg-sidebar-active shadow-pill"
       aria-hidden
     />
   )

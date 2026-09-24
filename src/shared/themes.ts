@@ -148,50 +148,58 @@ const SERIF = "'Iowan Old Style', 'Palatino Linotype', Georgia, 'Times New Roman
 
 export const THEMES: Theme[] = [
   /**
-   * Editorial — the default.
+   * Editorial — the default. Techy minimalist.
    *
-   * A charcoal sidebar framing a near-white content area, and the only theme
-   * that states the sidebar ramp. Everything else here is a neutral step;
-   * colour appears solely on status and on a delta that is up or down.
+   * Light throughout, on a warm off-white rather than a cold grey: #F7F7F5
+   * against #FFFFFF cards reads as paper, and the same layout on a blue-grey
+   * reads as a spreadsheet. The difference is a couple of points of hue and
+   * it is most of the character.
+   *
+   * Everything is a neutral step. Colour appears solely on status and on a
+   * delta that is up or down — which is what makes those two things legible
+   * at a glance, and why nothing else is allowed to borrow it.
    *
    * The accent is near-black rather than a hue, which is not a placeholder.
-   * The palette carries meaning through weight and border instead of colour,
-   * so an orange primary button would be the loudest thing on the screen and
-   * would be competing with the one thing colour is reserved for. It is also
-   * deliberately darker than the sidebar (#1A1A1A against #2A2B2D) so a
-   * primary button never reads as a hole cut through to the frame.
+   * The palette carries meaning through weight and border, so a coloured
+   * primary button would be both the loudest thing on screen and in direct
+   * competition with the only thing colour is permitted to mean.
    *
-   * Depth is borders and the grey-on-white layering, not shadow: a 1px line
-   * survives a screenshot, a colourblind reader and a cheap panel, and a soft
-   * shadow survives none of them reliably.
+   * Depth is borders and the white-on-off-white layering, not shadow. A 1px
+   * line survives a screenshot, a colourblind reader and a cheap panel; a
+   * soft shadow survives none of them reliably. The one exception is the
+   * active navigation item, which lifts off the sidebar as a white pill —
+   * one raised thing in the whole window, which is why it reads as the
+   * place you are.
    */
   {
     id: 'editorial',
     name: 'Editorial',
-    description: 'The default. A charcoal sidebar, a near-white page, and colour only where it means something.',
+    description: 'The default. Warm off-white, monospaced figures, and colour only where it means something.',
     light: true,
     fontSans: INTER,
     fontMono: MONO,
     radius: 12,
     tokens: {
-      ground: '#efefef',
-      groundEnd: '#efefef',
+      /* Warm off-white, not a cold grey. See the note above. */
+      ground: '#f7f7f5',
+      groundEnd: '#f7f7f5',
       surface: '#ffffff',
-      surfaceHover: '#fafafa',
-      shell: '#f4f4f4',
-      raised: '#f4f4f4',
+      surfaceHover: '#fcfcfb',
+      /* The tray a white panel sits in — a KPI card's outer shell. */
+      shell: '#f2f2ef',
+      raised: '#f2f2ef',
       overlay: '#ffffff',
-      hover: '#f0f0f0',
-      line: '#e6e6e6',
-      lineStrong: '#d9d9d9',
-      ink: '#111111',
-      muted: '#6b6b6b',
-      faint: '#a8a8a8',
-      disabled: '#c4c4c4',
+      hover: '#efefec',
+      line: '#e7e7e3',
+      lineStrong: '#d8d8d3',
+      ink: '#161614',
+      muted: '#6b6b64',
+      faint: '#a3a39c',
+      disabled: '#c6c6c0',
 
       /* Near-black, not a hue. See the note above. */
-      accent: '#1a1a1a',
-      accentHover: '#2e2e2e',
+      accent: '#1a1a18',
+      accentHover: '#33332f',
       accentPress: '#000000',
       accentInk: '#ffffff',
 
@@ -201,17 +209,25 @@ export const THEMES: Theme[] = [
       danger: '#dc2626',
       info: '#9ca3af',
 
-      chartSecondary: '#d9d9d9',
+      chartSecondary: '#dcdcd7',
 
-      /* The charcoal frame. */
-      sidebar: '#2a2b2d',
-      sidebarRaised: '#34363a',
-      sidebarActive: '#3e4045',
-      sidebarActiveBorder: '#4a4c51',
-      sidebarLine: '#3a3c40',
-      sidebarInk: '#f2f2f2',
-      sidebarMuted: '#a3a5a8',
-      sidebarSection: '#6e7075'
+      /*
+        The sidebar, light like everything else.
+
+        Stated rather than left to fall back, even though these are close to
+        the content ramp, because the two are not the same thing and the
+        distinction is the point of the group. The sidebar sits a shade
+        lighter than the page so the frame reads as raised, and its active
+        item is pure white — the one surface in the window that lifts.
+      */
+      sidebar: '#fbfbfa',
+      sidebarRaised: '#ffffff',
+      sidebarActive: '#ffffff',
+      sidebarActiveBorder: '#e4e4df',
+      sidebarLine: '#e7e7e3',
+      sidebarInk: '#161614',
+      sidebarMuted: '#6b6b64',
+      sidebarSection: '#a3a39c'
     }
   },
 
@@ -718,6 +734,25 @@ export function themeVariables(theme: Theme): Record<string, string> {
      * tighter again, so the whole scale moves together rather than each radius
      * being set by hand. Floored so a square theme cannot go negative.
      */
+    /**
+     * Shadows, which a light theme cannot share with a dark one.
+     *
+     * These used to be fixed in theme.css at strengths tuned for near-black
+     * — 0.4 and 0.6 alpha — which on an off-white page is not a shadow but a
+     * smudge. Depth in a light theme comes from borders, so what is left
+     * here is deliberately almost nothing.
+     *
+     * `pill` is the exception the design allows itself: the active
+     * navigation item lifts off the sidebar, and being the only raised
+     * surface in the window is exactly what makes it read as where you are.
+     */
+    '--shadow-card': theme.light
+      ? '0 1px 2px rgba(0, 0, 0, 0.04)'
+      : '0 1px 2px rgba(0, 0, 0, 0.4)',
+    '--shadow-modal': theme.light
+      ? '0 12px 32px rgba(0, 0, 0, 0.10), 0 2px 6px rgba(0, 0, 0, 0.05)'
+      : '0 16px 48px rgba(0, 0, 0, 0.6)',
+    '--shadow-pill': theme.light ? '0 1px 2px rgba(0, 0, 0, 0.06)' : 'none',
     '--radius-control': `${Math.max(2, theme.radius - 4)}px`,
     '--radius-chip': `${Math.max(2, theme.radius - 6)}px`,
     '--radius-card': `${theme.radius}px`,

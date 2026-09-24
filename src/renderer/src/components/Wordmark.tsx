@@ -1,4 +1,37 @@
 import wordmark from '@/assets/wordmark.png'
+import mark from '@/assets/mark.png'
+
+/**
+ * The square logo tile.
+ *
+ * The wordmark below is off-white artwork that cannot be recoloured, so on a
+ * light theme it is very nearly invisible — which is the whole reason this
+ * exists. The app icon already solves it: a dark rounded tile with the mark on
+ * it, which carries its own ground and therefore reads on any background.
+ *
+ * It is the same file electron-builder ships as the application icon, so the
+ * thing in the title bar and the thing in the taskbar cannot drift apart.
+ */
+export function Mark({
+  size = 18,
+  className
+}: {
+  size?: number
+  className?: string
+}): React.JSX.Element {
+  return (
+    <img
+      src={mark}
+      alt=""
+      aria-hidden
+      width={size}
+      height={size}
+      draggable={false}
+      className={className}
+      style={{ borderRadius: Math.round(size * 0.28) }}
+    />
+  )
+}
 
 /**
  * The brand wordmark, as supplied.

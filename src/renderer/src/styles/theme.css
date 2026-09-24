@@ -88,6 +88,8 @@
   /* Elevation. No shadow on hover — hover brightens the border and lifts. */
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-modal: 0 16px 48px rgba(0, 0, 0, 0.6);
+  /* The active nav item, and nothing else. See themeVariables(). */
+  --shadow-pill: none;
 
   /* Motion. Durations and easing live here so every animation in the app pulls
      from the same scale instead of inventing its own. Nothing exceeds 250ms. */
@@ -280,9 +282,30 @@
     font-weight: 400;
   }
 
+  /**
+   * Every section heading, KPI label and table column header.
+   *
+   * Monospaced, which is the single loudest signal in this design: a
+   * letter-spaced uppercase mono label above a figure is what makes a card
+   * read as an instrument rather than as a paragraph with a bold first line.
+   *
+   * It exists so those labels are set once. There are currently 37 of them
+   * hand-rolled across the app at eight different tracking values, which is
+   * precisely the drift a token file is for — they get swept onto this.
+   */
   .type-label {
-    font-size: 11px;
-    font-weight: 600;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  /* The same idea one step down, for table column headers. */
+  .type-column {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: uppercase;
   }

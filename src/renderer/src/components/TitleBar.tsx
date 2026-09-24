@@ -9,7 +9,7 @@ import { themeById, type DecorKind } from '@shared/themes'
 import { useTheme } from '@/hooks/useTheme'
 import { useUpdates } from '@/hooks/useUpdates'
 import { Petal, Pumpkin, Snowflake, Sparkle } from '@/components/seasonal/sprites'
-import { Wordmark } from '@/components/Wordmark'
+import { Mark } from '@/components/Wordmark'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 
@@ -62,10 +62,12 @@ const MARKS: Partial<Record<DecorKind, (props: { className?: string }) => React.
 function Flourish(): React.JSX.Element | null {
   const { themeId, decorIntensity } = useTheme()
   const decor = themeById(themeId).decor
-  const Mark = decorIntensity === 'off' || !decor ? null : MARKS[decor]
+  // `Sprite`, not `Mark`: the logo tile is imported into this file under that
+  // name now, and a local shadowing it is a trap for whoever edits next.
+  const Sprite = decorIntensity === 'off' || !decor ? null : MARKS[decor]
 
-  if (!Mark) return null
-  return <Mark className="h-3 w-3 text-sidebar-muted opacity-70" />
+  if (!Sprite) return null
+  return <Sprite className="h-3 w-3 text-sidebar-muted opacity-70" />
 }
 
 /**
@@ -273,24 +275,23 @@ export function TitleBar(): React.JSX.Element {
     >
       <div className="flex items-center gap-2.5 pl-3">
         {/*
-          The real wordmark, at the height the 11px text it replaced stood at.
+          The mark, then the name as text.
 
-          The accent square that used to sit beside it has gone: the wordmark
-          carries its own orange full stop, and two orange squares within 50px
-          of each other is a lockup arguing with itself.
+          It was the wordmark image, which is off-white artwork with an orange
+          full stop and cannot be recoloured — its own file says so. That was
+          fine while every theme was dark and impossible the moment one was
+          not: on a near-white bar it disappears completely.
 
-          Held back because a title bar is chrome. At full strength the
-          brightest thing in the window is its own furniture, which is the
-          mistake every app that puts a logo up here makes.
-
-          85% rather than the 70% it sat at before, because the ground moved.
-          The artwork is off-white and was resting on near-black; charcoal is
-          several steps lighter, so the same opacity now buys noticeably less
-          contrast. This is also the reason the bar had to join the frame at
-          all — an off-white wordmark on a #EFEFEF page would have been very
-          nearly invisible.
+          The tile solves it by carrying its own ground, and it is the same
+          asset electron-builder ships as the application icon, so the thing up
+          here and the thing in the taskbar cannot drift apart. The name beside
+          it is ordinary text on the frame's ramp, which means it is legible on
+          any theme by construction rather than by luck.
         */}
-        <Wordmark height={11} className="opacity-85" />
+        <Mark size={16} />
+        <span className="text-[12px] font-semibold tracking-[-0.01em] text-sidebar-ink">
+          SoloWork
+        </span>
         <RefreshButton />
         <Flourish />
       </div>
