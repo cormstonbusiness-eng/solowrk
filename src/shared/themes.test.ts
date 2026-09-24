@@ -65,6 +65,7 @@ describe('the theme set', () => {
       'sidebarRaised',
       'sidebarActive',
       'sidebarActiveBorder',
+      'sidebarActiveInk',
       'sidebarLine',
       'sidebarInk',
       'sidebarMuted',
@@ -111,6 +112,28 @@ describe('every theme is readable', () => {
     '%s has a readable primary button',
     (_name, theme) => {
       expect(contrast(theme.tokens.accentInk, theme.tokens.accent)).toBeGreaterThan(4)
+    }
+  )
+
+  it.each(THEMES.map((theme) => [theme.name, theme] as const))(
+    '%s has a readable active navigation item',
+    (_name, theme) => {
+      /*
+        The pairing this token exists for.
+
+        The active item can invert — a dark slab on a light column — while the
+        rest of the sidebar keeps near-black text. Sharing one ink between them
+        means choosing which of the two is unreadable, and the failure is
+        silent: the row you are on simply stops having visible text, on the one
+        control that tells you where you are.
+
+        Both sides fall back the way `themeVariables` does, so a theme that
+        states neither is still measured against what it would actually render.
+      */
+      const fill = theme.tokens.sidebarActive ?? theme.tokens.hover
+      const ink = theme.tokens.sidebarActiveInk ?? theme.tokens.sidebarInk ?? theme.tokens.ink
+
+      expect(contrast(ink, fill)).toBeGreaterThan(4.5)
     }
   )
 

@@ -82,6 +82,20 @@ export interface ThemeTokens {
   sidebarRaised?: string
   sidebarActive?: string
   sidebarActiveBorder?: string
+  /**
+   * Text and icons sitting *on* the active item, which is not the same as
+   * `sidebarInk`.
+   *
+   * They were one value while the active pill was a light tint of the
+   * sidebar. The moment that pill inverts — a dark slab on a light column —
+   * they stop agreeing: the workspace name and the account chip still want
+   * near-black, and the row you are on wants white. Sharing one token means
+   * choosing which of the two is unreadable.
+   *
+   * Falls back to `sidebarInk`, so a theme whose active surface is not
+   * inverted never has to think about it.
+   */
+  sidebarActiveInk?: string
   sidebarLine?: string
   sidebarInk?: string
   sidebarMuted?: string
@@ -175,16 +189,23 @@ export const THEMES: Theme[] = [
       /*
         The sidebar, light like everything else.
 
-        Stated rather than left to fall back, even though these are close to
+        Stated rather than left to fall back, even though most are close to
         the content ramp, because the two are not the same thing and the
         distinction is the point of the group. The sidebar sits a shade
-        lighter than the page so the frame reads as raised, and its active
-        item is pure white — the one surface in the window that lifts.
+        lighter than the page so the frame reads as raised.
+
+        The active item inverts: a dark slab with white on it, which is the
+        strongest single mark in the window and therefore unambiguous about
+        where you are. It is deliberately a shade lighter than `accent`
+        (#2e2e2a against #1a1a18) so a primary button still reads as the
+        firmer of the two — one says "you are here", the other says "press
+        me", and they should not look like the same offer.
       */
       sidebar: '#fbfbfa',
       sidebarRaised: '#ffffff',
-      sidebarActive: '#ffffff',
-      sidebarActiveBorder: '#e4e4df',
+      sidebarActive: '#2e2e2a',
+      sidebarActiveBorder: '#2e2e2a',
+      sidebarActiveInk: '#ffffff',
       sidebarLine: '#e7e7e3',
       sidebarInk: '#161614',
       sidebarMuted: '#6b6b64',
@@ -279,6 +300,7 @@ export function themeVariables(theme: Theme): Record<string, string> {
      */
     '--color-sidebar-raised': tokens.sidebarRaised ?? tokens.raised,
     '--color-sidebar-active': tokens.sidebarActive ?? tokens.hover,
+    '--color-sidebar-active-ink': tokens.sidebarActiveInk ?? tokens.sidebarInk ?? tokens.ink,
     '--color-sidebar-active-border': tokens.sidebarActiveBorder ?? tokens.lineStrong,
     '--color-sidebar-line': tokens.sidebarLine ?? tokens.line,
     '--color-sidebar-ink': tokens.sidebarInk ?? tokens.ink,

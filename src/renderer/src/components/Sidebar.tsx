@@ -49,7 +49,7 @@ function NotificationsButton(): React.JSX.Element {
       className={cn(
         'relative flex items-center gap-2.5 rounded-control px-2.5 py-[7px]',
         'text-[13px] transition-colors duration-150',
-        isActive ? 'text-sidebar-ink' : 'text-sidebar-muted hover:text-sidebar-ink'
+        isActive ? 'text-sidebar-active-ink' : 'text-sidebar-muted hover:text-sidebar-ink'
       )}
     >
       {isActive && <ActivePill />}
@@ -123,7 +123,7 @@ function NavRow({ item, unlockIndex }: { item: NavItem; unlockIndex: number }): 
           for them.
         */
         isActive
-          ? 'text-sidebar-ink'
+          ? 'text-sidebar-active-ink'
           : locked
             ? 'text-sidebar-section hover:bg-sidebar-raised hover:text-sidebar-muted'
             : 'text-sidebar-muted hover:bg-sidebar-raised hover:text-sidebar-ink'
@@ -370,7 +370,7 @@ function Avatar({ name }: { name: string }): React.JSX.Element {
   return (
     <span
       aria-hidden
-      className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-sidebar-active-border bg-sidebar-active text-[11px] font-semibold text-sidebar-ink"
+      className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-sidebar-active-border bg-sidebar-active text-[11px] font-semibold text-sidebar-active-ink"
     >
       {initials || '·'}
     </span>

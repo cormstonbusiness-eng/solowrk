@@ -64,6 +64,8 @@
      --------------------------------------------------------------- */
   --color-sidebar-raised: #1a1a1f;
   --color-sidebar-active: #222227;
+  /* Text on the active item, which inverts when that item does. */
+  --color-sidebar-active-ink: #f2f2f4;
   --color-sidebar-active-border: rgba(255, 255, 255, 0.12);
   --color-sidebar-line: rgba(255, 255, 255, 0.06);
   --color-sidebar-ink: #f2f2f4;
