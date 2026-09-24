@@ -51,6 +51,41 @@ export interface ThemeTokens {
   surfaceHover?: string
   /** Genuinely disabled — never text that is still meant to be read. */
   disabled?: string
+
+  /**
+   * The outer shell of a nested card, behind the white inner panel.
+   *
+   * The editorial layout puts a #F4F4F4 tray around a #FFFFFF panel, so the
+   * card reads as two layers without a shadow. Every other theme falls back
+   * to `raised`, which is the nearest thing it already had and keeps them
+   * looking exactly as they did.
+   */
+  shell?: string
+
+  /** The quieter of two chart series. Falls back to a muted mix. */
+  chartSecondary?: string
+
+  /**
+   * The sidebar's own ramp.
+   *
+   * **This is the one place the app carries two palettes at once.** Every
+   * other surface takes its text from `ink`/`muted`/`faint`, which works
+   * while the sidebar is a shade of the page behind it. The editorial theme
+   * breaks that: a charcoal sidebar framing a near-white content area needs
+   * light text on the left and near-black text on the right, and one ramp
+   * cannot be both.
+   *
+   * All optional, and all falling back to the content ramp — so the eleven
+   * themes that existed before this are unchanged, and a theme that wants a
+   * sidebar matching its page simply says nothing.
+   */
+  sidebarRaised?: string
+  sidebarActive?: string
+  sidebarActiveBorder?: string
+  sidebarLine?: string
+  sidebarInk?: string
+  sidebarMuted?: string
+  sidebarSection?: string
 }
 
 /** Which decoration set a theme brings with it, if any. */
@@ -112,10 +147,78 @@ const GEOMETRIC = "'Segoe UI Variable Display', 'Segoe UI', 'Inter', system-ui, 
 const SERIF = "'Iowan Old Style', 'Palatino Linotype', Georgia, 'Times New Roman', serif"
 
 export const THEMES: Theme[] = [
+  /**
+   * Editorial — the default.
+   *
+   * A charcoal sidebar framing a near-white content area, and the only theme
+   * that states the sidebar ramp. Everything else here is a neutral step;
+   * colour appears solely on status and on a delta that is up or down.
+   *
+   * The accent is near-black rather than a hue, which is not a placeholder.
+   * The palette carries meaning through weight and border instead of colour,
+   * so an orange primary button would be the loudest thing on the screen and
+   * would be competing with the one thing colour is reserved for. It is also
+   * deliberately darker than the sidebar (#1A1A1A against #2A2B2D) so a
+   * primary button never reads as a hole cut through to the frame.
+   *
+   * Depth is borders and the grey-on-white layering, not shadow: a 1px line
+   * survives a screenshot, a colourblind reader and a cheap panel, and a soft
+   * shadow survives none of them reliably.
+   */
+  {
+    id: 'editorial',
+    name: 'Editorial',
+    description: 'The default. A charcoal sidebar, a near-white page, and colour only where it means something.',
+    light: true,
+    fontSans: INTER,
+    fontMono: MONO,
+    radius: 12,
+    tokens: {
+      ground: '#efefef',
+      groundEnd: '#efefef',
+      surface: '#ffffff',
+      surfaceHover: '#fafafa',
+      shell: '#f4f4f4',
+      raised: '#f4f4f4',
+      overlay: '#ffffff',
+      hover: '#f0f0f0',
+      line: '#e6e6e6',
+      lineStrong: '#d9d9d9',
+      ink: '#111111',
+      muted: '#6b6b6b',
+      faint: '#a8a8a8',
+      disabled: '#c4c4c4',
+
+      /* Near-black, not a hue. See the note above. */
+      accent: '#1a1a1a',
+      accentHover: '#2e2e2e',
+      accentPress: '#000000',
+      accentInk: '#ffffff',
+
+      /* The only colour in the palette, and only ever for meaning. */
+      success: '#16a34a',
+      warning: '#f59e0b',
+      danger: '#dc2626',
+      info: '#9ca3af',
+
+      chartSecondary: '#d9d9d9',
+
+      /* The charcoal frame. */
+      sidebar: '#2a2b2d',
+      sidebarRaised: '#34363a',
+      sidebarActive: '#3e4045',
+      sidebarActiveBorder: '#4a4c51',
+      sidebarLine: '#3a3c40',
+      sidebarInk: '#f2f2f2',
+      sidebarMuted: '#a3a5a8',
+      sidebarSection: '#6e7075'
+    }
+  },
+
   {
     id: 'midnight',
     name: 'Midnight',
-    description: 'The default. Near-black, one orange accent, quiet everywhere else.',
+    description: 'Near-black, one orange accent, quiet everywhere else.',
     light: false,
     fontSans: INTER,
     fontMono: MONO,
@@ -473,7 +576,7 @@ export const THEMES: Theme[] = [
   }
 ]
 
-export const DEFAULT_THEME_ID = 'midnight'
+export const DEFAULT_THEME_ID = 'editorial'
 export const DEFAULT_DECOR_INTENSITY: DecorIntensity = 'subtle'
 
 /**
@@ -583,6 +686,31 @@ export function themeVariables(theme: Theme): Record<string, string> {
     '--color-warning': tokens.warning,
     '--color-danger': tokens.danger,
     '--color-info': tokens.info,
+
+    /**
+     * The tray behind a nested card, and the quiet chart series.
+     *
+     * Both derived when unstated so every existing theme gains the nested
+     * card pattern without being edited — `raised` is already the step
+     * between page and card, which is exactly what the tray is.
+     */
+    '--color-shell': tokens.shell ?? tokens.raised,
+    '--color-chart-secondary': tokens.chartSecondary ?? mix(tokens.faint, 45, tokens.ground),
+
+    /**
+     * The sidebar ramp, defaulting to the content ramp.
+     *
+     * A theme that says nothing here gets exactly what it had: the sidebar
+     * is a shade of the page and its text is the page's text. Only a theme
+     * that deliberately inverts the sidebar — editorial — states them.
+     */
+    '--color-sidebar-raised': tokens.sidebarRaised ?? tokens.raised,
+    '--color-sidebar-active': tokens.sidebarActive ?? tokens.hover,
+    '--color-sidebar-active-border': tokens.sidebarActiveBorder ?? tokens.lineStrong,
+    '--color-sidebar-line': tokens.sidebarLine ?? tokens.line,
+    '--color-sidebar-ink': tokens.sidebarInk ?? tokens.ink,
+    '--color-sidebar-muted': tokens.sidebarMuted ?? tokens.muted,
+    '--color-sidebar-section': tokens.sidebarSection ?? tokens.faint,
     '--font-sans': theme.fontSans,
     '--font-mono': theme.fontMono,
     /**

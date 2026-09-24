@@ -121,12 +121,17 @@ export function WorkspaceSwitcher(): React.JSX.Element {
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-left transition-colors hover:bg-raised"
+          className="flex w-full items-center gap-2 rounded-panel border border-sidebar-line bg-sidebar-raised px-2.5 py-2 text-left transition-colors hover:bg-sidebar-active"
         >
-          <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-ink">
-            {current?.name ?? 'Workspace'}
+          <span className="min-w-0 flex-1">
+            <span className="block font-mono text-[9.5px] tracking-[0.1em] text-sidebar-section uppercase">
+              Workspace
+            </span>
+            <span className="block truncate text-[12.5px] font-semibold text-sidebar-ink">
+              {current?.name ?? 'Workspace'}
+            </span>
           </span>
-          <ChevronsUpDown size={13} strokeWidth={1.75} className="shrink-0 text-faint" />
+          <ChevronsUpDown size={13} strokeWidth={1.75} className="shrink-0 text-sidebar-muted" />
         </button>
       </div>
     )
@@ -137,12 +142,17 @@ export function WorkspaceSwitcher(): React.JSX.Element {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="flex w-full items-center gap-2 rounded-control px-2 py-1.5 text-left transition-colors hover:bg-raised"
+        className="flex w-full items-center gap-2 rounded-panel border border-sidebar-line bg-sidebar-raised px-2.5 py-2 text-left transition-colors hover:bg-sidebar-active"
       >
-        <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-ink">
-          {current?.name ?? 'Workspace'}
+        <span className="min-w-0 flex-1">
+          <span className="block font-mono text-[9.5px] tracking-[0.1em] text-sidebar-section uppercase">
+            Workspace
+          </span>
+          <span className="block truncate text-[12.5px] font-semibold text-sidebar-ink">
+            {current?.name ?? 'Workspace'}
+          </span>
         </span>
-        <ChevronsUpDown size={13} strokeWidth={1.75} className="shrink-0 text-faint" />
+        <ChevronsUpDown size={13} strokeWidth={1.75} className="shrink-0 text-sidebar-muted" />
       </button>
 
       <AnimatePresence>

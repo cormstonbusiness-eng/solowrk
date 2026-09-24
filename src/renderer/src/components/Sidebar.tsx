@@ -22,13 +22,9 @@ function ActivePill(): React.JSX.Element {
     <motion.span
       layoutId="nav-active-pill"
       transition={transition.layout}
-      className="absolute inset-0 rounded-control bg-accent-subtle"
+      className="absolute inset-0 rounded-control border border-sidebar-active-border bg-sidebar-active"
       aria-hidden
-    >
-      {/* The 3px bar rides inside the same layoutId, so it slides with the
-          fill rather than being a second thing that has to keep up. */}
-      <span className="absolute top-1 bottom-1 left-0 w-[3px] rounded-full bg-accent" />
-    </motion.span>
+    />
   )
 }
 
@@ -53,7 +49,7 @@ function NotificationsButton(): React.JSX.Element {
       className={cn(
         'relative flex items-center gap-2.5 rounded-control px-2.5 py-[7px]',
         'text-[13px] transition-colors duration-150',
-        isActive ? 'text-ink' : 'text-muted hover:text-ink'
+        isActive ? 'text-sidebar-ink' : 'text-sidebar-muted hover:text-sidebar-ink'
       )}
     >
       {isActive && <ActivePill />}
@@ -67,7 +63,7 @@ function NotificationsButton(): React.JSX.Element {
           initial={{ scale: 0.7, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={transition.press}
-          className="relative grid h-[17px] min-w-[17px] place-items-center rounded-full bg-accent px-1 text-[10px] font-medium text-accent-ink"
+          className="relative grid h-[17px] min-w-[17px] place-items-center rounded-full bg-sidebar-ink px-1 font-mono text-[10px] font-semibold text-sidebar"
         >
           {unread > 99 ? '99+' : unread}
         </motion.span>
@@ -116,11 +112,21 @@ function NavRow({ item, unlockIndex }: { item: NavItem; unlockIndex: number }): 
       className={cn(
         'relative flex items-center gap-2.5 rounded-control px-2.5 py-[7px]',
         'text-[13px] transition-colors duration-press ease-solo',
+        /*
+          The sidebar ramp, not the content one.
+        
+          Every other surface in the app takes its text from ink/muted/faint.
+          The sidebar cannot: it is charcoal while the page beside it is
+          near-white, so one ramp would leave this column unreadable in
+          whichever direction it was tuned for. Themes that do not invert
+          their sidebar define these as the content ramp, so nothing changes
+          for them.
+        */
         isActive
-          ? 'text-ink'
+          ? 'text-sidebar-ink'
           : locked
-            ? 'text-disabled hover:bg-surface hover:text-faint'
-            : 'text-muted hover:bg-surface hover:text-ink'
+            ? 'text-sidebar-section hover:bg-sidebar-raised hover:text-sidebar-muted'
+            : 'text-sidebar-muted hover:bg-sidebar-raised hover:text-sidebar-ink'
       )}
     >
       {isActive && <ActivePill />}
@@ -128,7 +134,7 @@ function NavRow({ item, unlockIndex }: { item: NavItem; unlockIndex: number }): 
       <Icon
         size={18}
         strokeWidth={1.5}
-        className={cn('relative z-10 shrink-0', isActive && 'text-accent')}
+        className="relative z-10 shrink-0"
       />
       <span className="relative z-10 truncate">{item.label}</span>
       <AnimatePresence>
@@ -244,19 +250,19 @@ function AccountChip(): React.JSX.Element {
         onClick={() => setOpen((current) => !current)}
         className={cn(
           'flex w-full items-center gap-2.5 rounded-control px-2 py-2 text-left',
-          'transition-colors duration-press ease-solo hover:bg-surface'
+          'transition-colors duration-press ease-solo hover:bg-sidebar-raised'
         )}
       >
         <Avatar name={name} />
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[12.5px] text-ink">{name}</span>
-          <span className="block truncate text-[11px] text-faint">{tier}</span>
+          <span className="block truncate text-[12.5px] text-sidebar-ink">{name}</span>
+          <span className="block truncate text-[11px] text-sidebar-muted">{tier}</span>
         </span>
         <ChevronUp
           size={14}
           strokeWidth={1.5}
           className={cn(
-            'shrink-0 text-faint transition-transform duration-press ease-solo',
+            'shrink-0 text-sidebar-muted transition-transform duration-press ease-solo',
             !open && 'rotate-180'
           )}
         />
@@ -364,7 +370,7 @@ function Avatar({ name }: { name: string }): React.JSX.Element {
   return (
     <span
       aria-hidden
-      className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-accent-subtle text-[11px] font-semibold text-accent"
+      className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-sidebar-active-border bg-sidebar-active text-[11px] font-semibold text-sidebar-ink"
     >
       {initials || '·'}
     </span>
@@ -443,7 +449,7 @@ export function Sidebar(): React.JSX.Element {
   return (
     <nav
       data-tour="sidebar"
-      className="flex w-[212px] shrink-0 flex-col border-r border-line bg-ground"
+      className="flex w-[240px] shrink-0 flex-col border-r border-sidebar-line bg-sidebar"
     >
       {/* Above everything, because it is the widest piece of context in the
           app: every row below means something different depending on which
@@ -455,7 +461,7 @@ export function Sidebar(): React.JSX.Element {
           // data-tour targets are derived from the group label, so adding a
           // group cannot silently break a tour step that points at it.
           <div key={group.label} data-tour={`nav-${group.label.toLowerCase()}`} className="mb-5">
-            <p className="px-2.5 pb-1.5 text-[10px] font-medium tracking-[0.1em] text-faint uppercase">
+            <p className="px-2.5 pb-1.5 font-mono text-[10px] font-medium tracking-[0.1em] text-sidebar-section uppercase">
               {group.label}
             </p>
             <div className="flex flex-col gap-0.5">
@@ -477,7 +483,7 @@ export function Sidebar(): React.JSX.Element {
 
       <div
         data-tour="nav-footer"
-        className="flex flex-col gap-0.5 border-t border-line px-2.5 py-2.5"
+        className="flex flex-col gap-0.5 border-t border-sidebar-line px-2.5 py-2.5"
       >
         {/* Only the account chip. Settings used to sit here as a row as well
             as inside the chip's menu, which is one destination wearing two

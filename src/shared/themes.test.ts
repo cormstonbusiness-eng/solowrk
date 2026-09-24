@@ -52,12 +52,32 @@ describe('the theme set', () => {
      * A partial theme inherits half its palette from whatever came before,
      * which is how grey text on a grey card happens.
      *
-     * The four optional tokens are exempt on purpose: when absent they are
-     * mixed from the theme's *own* ground, surface and faint, so they can
-     * never land outside its palette. That is a different thing from
-     * inheriting another theme's colours, and it is why they may be omitted.
+     * The optional tokens are exempt on purpose: when absent they are derived
+     * from the theme's *own* palette — mixed from its ground, surface and
+     * faint, or taken straight from its content ramp — so they can never land
+     * outside it. That is a different thing from inheriting another theme's
+     * colours, and it is why they may be omitted.
+     *
+     * The sidebar group is the largest of them and the most important to get
+     * right. Only a theme that deliberately inverts its sidebar states them;
+     * every other theme leaves the sidebar a shade of its own page, which is
+     * what all eleven did before Editorial existed.
      */
-    const OPTIONAL = new Set(['groundEnd', 'sidebar', 'surfaceHover', 'disabled'])
+    const OPTIONAL = new Set([
+      'groundEnd',
+      'surfaceHover',
+      'disabled',
+      'shell',
+      'chartSecondary',
+      'sidebar',
+      'sidebarRaised',
+      'sidebarActive',
+      'sidebarActiveBorder',
+      'sidebarLine',
+      'sidebarInk',
+      'sidebarMuted',
+      'sidebarSection'
+    ])
     const required = Object.keys(THEMES[0]!.tokens).filter((name) => !OPTIONAL.has(name))
 
     for (const theme of THEMES) {

@@ -19,6 +19,8 @@
   --color-raised: #1a1a1f;
   --color-overlay: #1e1e23;
   --color-hover: #222227;
+  /* The tray behind a nested card's white inner panel. */
+  --color-shell: #1a1a1f;
 
   /* Lines. Translucent so a card reads as lit rather than outlined, and so the
      same values work over any surface underneath. */
@@ -48,6 +50,26 @@
   --color-warning: #d9a03c;
   --color-danger: #e5534b;
   --color-info: #4b8fe5;
+
+  /* The quieter of two chart series. Charts are otherwise monochrome. */
+  --color-chart-secondary: #45454e;
+
+  /* ---------------------------------------------------------------
+     The sidebar's own ramp.
+
+     The only place the app holds two palettes at once. A charcoal
+     sidebar framing a light content area needs light text on the left
+     and near-black on the right, and one ramp cannot be both. Themes
+     that do not invert their sidebar leave these equal to the content
+     ramp and nothing changes for them.
+     --------------------------------------------------------------- */
+  --color-sidebar-raised: #1a1a1f;
+  --color-sidebar-active: #222227;
+  --color-sidebar-active-border: rgba(255, 255, 255, 0.12);
+  --color-sidebar-line: rgba(255, 255, 255, 0.06);
+  --color-sidebar-ink: #f2f2f4;
+  --color-sidebar-muted: #a8a8b3;
+  --color-sidebar-section: #6e6e7a;
 
   /* Typography */
   --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
