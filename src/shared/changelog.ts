@@ -41,6 +41,19 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.1.29',
+    date: '2026-09-24',
+    headline: 'The page you are on is easier to spot in the sidebar.',
+    changes: [
+      {
+        kind: 'improved',
+        text: 'The current page stands out',
+        detail:
+          'The item you are on in the left menu is now a dark slab with white text, rather than a pale outline. It is the strongest mark in the window, which is the point — you should never have to look twice to see where you are.'
+      }
+    ]
+  },
+  {
     version: '0.1.28',
     date: '2026-09-24',
     headline: 'A new look: warm off-white, monospaced figures, and colour only where it means something.',
