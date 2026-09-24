@@ -5,10 +5,7 @@ import { ArrowUpCircle, Check, Copy, Minus, RotateCw, Square, X } from 'lucide-r
 import type { WindowState } from '@shared/ipc'
 import { Timer } from './Timer'
 import { SearchBar } from '@/palette/SearchBar'
-import { themeById, type DecorKind } from '@shared/themes'
-import { useTheme } from '@/hooks/useTheme'
 import { useUpdates } from '@/hooks/useUpdates'
-import { Petal, Pumpkin, Snowflake, Sparkle } from '@/components/seasonal/sprites'
 import { Mark } from '@/components/Wordmark'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
@@ -48,27 +45,6 @@ function ControlButton({
   )
 }
 
-/**
- * A small seasonal mark beside the wordmark. Static — the titlebar is the one
- * strip of the window that is always on screen, so nothing here should move.
- */
-const MARKS: Partial<Record<DecorKind, (props: { className?: string }) => React.JSX.Element>> = {
-  halloween: Pumpkin,
-  christmas: Snowflake,
-  newyear: Sparkle,
-  spring: Petal
-}
-
-function Flourish(): React.JSX.Element | null {
-  const { themeId, decorIntensity } = useTheme()
-  const decor = themeById(themeId).decor
-  // `Sprite`, not `Mark`: the logo tile is imported into this file under that
-  // name now, and a local shadowing it is a trap for whoever edits next.
-  const Sprite = decorIntensity === 'off' || !decor ? null : MARKS[decor]
-
-  if (!Sprite) return null
-  return <Sprite className="h-3 w-3 text-sidebar-muted opacity-70" />
-}
 
 /**
  * Says an update exists, from the moment one is found.
@@ -293,7 +269,6 @@ export function TitleBar(): React.JSX.Element {
           SoloWork
         </span>
         <RefreshButton />
-        <Flourish />
       </div>
 
       {/*

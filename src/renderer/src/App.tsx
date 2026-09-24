@@ -18,7 +18,6 @@ import { UndoProvider } from '@/hooks/useUndo'
 import { DrawerProvider } from '@/hooks/useDrawer'
 import { WhatsNew } from '@/components/WhatsNew'
 import { Toasts } from '@/components/Toasts'
-import { SeasonalLayer } from '@/components/seasonal/SeasonalLayer'
 import { transition } from '@/lib/motion'
 import { raiseLimit } from '@/lib/limits'
 import { LimitModal } from '@/components/LimitModal'
@@ -127,7 +126,6 @@ function Shell(): React.JSX.Element {
               {/* `relative` so the decoration can sit inside it, `overflow-hidden`
                   so nothing drifts out into the sidebar or the titlebar. */}
               <main className="page-light relative min-w-0 flex-1 overflow-hidden">
-                <SeasonalLayer />
                 <AnimatedRoutes />
               </main>
             </div>

@@ -30,11 +30,9 @@ import { Automations } from './settings/Automations'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, MoneyInput, NumberInput, TextInput, Toggle } from '@/components/ui/Field'
-import { DECOR_INTENSITIES, THEMES, isInSeason, themeById } from '@shared/themes'
-import { useTheme } from '@/hooks/useTheme'
 import { useUpdates } from '@/hooks/useUpdates'
 import { cn } from '@/lib/utils'
-import { currentTaxYear, today as todayString } from '@shared/taxYear'
+import { currentTaxYear } from '@shared/taxYear'
 import { formatDate } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { useWorkspace } from '@/hooks/useWorkspace'
@@ -43,7 +41,7 @@ import { LIMIT_LABELS, TIER_NAMES } from '@shared/entitlements'
 import { useTour } from '@/tour/TourProvider'
 import { messageFrom } from '@shared/ipcError'
 
-type Tab = 'business' | 'money' | 'automations' | 'account' | 'plan' | 'appearance' | 'app'
+type Tab = 'business' | 'money' | 'automations' | 'account' | 'plan' | 'app'
 
 const TABS: { value: Tab; label: string }[] = [
   { value: 'business', label: 'Business' },
@@ -51,7 +49,6 @@ const TABS: { value: Tab; label: string }[] = [
   { value: 'automations', label: 'Automations' },
   { value: 'account', label: 'Account' },
   { value: 'plan', label: 'Business plan' },
-  { value: 'appearance', label: 'Appearance' },
   { value: 'app', label: 'App' }
 ]
 
@@ -335,12 +332,6 @@ export function Settings(): React.JSX.Element {
 
           {tab === 'plan' && <BusinessPlanCard />}
 
-          {tab === 'appearance' && (
-            <>
-              <ThemeCard />
-              <DecorCard />
-            </>
-          )}
 
           {tab === 'app' && (
             <>
@@ -1217,198 +1208,6 @@ function BusinessPlanCard(): React.JSX.Element {
           </pre>
         </details>
       )}
-    </Card>
-  )
-}
-
-/**
- * Theme templates.
- *
- * Every colour, font and radius in the app comes from a token, so a theme is
- * just a different set of values for those — which is why swatches here can
- * show a real preview rather than an approximation, and why changing one is
- * instant with nothing to reload.
- */
-function ThemeCard(): React.JSX.Element {
-  const { themeId, setThemeId } = useTheme()
-  const today = todayString()
-
-  // In-season themes come first, so the Christmas one is not buried at the
-  // bottom of the list on the one day of the year anybody wants it.
-  const ordered = [...THEMES].sort(
-    (a, b) => Number(isInSeason(b, today)) - Number(isInSeason(a, today))
-  )
-
-  return (
-    <Card>
-      <CardHeader title="Theme" />
-      <p className="mb-3 text-[12px] leading-relaxed text-muted">
-        Changes colours, corners and the typeface across the whole app. Your choice is kept with
-        the workspace, so it travels with it.
-      </p>
-
-      <div className="grid grid-cols-3 gap-2.5">
-        {ordered.map((theme) => {
-          const active = theme.id === themeId
-          const inSeason = isInSeason(theme, today)
-
-          return (
-            <button
-              key={theme.id}
-              type="button"
-              onClick={() => setThemeId(theme.id)}
-              className={cn(
-                'overflow-hidden rounded-card border text-left transition-colors',
-                active ? 'border-accent' : 'border-line hover:border-line-strong'
-              )}
-            >
-              {/* A miniature of the app itself, painted in that theme's tokens —
-                  a row of hex swatches would not tell you what it feels like. */}
-              <div
-                style={{ backgroundColor: theme.tokens.ground }}
-                className="flex h-[74px] gap-1.5 p-2"
-              >
-                <div
-                  style={{ backgroundColor: theme.tokens.surface, borderRadius: theme.radius / 2 }}
-                  className="flex w-[26%] flex-col gap-1 p-1.5"
-                >
-                  <span
-                    style={{ backgroundColor: theme.tokens.accent, borderRadius: 2 }}
-                    className="h-1.5 w-full"
-                  />
-                  <span
-                    style={{ backgroundColor: theme.tokens.line, borderRadius: 2 }}
-                    className="h-1.5 w-3/4"
-                  />
-                  <span
-                    style={{ backgroundColor: theme.tokens.line, borderRadius: 2 }}
-                    className="h-1.5 w-2/3"
-                  />
-                </div>
-
-                <div className="flex flex-1 flex-col gap-1.5">
-                  <div
-                    style={{
-                      backgroundColor: theme.tokens.surface,
-                      borderColor: theme.tokens.line,
-                      borderRadius: theme.radius / 2
-                    }}
-                    className="flex flex-1 items-center gap-1.5 border p-1.5"
-                  >
-                    <span
-                      style={{ backgroundColor: theme.tokens.ink, borderRadius: 2 }}
-                      className="h-1.5 w-1/3 opacity-80"
-                    />
-                    <span
-                      style={{ backgroundColor: theme.tokens.muted, borderRadius: 2 }}
-                      className="h-1.5 w-1/4 opacity-70"
-                    />
-                  </div>
-                  <div className="flex gap-1.5">
-                    <span
-                      style={{
-                        backgroundColor: theme.tokens.accent,
-                        borderRadius: Math.max(2, theme.radius - 4)
-                      }}
-                      className="h-4 w-12"
-                    />
-                    <span
-                      style={{
-                        backgroundColor: theme.tokens.raised,
-                        borderRadius: Math.max(2, theme.radius - 4)
-                      }}
-                      className="h-4 w-8"
-                    />
-                    <span
-                      style={{ backgroundColor: theme.tokens.success, borderRadius: 99 }}
-                      className="h-4 w-4"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2 border-t border-line p-2.5">
-                <div className="min-w-0 flex-1">
-                  <p className="flex items-center gap-1.5 truncate text-[12.5px] font-medium text-ink">
-                    {theme.name}
-                    {theme.season && (
-                      <span
-                        className={cn(
-                          'shrink-0 rounded-full border px-1.5 py-px text-[9.5px] font-normal',
-                          inSeason
-                            ? 'border-accent/40 text-accent'
-                            : 'border-line text-faint'
-                        )}
-                      >
-                        {inSeason ? 'In season' : 'Seasonal'}
-                      </span>
-                    )}
-                  </p>
-                  <p className="mt-0.5 text-[11px] leading-snug text-faint">
-                    {theme.description}
-                  </p>
-                </div>
-                {active && (
-                  <Check size={14} strokeWidth={2.5} className="mt-0.5 shrink-0 text-accent" />
-                )}
-              </div>
-            </button>
-          )
-        })}
-      </div>
-    </Card>
-  )
-}
-
-/**
- * How much seasonal decoration to draw.
- *
- * Only shown when the current theme actually brings decoration with it — a dial
- * that does nothing on six of the eight themes would be furniture.
- */
-function DecorCard(): React.JSX.Element | null {
-  const { themeId, decorIntensity, setDecorIntensity } = useTheme()
-  const theme = themeById(themeId)
-
-  if (!theme.decor) return null
-
-  return (
-    <Card>
-      <CardHeader title="Decoration" />
-      <p className="mb-3 text-[12px] leading-relaxed text-muted">
-        {theme.name} comes with something behind the app. It stays out of the way of your work
-        and never sits over what you are reading — but on the days you would rather it did not,
-        turn it off.
-      </p>
-
-      <div className="flex gap-2">
-        {DECOR_INTENSITIES.map((option) => {
-          const active = option.value === decorIntensity
-
-          return (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => setDecorIntensity(option.value)}
-              className={cn(
-                'flex-1 rounded-control border px-3 py-2.5 text-left transition-colors',
-                active
-                  ? 'border-accent bg-accent/8'
-                  : 'border-line hover:border-line-strong'
-              )}
-            >
-              <p className={cn('text-[12.5px]', active ? 'text-ink' : 'text-muted')}>
-                {option.label}
-              </p>
-              <p className="mt-0.5 text-[11px] text-faint">{option.hint}</p>
-            </button>
-          )
-        })}
-      </div>
-
-      <p className="mt-2.5 text-[11px] text-faint">
-        Hidden automatically when Windows is set to reduce animation.
-      </p>
     </Card>
   )
 }

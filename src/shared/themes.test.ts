@@ -1,13 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  DECOR_COUNTS,
-  DEFAULT_THEME_ID,
-  THEMES,
-  decorFor,
-  isInSeason,
-  themeById,
-  themeVariables
-} from './themes'
+import { DEFAULT_THEME_ID, THEMES, themeById, themeVariables } from './themes'
 
 const contrast = (a: string, b: string): number => {
   const luminance = (hex: string): number => {
@@ -142,85 +134,53 @@ describe('every theme is readable', () => {
   )
 })
 
-describe('seasonal themes', () => {
-  const halloween = themeById('halloween')
-  const christmas = themeById('christmas')
-
-  it('marks only the seasonal ones', () => {
-    expect(THEMES.filter((theme) => theme.season).map((theme) => theme.id).sort()).toEqual([
-      'christmas',
-      'halloween',
-      'newyear',
-      'spring',
-      'summer'
-    ])
-  })
-
-  it('gives every seasonal theme a decoration set, and no other theme one', () => {
-    for (const theme of THEMES) {
-      expect(Boolean(theme.decor)).toBe(Boolean(theme.season))
-    }
-  })
-
-  it('puts Spring in season across the spring months', () => {
-    const spring = themeById('spring')
-    expect(isInSeason(spring, '2026-03-20')).toBe(true)
-    expect(isInSeason(spring, '2026-04-30')).toBe(true)
-    expect(isInSeason(spring, '2026-03-19')).toBe(false)
-    expect(isInSeason(spring, '2026-05-01')).toBe(false)
-  })
-
-  it('puts Summer in season across the summer months', () => {
-    const summer = themeById('summer')
-    expect(isInSeason(summer, '2026-06-01')).toBe(true)
-    expect(isInSeason(summer, '2026-08-31')).toBe(true)
-    expect(isInSeason(summer, '2026-09-01')).toBe(false)
-  })
-
-  it('wraps New Year across the year boundary', () => {
-    const newYear = themeById('newyear')
-    expect(isInSeason(newYear, '2026-12-31')).toBe(true)
-    expect(isInSeason(newYear, '2027-01-01')).toBe(true)
-    expect(isInSeason(newYear, '2027-01-03')).toBe(false)
-  })
-
-  it('puts Halloween in season through October', () => {
-    expect(isInSeason(halloween, '2026-10-01')).toBe(true)
-    expect(isInSeason(halloween, '2026-10-31')).toBe(true)
-    expect(isInSeason(halloween, '2026-09-30')).toBe(false)
-    expect(isInSeason(halloween, '2026-11-03')).toBe(false)
-  })
-
-  it('carries Christmas across the new year', () => {
-    // A window from December to January wraps, and a naive from <= day <= to
-    // would make it out of season for the whole of Christmas week.
-    expect(isInSeason(christmas, '2026-12-01')).toBe(true)
-    expect(isInSeason(christmas, '2026-12-25')).toBe(true)
-    expect(isInSeason(christmas, '2027-01-02')).toBe(true)
-    expect(isInSeason(christmas, '2027-01-06')).toBe(true)
-    expect(isInSeason(christmas, '2027-01-07')).toBe(false)
-    expect(isInSeason(christmas, '2026-11-30')).toBe(false)
-  })
-
-  it('never calls a non-seasonal theme in season', () => {
-    for (const day of ['2026-01-01', '2026-06-15', '2026-10-31', '2026-12-25']) {
-      expect(isInSeason(themeById('midnight'), day)).toBe(false)
-    }
-  })
-})
-
 describe('themeVariables', () => {
   it('emits a value for every colour token', () => {
-    const variables = themeVariables(themeById('halloween'))
-    expect(variables['--color-accent']).toBe('#f2761b')
+    /*
+      Read from the theme rather than hard-coded. The old assertion named a
+      hex — the accent of a theme that no longer exists — so it was testing
+      that one palette had not changed rather than that the function emits
+      what it is given, which is the thing that could actually break.
+    */
+    const theme = themeById(DEFAULT_THEME_ID)
+    const variables = themeVariables(theme)
+    expect(variables['--color-accent']).toBe(theme.tokens.accent)
     expect(variables['--color-ground']).toBeDefined()
     expect(variables['--font-sans']).toBeDefined()
+  })
+
+  it('emits the sidebar ramp, falling back to the content ramp', () => {
+    /*
+      The group that makes a dark sidebar in a light app possible. Every member
+      is optional, so the guard worth having is that an unstated one lands on
+      the theme's own content ramp rather than on nothing — a sidebar with no
+      text colour is an invisible sidebar.
+    */
+    const theme = themeById(DEFAULT_THEME_ID)
+    const bare = { ...theme, tokens: { ...theme.tokens } }
+    delete bare.tokens.sidebarInk
+    delete bare.tokens.sidebarMuted
+
+    const variables = themeVariables(bare)
+    expect(variables['--color-sidebar-ink']).toBe(theme.tokens.ink)
+    expect(variables['--color-sidebar-muted']).toBe(theme.tokens.muted)
+  })
+
+  it('scales its shadows to whether the theme is light', () => {
+    // Fixed shadows tuned for near-black read as a smudge on an off-white
+    // page, which is why these moved out of the stylesheet and in here.
+    const light = themeVariables({ ...themeById(DEFAULT_THEME_ID), light: true })
+    const dark = themeVariables({ ...themeById(DEFAULT_THEME_ID), light: false })
+
+    expect(light['--shadow-card']).not.toBe(dark['--shadow-card'])
+    expect(light['--shadow-pill']).not.toBe('none')
+    expect(dark['--shadow-pill']).toBe('none')
   })
 
   it('derives the radius scale so it moves together', () => {
     // Cards 12, controls 8, chips 6 — the scale in the spec, expressed as
     // offsets from the theme's own card radius rather than three fixed values.
-    const variables = themeVariables(themeById('christmas'))
+    const variables = themeVariables(themeById(DEFAULT_THEME_ID))
     expect(variables['--radius-card']).toBe('12px')
     expect(variables['--radius-control']).toBe('8px')
     expect(variables['--radius-chip']).toBe('6px')
@@ -230,62 +190,15 @@ describe('themeVariables', () => {
   it('derives the tinted fills from whatever the accent is', () => {
     // Not a second hex to keep in step. A theme that changes its accent gets a
     // matching subtle fill and glow for free, and cannot get them wrong.
-    const variables = themeVariables(themeById('midnight'))
+    const variables = themeVariables(themeById(DEFAULT_THEME_ID))
     for (const name of ['--color-accent-subtle', '--color-accent-glow', '--color-focus']) {
       expect(variables[name], name).toContain('color-mix')
-      expect(variables[name], name).toContain(themeById('midnight').tokens.accent)
+      expect(variables[name], name).toContain(themeById(DEFAULT_THEME_ID).tokens.accent)
     }
   })
 
   it('never produces a negative radius on a square theme', () => {
-    const square = { ...themeById('paper'), radius: 0 }
+    const square = { ...themeById(DEFAULT_THEME_ID), radius: 0 }
     expect(themeVariables(square)['--radius-control']).toBe('2px')
-  })
-})
-
-describe('decorFor', () => {
-  it('draws nothing at all when the dial is off', () => {
-    // "Off" has to mean the layer never renders — someone should be able to
-    // keep a seasonal palette without a single ghost.
-    for (const theme of THEMES) {
-      expect(decorFor(theme, 'off')).toBeNull()
-    }
-  })
-
-  it('draws nothing for a theme with no decoration set', () => {
-    expect(decorFor(themeById('midnight'), 'festive')).toBeNull()
-    expect(decorFor(themeById('paper'), 'subtle')).toBeNull()
-  })
-
-  it('returns the set and its counts for a seasonal theme', () => {
-    const decor = decorFor(themeById('halloween'), 'subtle')
-    expect(decor?.kind).toBe('halloween')
-    expect(decor?.counts.ghost).toBe(3)
-    expect(decor?.counts.pumpkin).toBe(2)
-  })
-
-  it('never draws fewer at festive than at subtle', () => {
-    for (const [kind, levels] of Object.entries(DECOR_COUNTS)) {
-      for (const sprite of Object.keys(levels.subtle)) {
-        expect(levels.festive[sprite] ?? 0).toBeGreaterThanOrEqual(levels.subtle[sprite] ?? 0)
-      }
-      void kind
-    }
-  })
-
-  it('keeps the counts low enough to stay decoration', () => {
-    // The difference between charming and infuriating is mostly how many.
-    for (const levels of Object.values(DECOR_COUNTS)) {
-      const total = Object.values(levels.festive).reduce((sum, count) => sum + count, 0)
-      expect(total).toBeLessThanOrEqual(30)
-    }
-  })
-
-  it('defines the same sprites at both intensities', () => {
-    // Otherwise turning the dial up makes something appear that was never
-    // designed into the quieter layout.
-    for (const levels of Object.values(DECOR_COUNTS)) {
-      expect(Object.keys(levels.festive).sort()).toEqual(Object.keys(levels.subtle).sort())
-    }
   })
 })
