@@ -41,6 +41,31 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.1.28',
+    date: '2026-09-24',
+    headline: 'A new look: warm off-white, monospaced figures, and colour only where it means something.',
+    changes: [
+      {
+        kind: 'changed',
+        text: 'SoloWork has been restyled',
+        detail:
+          'Light throughout, on a warm off-white rather than a cold grey. Section headings and figures are monospaced so columns line up and a changing number does not shuffle the row around it. Depth comes from thin borders rather than shadows, and colour is reserved for status and for a figure being up or down — which is what makes those two things readable at a glance.'
+      },
+      {
+        kind: 'changed',
+        text: 'One theme instead of twelve',
+        detail:
+          'The other eleven have been removed, along with the seasonal decorations. If you were using one of them the app now opens in the new look instead — nothing you made is affected, only the colours. The Appearance settings tab has gone with them, since a picker with one option is not a choice.'
+      },
+      {
+        kind: 'improved',
+        text: 'The logo works on a light window',
+        detail:
+          'The wordmark was off-white artwork that could not be recoloured, so on a pale background it disappeared. The title bar now carries the app icon as a small tile with the name beside it — the same icon Windows shows in your taskbar.'
+      }
+    ]
+  },
+  {
     version: '0.1.27',
     date: '2026-09-24',
     headline: 'The assistant has been removed.',
