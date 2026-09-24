@@ -36,9 +36,11 @@ function ControlButton({
       aria-label={label}
       onClick={onClick}
       className={cn(
-        'no-drag grid h-8 w-[46px] place-items-center text-muted',
+        'no-drag grid h-8 w-[46px] place-items-center text-sidebar-muted',
         'transition-colors duration-150 ease-[cubic-bezier(0.32,0.72,0,1)]',
-        danger ? 'hover:bg-danger hover:text-white' : 'hover:bg-hover hover:text-ink'
+        danger
+          ? 'hover:bg-danger hover:text-white'
+          : 'hover:bg-sidebar-raised hover:text-sidebar-ink'
       )}
     >
       {children}
@@ -63,7 +65,7 @@ function Flourish(): React.JSX.Element | null {
   const Mark = decorIntensity === 'off' || !decor ? null : MARKS[decor]
 
   if (!Mark) return null
-  return <Mark className="h-3 w-3 text-muted opacity-70" />
+  return <Mark className="h-3 w-3 text-sidebar-muted opacity-70" />
 }
 
 /**
@@ -120,8 +122,8 @@ function UpdatePrompt(): React.JSX.Element | null {
         'no-drag mr-2 flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px]',
         'transition-colors',
         ready
-          ? 'bg-accent text-accent-ink hover:bg-accent/85'
-          : 'bg-accent/12 text-accent cursor-default'
+          ? 'bg-sidebar-ink text-sidebar hover:opacity-85'
+          : 'border border-sidebar-active-border bg-sidebar-active text-sidebar-muted cursor-default'
       )}
     >
       <ArrowUpCircle
@@ -225,9 +227,11 @@ function RefreshButton(): React.JSX.Element {
           : phase === 'failed'
             ? 'text-danger'
             : // Matches the wordmark it sits beside rather than the flourish.
-            // `faint` measures 2.9:1 on the titlebar, under the 3:1 floor for
-            // a control somebody is meant to find and press; `muted` is 5.8:1.
-            'text-muted hover:bg-hover hover:text-ink'
+            // The sidebar ramp, because this bar is part of the frame now.
+            // `sidebar-muted` is the readable step on charcoal; the dimmer
+            // `sidebar-section` would sit under the 3:1 floor for a control
+            // somebody is meant to find and press.
+            'text-sidebar-muted hover:bg-sidebar-raised hover:text-sidebar-ink'
       )}
     >
       {phase === 'done' ? (
@@ -253,7 +257,16 @@ export function TitleBar(): React.JSX.Element {
         // h-11 rather than h-8: the search bar lives here now, and 32px is not
         // enough to sit an input in without it touching both edges.
         'drag-region flex h-11 shrink-0 items-center justify-between',
-        'border-b border-line bg-ground select-none',
+        /*
+          The same charcoal as the sidebar, and the same ramp inside it.
+        
+          The two together form one continuous frame around the light
+          content area rather than two separate pieces of chrome — which is
+          the whole idea the palette is built on. It also means this bar
+          takes the sidebar's text colours, not the page's: near-black
+          furniture on charcoal would be unreadable.
+        */
+        'border-b border-sidebar-line bg-sidebar select-none',
         // Unfocused windows recede, the way native ones do.
         !state.isFocused && 'opacity-60'
       )}
@@ -266,11 +279,18 @@ export function TitleBar(): React.JSX.Element {
           carries its own orange full stop, and two orange squares within 50px
           of each other is a lockup arguing with itself.
 
-          Held at 70% because a title bar is chrome. At full strength the
+          Held back because a title bar is chrome. At full strength the
           brightest thing in the window is its own furniture, which is the
           mistake every app that puts a logo up here makes.
+
+          85% rather than the 70% it sat at before, because the ground moved.
+          The artwork is off-white and was resting on near-black; charcoal is
+          several steps lighter, so the same opacity now buys noticeably less
+          contrast. This is also the reason the bar had to join the frame at
+          all — an off-white wordmark on a #EFEFEF page would have been very
+          nearly invisible.
         */}
-        <Wordmark height={11} className="opacity-70" />
+        <Wordmark height={11} className="opacity-85" />
         <RefreshButton />
         <Flourish />
       </div>

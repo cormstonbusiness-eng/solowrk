@@ -185,10 +185,20 @@ export function SearchBar(): React.JSX.Element | null {
       <div
         className={cn(
           'flex items-center gap-2 rounded-full border px-3 py-1 transition-colors',
-          open ? 'border-line-strong bg-surface' : 'border-line bg-raised hover:border-line-strong'
+          /*
+            On the frame, so it takes the sidebar ramp rather than the page's.
+          
+            A white field here would be the brightest thing in the window and
+            would break the charcoal band in half. It lifts on focus the way
+            the sidebar's own surfaces do — raised, then active — instead of
+            turning into a different material.
+          */
+          open
+            ? 'border-sidebar-active-border bg-sidebar-active'
+            : 'border-sidebar-line bg-sidebar-raised hover:border-sidebar-active-border'
         )}
       >
-        <Search size={13} strokeWidth={1.75} className="shrink-0 text-faint" />
+        <Search size={13} strokeWidth={1.75} className="shrink-0 text-sidebar-muted" />
         <input
           ref={inputRef}
           value={query}
@@ -196,10 +206,10 @@ export function SearchBar(): React.JSX.Element | null {
           onFocus={() => setFocused(true)}
           onKeyDown={onKeyDown}
           placeholder="Search or run a command"
-          className="h-5 flex-1 bg-transparent text-[12.5px] text-ink placeholder:text-faint focus:outline-none"
+          className="h-5 flex-1 bg-transparent text-[12.5px] text-sidebar-ink placeholder:text-sidebar-muted focus:outline-none"
         />
         {!open && (
-          <kbd className="shrink-0 rounded border border-line px-1 py-px text-[9.5px] text-faint">
+          <kbd className="shrink-0 rounded border border-sidebar-active-border px-1 py-px font-mono text-[9.5px] text-sidebar-muted">
             Ctrl K
           </kbd>
         )}
