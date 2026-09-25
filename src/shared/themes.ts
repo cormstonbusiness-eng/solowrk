@@ -229,7 +229,15 @@ export const THEMES: Theme[] = [
       sidebarActiveBorder: '#2e2e2a',
       sidebarActiveInk: '#ffffff',
       sidebarLine: '#e7e7e3',
-      sidebarInk: '#161614',
+      /*
+        The same value as `invert` above, deliberately.
+
+        A menu label and the fill of a dark module are the two near-blacks
+        the eye sees side by side most often, and two near-blacks that are
+        nearly but not quite equal read as a mistake rather than as a
+        choice. If one of them moves, move the other.
+      */
+      sidebarInk: '#1c1c1a',
       sidebarMuted: '#6b6b64',
       sidebarSection: '#a3a39c'
     }

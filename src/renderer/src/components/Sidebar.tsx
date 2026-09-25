@@ -49,7 +49,7 @@ function NotificationsButton(): React.JSX.Element {
       className={cn(
         'relative flex items-center gap-2.5 rounded-control px-2.5 py-[7px]',
         'text-[13px] transition-colors duration-150',
-        isActive ? 'text-sidebar-active-ink' : 'text-sidebar-muted hover:text-sidebar-ink'
+        isActive ? 'text-sidebar-active-ink' : 'text-sidebar-ink'
       )}
     >
       {isActive && <ActivePill />}
@@ -122,11 +122,23 @@ function NavRow({ item, unlockIndex }: { item: NavItem; unlockIndex: number }): 
           their sidebar define these as the content ramp, so nothing changes
           for them.
         */
+        /*
+          Destinations are set in the sidebar's ink, not its muted step.
+
+          Every row here is somewhere you can go, which makes them all
+          primary text — greying them made a column of twelve live links
+          read as twelve things switched off. Hierarchy comes from the
+          section labels above them, which stay quiet, and from the active
+          row, which inverts.
+
+          A locked row keeps the faint step, because that one genuinely is
+          not somewhere you can go yet.
+        */
         isActive
           ? 'text-sidebar-active-ink'
           : locked
             ? 'text-sidebar-section hover:bg-sidebar-raised hover:text-sidebar-muted'
-            : 'text-sidebar-muted hover:bg-sidebar-raised hover:text-sidebar-ink'
+            : 'text-sidebar-ink hover:bg-sidebar-raised'
       )}
     >
       {isActive && <ActivePill />}
