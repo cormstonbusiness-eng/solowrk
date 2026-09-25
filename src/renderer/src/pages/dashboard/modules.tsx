@@ -1153,7 +1153,7 @@ function Pending({ size }: { size: ModuleSize }): React.JSX.Element {
 
       <Divide size={size} />
 
-      <div className={cn('flex flex-col', size === 'compact' ? 'gap-1' : 'gap-1.5')}>
+      <div className={cn('flex flex-col', size === 'compact' ? 'gap-0.5' : 'gap-1')}>
         {sorted.length === 0 ? (
           <Quiet size={size}>Nothing outstanding.</Quiet>
         ) : (
@@ -1166,61 +1166,60 @@ function Pending({ size }: { size: ModuleSize }): React.JSX.Element {
                 type="button"
                 onClick={() => navigate('/invoices')}
                 className={cn(
-                  'flex w-full items-center gap-2.5 rounded-control text-left transition-colors hover:bg-raised',
-                  size === 'compact' ? 'px-1 py-1' : 'px-1.5 py-1.5'
+                  'flex w-full items-center gap-3 rounded-control text-left transition-colors hover:bg-raised',
+                  size === 'compact' ? 'px-1 py-1.5' : 'px-1.5 py-2'
                 )}
               >
                 <ClientMark
                   name={invoice.clientName ?? 'No client'}
                   colour={colourFor(invoice.clientId)}
-                  size={size === 'compact' ? 26 : 32}
+                  size={size === 'compact' ? 28 : 34}
                 />
 
                 <span className="min-w-0 flex-1">
                   <span
                     className={cn(
-                      'block truncate font-medium',
-                      size === 'compact' ? 'text-[12px]' : 'text-[13px]'
+                      'block truncate font-semibold tracking-[-0.01em]',
+                      size === 'compact' ? 'text-[12.5px]' : 'text-[13.5px]'
                     )}
                   >
                     {invoice.clientName ?? 'No client'}
                   </span>
-                  <span className="numeric mt-0.5 block text-[10.5px] text-muted">
-                    {invoice.number} · due {formatDate(invoice.dueDate)}
+                  {/*
+                    One line under the name, and the amount lives here rather
+                    than in its own column.
+
+                    A third column of figures pushed the pill against the edge
+                    and left the name nowhere to truncate. Money and due date
+                    are both facts about the same invoice, so they read
+                    perfectly well as one line — and it leaves the row with
+                    the shape the reference has: mark, two lines, pill.
+                  */}
+                  <span className="mt-0.5 block truncate text-[11px] text-muted">
+                    <span className="numeric font-medium text-ink">
+                      {formatMoney(invoice.gross)}
+                    </span>
+                    {' · due '}
+                    <span className="numeric">{formatDate(invoice.dueDate)}</span>
                   </span>
                 </span>
 
-                <span className="flex shrink-0 items-center gap-2">
-                  <span
-                    className={cn(
-                      'numeric font-medium',
-                      size === 'compact' ? 'text-[12px]' : 'text-[13px]'
-                    )}
-                  >
-                    {formatMoney(invoice.gross)}
-                  </span>
+                {/*
+                  A filled pill, and the only colour on the row.
 
-                  {/*
-                    An outlined pill, and the only colour on the row.
-
-                    Overdue is the one state here that is genuinely a problem,
-                    so it is the one that gets red. "Pending" is not a warning
-                    — it is an invoice behaving normally — and colouring it
-                    would spend the reader's attention on the eight rows that
-                    are fine to find the one that is not.
-                  */}
-                  {size === 'detailed' && (
-                    <span
-                      className={cn(
-                        'rounded-full border px-2 py-0.5 text-[10px] font-medium',
-                        late
-                          ? 'border-danger/40 text-danger'
-                          : 'border-line text-muted'
-                      )}
-                    >
-                      {late ? 'Overdue' : 'Pending'}
-                    </span>
+                  Overdue is the one state here that is genuinely a problem, so
+                  it is the one that gets red. "Pending" is not a warning — it
+                  is an invoice behaving normally — and colouring it would
+                  spend the reader's attention on the eight rows that are fine
+                  in order to find the one that is not.
+                */}
+                <span
+                  className={cn(
+                    'shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-medium',
+                    late ? 'bg-danger/12 text-danger' : 'bg-shell text-muted'
                   )}
+                >
+                  {late ? 'Overdue' : 'Pending'}
                 </span>
               </button>
             )

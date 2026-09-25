@@ -319,7 +319,6 @@ function isDark(slot: Slot, locked: boolean): boolean {
 
 function ModuleBody({ slot }: { slot: Slot }): React.JSX.Element {
   const module = REGISTRY[slot.id]
-  const Icon = module.icon
   const Render = module.Render
 
   /*
@@ -332,10 +331,9 @@ function ModuleBody({ slot }: { slot: Slot }): React.JSX.Element {
 
   return (
     <>
-      <div className="mb-3 flex items-center gap-2">
+      <div className="mb-4 flex items-center gap-2">
         <GripVertical size={13} strokeWidth={1.75} className="shrink-0 text-faint" />
-        <IconChip icon={Icon} size={22} />
-        <span className="flex-1 truncate text-[12.5px] font-medium text-ink">{module.name}</span>
+        <span className="flex-1 truncate text-[15px] font-semibold tracking-[-0.01em] text-ink">{module.name}</span>
       </div>
 
       {locked ? (
@@ -367,7 +365,6 @@ function ModuleCard({
   onRemove: () => void
 }): React.JSX.Element {
   const module = REGISTRY[slot.id]
-  const Icon = module.icon
   const Render = module.Render
 
   const entitled = useFeature(module.feature ?? 'marketing')
@@ -438,7 +435,20 @@ function ModuleCard({
         style={skin.style}
       >
 
-        <div className="relative mb-3 flex items-center gap-2">
+        {/*
+          Title only — the icon chip that used to sit here has gone.
+
+          It was earning its place while each module carried a colour: the
+          chip was where that colour lived, and it gave the eye a mark to
+          find a card by. With the colour gone the chip was a grey square in
+          front of every title, which is decoration rather than a signal,
+          and twelve of them across a grid is noise.
+
+          The name is set larger and bolder in its place. A module's title is
+          the thing you scan for; it should not be the same weight as the
+          figures beneath it.
+        */}
+        <div className="relative mb-4 flex items-center gap-2">
           {/*
             The handle is the only place a drag starts. Dragging from anywhere
             on the card would mean every list row inside it had to stop the
@@ -453,8 +463,7 @@ function ModuleCard({
             <GripVertical size={13} strokeWidth={1.75} />
           </button>
 
-          <IconChip icon={Icon} size={22} />
-          <span className="flex-1 truncate text-[12.5px] font-medium text-ink">{module.name}</span>
+          <span className="flex-1 truncate text-[15px] font-semibold tracking-[-0.01em] text-ink">{module.name}</span>
 
           <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
             <button
