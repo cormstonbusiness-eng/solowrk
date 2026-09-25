@@ -7,6 +7,7 @@ import {
   FileText,
   Archive,
   FolderKanban,
+  Hourglass,
   Megaphone,
   NotebookPen,
   PoundSterling,
@@ -1047,6 +1048,189 @@ function Tasks({ size }: { size: ModuleSize }): React.JSX.Element {
  * model. That is the reason it is trusted without checking, and it is worth not
  * forgetting when this card is edited.
  */
+/**
+ * The mark beside a client's name.
+ *
+ * **There is no logo to show yet.** Clients have no image field, so this
+ * draws their initials on the colour they already carry — the same colour
+ * the stage board and the client list use, so a client is the same colour
+ * wherever you meet them.
+ *
+ * That colour is identity rather than status, which is the distinction that
+ * lets it through a palette otherwise reserving colour for meaning. A real
+ * logo would be colourful too and nobody would call that a violation.
+ *
+ * Built as its own component so that when client profiles arrive, an `<img>`
+ * replaces the initials here and every row in the app that uses it follows —
+ * rather than the logo needing to be threaded through each caller.
+ */
+function ClientMark({
+  name,
+  colour,
+  size = 32
+}: {
+  name: string
+  colour: string
+  size?: number
+}): React.JSX.Element {
+  /*
+    Two letters from two words, one from a single word. "Harbourside Studio"
+    reads as HS; "Harbourside" as H. Initials from a single long word are
+    worse than one letter — "HA" says nothing the H did not.
+  */
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((word) => word[0])
+    .join('')
+    .toUpperCase()
+
+  return (
+    <span
+      aria-hidden
+      className="grid shrink-0 place-items-center rounded-chip font-semibold text-white"
+      style={{
+        width: size,
+        height: size,
+        backgroundColor: colour || 'var(--color-muted)',
+        fontSize: Math.round(size * 0.38)
+      }}
+    >
+      {initials || '?'}
+    </span>
+  )
+}
+
+/**
+ * Money that has been invoiced and not yet arrived.
+ *
+ * Every sent invoice, newest due first, with who owes it and how much. The
+ * status pill separates the two states that matter: still within terms, or
+ * past its due date. A draft is not here — nobody owes you for an invoice you
+ * have not sent — and neither is anything paid.
+ *
+ * Deliberately one number and a list rather than a figure grid. "Who owes me
+ * what" is a question with names in the answer, and a total on its own sends
+ * you to the Invoices page to find out which.
+ */
+function Pending({ size }: { size: ModuleSize }): React.JSX.Element {
+  const navigate = useNavigate()
+
+  const { data: invoices = [] } = useQuery({
+    queryKey: ['invoices', 'list', { status: 'sent' }],
+    queryFn: () => window.solo.invoke('invoices:list', { status: 'sent' })
+  })
+
+  /* The colour is on the client, not the invoice, so they have to be joined. */
+  const { data: clients = [] } = useQuery({
+    queryKey: keys.clients,
+    queryFn: () => window.solo.invoke('clients:list', {})
+  })
+
+  const colourFor = (clientId: number | null): string =>
+    clients.find((client) => client.id === clientId)?.colour ?? ''
+
+  /*
+    Soonest due at the top, because the one closest to its date is the one
+    worth seeing — and anything already past it sorts to the top naturally.
+  */
+  const sorted = [...invoices].sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+  const total = invoices.reduce((sum, invoice) => sum + invoice.gross, 0)
+
+  return (
+    <div>
+      <Figures
+        size={size}
+        items={[
+          { label: 'Invoiced and unpaid', value: formatMoney(total) },
+          {
+            label: invoices.length === 1 ? 'invoice' : 'invoices',
+            value: String(invoices.length)
+          }
+        ]}
+      />
+
+      <Divide size={size} />
+
+      <div className={cn('flex flex-col', size === 'compact' ? 'gap-1' : 'gap-1.5')}>
+        {sorted.length === 0 ? (
+          <Quiet size={size}>Nothing outstanding.</Quiet>
+        ) : (
+          sorted.slice(0, size === 'compact' ? 4 : 6).map((invoice) => {
+            const late = invoice.displayStatus === 'overdue'
+
+            return (
+              <button
+                key={invoice.id}
+                type="button"
+                onClick={() => navigate('/invoices')}
+                className={cn(
+                  'flex w-full items-center gap-2.5 rounded-control text-left transition-colors hover:bg-raised',
+                  size === 'compact' ? 'px-1 py-1' : 'px-1.5 py-1.5'
+                )}
+              >
+                <ClientMark
+                  name={invoice.clientName ?? 'No client'}
+                  colour={colourFor(invoice.clientId)}
+                  size={size === 'compact' ? 26 : 32}
+                />
+
+                <span className="min-w-0 flex-1">
+                  <span
+                    className={cn(
+                      'block truncate font-medium',
+                      size === 'compact' ? 'text-[12px]' : 'text-[13px]'
+                    )}
+                  >
+                    {invoice.clientName ?? 'No client'}
+                  </span>
+                  <span className="numeric mt-0.5 block text-[10.5px] text-muted">
+                    {invoice.number} · due {formatDate(invoice.dueDate)}
+                  </span>
+                </span>
+
+                <span className="flex shrink-0 items-center gap-2">
+                  <span
+                    className={cn(
+                      'numeric font-medium',
+                      size === 'compact' ? 'text-[12px]' : 'text-[13px]'
+                    )}
+                  >
+                    {formatMoney(invoice.gross)}
+                  </span>
+
+                  {/*
+                    An outlined pill, and the only colour on the row.
+
+                    Overdue is the one state here that is genuinely a problem,
+                    so it is the one that gets red. "Pending" is not a warning
+                    — it is an invoice behaving normally — and colouring it
+                    would spend the reader's attention on the eight rows that
+                    are fine to find the one that is not.
+                  */}
+                  {size === 'detailed' && (
+                    <span
+                      className={cn(
+                        'rounded-full border px-2 py-0.5 text-[10px] font-medium',
+                        late
+                          ? 'border-danger/40 text-danger'
+                          : 'border-line text-muted'
+                      )}
+                    >
+                      {late ? 'Overdue' : 'Pending'}
+                    </span>
+                  )}
+                </span>
+              </button>
+            )
+          })
+        )}
+      </div>
+    </div>
+  )
+}
+
 function Review({ size }: { size: ModuleSize }): React.JSX.Element {
   const navigate = useNavigate()
   const invalidate = useInvalidate()
@@ -1122,6 +1306,14 @@ export const MODULES = {
     icon: PoundSterling,
     tone: 'dark',
     Render: Money
+  },
+  pending: {
+    name: 'Pending payments',
+    description:
+      'Every invoice you have sent that has not been paid, soonest due first, with who owes it and how much. Marks the ones past their date. Opens Invoices.',
+    icon: Hourglass,
+    tone: 'light',
+    Render: Pending
   },
   attention: {
     name: 'Needs attention',
@@ -1239,6 +1431,7 @@ export const MODULE_IDS = Object.keys(MODULES) as ModuleId[]
  */
 export const DEFAULT_LAYOUT: { id: ModuleId; size: ModuleSize }[] = [
   { id: 'money', size: 'detailed' },
+  { id: 'pending', size: 'detailed' },
   { id: 'attention', size: 'compact' },
   { id: 'today', size: 'detailed' },
   { id: 'time', size: 'compact' },
