@@ -5,6 +5,7 @@ import {
   CircleCheckBig,
   Clock,
   FileText,
+  Archive,
   FolderKanban,
   Megaphone,
   NotebookPen,
@@ -64,36 +65,28 @@ export interface DashboardModule {
   description: string
   icon: LucideIcon
   /**
-   * The module's hue, from the theme's semantic colours.
+   * Whether the card inverts — dark fill, light text.
    *
-   * Twelve cards in one grid, each a header and a figure and a list, all in the
-   * same greys, is a screen where nothing is findable — you read every title
-   * every time because nothing else tells them apart. A colour on the icon
-   * gives each one a mark the eye learns.
+   * This replaced a per-module colour, and the reason is worth keeping. The
+   * colour existed to solve a real problem: twelve cards of identical greys
+   * are twelve cards you have to read the title of every time, because
+   * nothing else tells them apart. A tinted icon gave the eye a mark.
    *
-   * Semantic tokens rather than a new palette, so the colour means what it
-   * means everywhere else in the app: money is `success`, lateness is `danger`,
-   * things needing a look are `warning`. Only the icon chip and a faint corner
-   * wash are tinted — the design keeps orange under a tenth of any screen, and
-   * twelve saturated cards would be a different app.
+   * It solved it at a cost the rest of the palette does not pay. Colour here
+   * means status — money paid, an invoice late, something needing a look —
+   * and spending it on twelve permanent decorations makes the one card that
+   * genuinely is overdue indistinguishable from the one that is merely about
+   * money. Tone does the same job with the same strength and spends nothing:
+   * a dark card is found across a grid instantly, and red still only ever
+   * means late.
    */
-  accent: Accent
+  tone: ModuleTone
   /** Gated modules are offered but locked, never hidden — see the add menu. */
   feature?: Feature
   Render: (props: { size: ModuleSize }) => React.JSX.Element
 }
 
-export type Accent = 'accent' | 'success' | 'warning' | 'danger' | 'info' | 'neutral'
-
-/** The CSS variable behind each, so a module names a meaning and not a hex. */
-export const ACCENT_VAR: Record<Accent, string> = {
-  accent: 'var(--color-accent)',
-  success: 'var(--color-success)',
-  warning: 'var(--color-warning)',
-  danger: 'var(--color-danger)',
-  info: 'var(--color-info)',
-  neutral: 'var(--color-muted)'
-}
+export type ModuleTone = 'light' | 'dark'
 
 /* ------------------------------------------------------------------ *
  * Density
@@ -112,12 +105,21 @@ const TONE: Record<'ink' | 'warning' | 'success', string> = {
 }
 
 /**
- * A module's headline numbers, at either density.
+ * A module's headline numbers.
  *
- * Detailed stacks a label above a large figure, across as many columns as
- * there are figures. Compact turns each one into a single row — label left,
- * figure right — which fits three or four numbers into about the height one of
- * them took, and keeps every one of them.
+ * The figure is large and set in the UI face rather than the monospace one,
+ * with its label small and wrapped tight beside it — "43 / Tasks done for all
+ * time". That pairing is the whole trick: the number is what you came for and
+ * the label is the footnote, so making them the same size makes you read both
+ * to learn either.
+ *
+ * Monospace is kept for money and for anything in a column, where digits have
+ * to line up. A standalone count has no column to align with, and proportional
+ * figures at 30px simply look better set.
+ *
+ * Compact turns each one into a single row — label left, figure right — which
+ * fits three or four numbers into about the height one of them took, and keeps
+ * every one of them.
  */
 function Figures({ size, items }: { size: ModuleSize; items: Figure[] }): React.JSX.Element {
   if (size === 'compact') {
@@ -137,19 +139,151 @@ function Figures({ size, items }: { size: ModuleSize; items: Figure[] }): React.
     )
   }
 
+  /*
+    Two across at most, and the first one is the headline.
+
+    Three equal columns made every figure the same weight, so a card with a
+    number that matters and two that support it read as three of equal
+    importance. The first is now large and the rest sit beside it smaller —
+    a hierarchy rather than a row.
+  */
+  const [lead, ...rest] = items
+  if (!lead) return <></>
+
   return (
-    <div
-      className="grid gap-4"
-      style={{ gridTemplateColumns: `repeat(${Math.min(items.length, 3)}, minmax(0, 1fr))` }}
-    >
-      {items.map((item) => (
-        <div key={item.label}>
-          <p className="mb-1.5 text-[11px] tracking-[0.06em] text-faint uppercase">{item.label}</p>
-          <p className={cn('numeric text-[24px] leading-none font-medium', TONE[item.tone ?? 'ink'])}>
+    <div className="flex flex-wrap items-end gap-x-7 gap-y-3">
+      <div className="flex items-end gap-2">
+        <span
+          className={cn(
+            'text-[34px] leading-[0.9] font-semibold tracking-[-0.03em]',
+            TONE[lead.tone ?? 'ink']
+          )}
+        >
+          {lead.value}
+        </span>
+        <span className="mb-0.5 max-w-[92px] text-[11px] leading-[1.25] text-muted">
+          {lead.label}
+        </span>
+      </div>
+
+      {rest.map((item) => (
+        <div key={item.label} className="flex items-end gap-2">
+          <span
+            className={cn(
+              'text-[22px] leading-[0.9] font-semibold tracking-[-0.02em]',
+              TONE[item.tone ?? 'ink']
+            )}
+          >
             {item.value}
-          </p>
+          </span>
+          <span className="mb-0.5 max-w-[86px] text-[11px] leading-[1.25] text-muted">
+            {item.label}
+          </span>
         </div>
       ))}
+    </div>
+  )
+}
+
+/**
+ * The small stat tiles that sit inside a module, under its headline.
+ *
+ * A rounded tile each, with the icon above the number and the word under it.
+ * They carry counts that belong together — projects, in progress, completed —
+ * which as a sentence would be a list nobody reads and as three big figures
+ * would compete with the headline.
+ *
+ * `bg-shell` rather than a fixed grey, so on an inverted card they come out
+ * light against the dark fill and on an ordinary card they are the quiet tray
+ * they are everywhere else. One token, both directions.
+ */
+function Tiles({
+  size,
+  items
+}: {
+  size: ModuleSize
+  items: { icon: LucideIcon; value: string; label: string }[]
+}): React.JSX.Element {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map(({ icon: Icon, value, label }) => (
+        <div
+          key={label}
+          className={cn(
+            'rounded-tile bg-shell text-ink',
+            size === 'compact' ? 'min-w-[72px] px-2.5 py-2' : 'min-w-[84px] px-3 py-2.5'
+          )}
+        >
+          <Icon
+            size={size === 'compact' ? 13 : 15}
+            strokeWidth={1.75}
+            className="mb-1.5 text-muted"
+          />
+          <p
+            className={cn(
+              'leading-none font-semibold tracking-[-0.02em]',
+              size === 'compact' ? 'text-[17px]' : 'text-[21px]'
+            )}
+          >
+            {value}
+          </p>
+          <p className="mt-1 text-[10.5px] leading-none text-muted">{label}</p>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * A ring showing a share of something, with the figure inside it.
+ *
+ * Two SVG circles and `stroke-dasharray` — no library, and nothing to
+ * animate. A bar would say the same thing in less space; the ring earns its
+ * place by sitting in a corner where a bar would need a full row.
+ *
+ * Clamped at 100% for the arc while the label keeps the real number, so
+ * somebody at 120% sees 120% without the ring wrapping past its own start and
+ * reading as 20%.
+ */
+function Ring({
+  value,
+  label,
+  size = 58
+}: {
+  value: number
+  label: string
+  size?: number
+}): React.JSX.Element {
+  const stroke = 5
+  const radius = (size - stroke) / 2
+  const circumference = 2 * Math.PI * radius
+  const drawn = Math.max(0, Math.min(1, value / 100)) * circumference
+
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      <svg width={size} height={size} className="-rotate-90">
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          strokeWidth={stroke}
+          stroke="var(--color-chart-secondary)"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          fill="none"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          stroke="currentColor"
+          strokeDasharray={`${drawn} ${circumference}`}
+        />
+      </svg>
+      <span className="absolute inset-0 grid place-items-center text-[11px] font-semibold">
+        {label}
+      </span>
     </div>
   )
 }
@@ -363,7 +497,7 @@ function Money({ size }: { size: ModuleSize }): React.JSX.Element {
       />
       {trends?.paid && trends.paid.length > 0 && (
         <div className="mt-3.5">
-          <Spark points={trends.paid} colour={ACCENT_VAR.success} size={size} />
+          <Spark points={trends.paid} colour="currentColor" size={size} />
         </div>
       )}
       <Divide size={size} />
@@ -403,7 +537,7 @@ function Overdue({ size }: { size: ModuleSize }): React.JSX.Element {
       />
       {trends?.overdue && trends.overdue.length > 0 && (
         <div className="mt-3.5">
-          <Spark points={trends.overdue} colour={ACCENT_VAR.danger} size={size} />
+          <Spark points={trends.overdue} colour="currentColor" size={size} />
         </div>
       )}
       <Divide size={size} />
@@ -529,7 +663,7 @@ function TimeWeek({ size }: { size: ModuleSize }): React.JSX.Element {
         ]}
       />
       <div className="mt-3.5">
-        <Spark points={days} colour={ACCENT_VAR.accent} size={size} />
+        <Spark points={days} colour="currentColor" size={size} />
       </div>
       <Divide size={size} />
       <Row
@@ -555,21 +689,42 @@ function Projects({ size }: { size: ModuleSize }): React.JSX.Element {
     <div>
       <Figures
         size={size}
-        items={[
-          { label: 'Active projects', value: String(active.length) },
-          {
-            label: 'Open tasks',
-            value: String(active.reduce((sum, project) => sum + project.openTaskCount, 0))
-          }
-        ]}
+        items={[{ label: 'Projects on the go', value: String(active.length) }]}
       />
+
+      {/*
+        The supporting counts as tiles rather than as more headline figures.
+
+        They used to sit beside the lead number at the same weight, which made
+        a card with one number that matters and two that support it read as
+        three of equal importance.
+      */}
+      <div className="mt-4">
+        <Tiles
+          size={size}
+          items={[
+            { icon: FolderKanban, value: String(active.length), label: 'Active' },
+            {
+              icon: CircleCheckBig,
+              value: String(active.reduce((sum, project) => sum + project.openTaskCount, 0)),
+              label: 'Open tasks'
+            },
+            {
+              value: String(projects.length - active.length),
+              icon: Archive,
+              label: 'Not active'
+            }
+          ]}
+        />
+      </div>
+
       <Divide size={size} />
       <List size={size}>
         {active.length === 0 ? (
           <Quiet size={size}>No active projects.</Quiet>
         ) : (
           active
-            .slice(0, 6)
+            .slice(0, 4)
             .map((project) => (
               <Row
                 key={project.id}
@@ -612,9 +767,13 @@ function Clients({ size }: { size: ModuleSize }): React.JSX.Element {
         <Split
           size={size}
           parts={[
-            { label: 'Leads', value: counts.lead, colour: ACCENT_VAR.info },
-            { label: 'Prospects', value: counts.prospect, colour: ACCENT_VAR.warning },
-            { label: 'Active', value: counts.active, colour: ACCENT_VAR.success }
+            { label: 'Leads', value: counts.lead, colour: 'currentColor' },
+            {
+              label: 'Prospects',
+              value: counts.prospect,
+              colour: 'color-mix(in srgb, currentColor 45%, transparent)'
+            },
+            { label: 'Active', value: counts.active, colour: 'var(--color-chart-secondary)' }
           ]}
         />
       </div>
@@ -635,16 +794,29 @@ function Goals({ size }: { size: ModuleSize }): React.JSX.Element {
 
   return (
     <div>
-      <Figures
-        size={size}
-        items={[
-          {
-            label: 'Goals met',
-            value: `${met}/${goals.length}`,
-            tone: goals.length > 0 && met === goals.length ? 'success' : 'ink'
-          }
-        ]}
-      />
+      {/*
+        A ring rather than a figure, because "met" is a share of a target and
+        that is the one shape a ring says faster than a number does.
+      */}
+      <div className="flex items-center gap-4">
+        <Ring
+          value={goals.length === 0 ? 0 : (met / goals.length) * 100}
+          label={`${met}/${goals.length}`}
+          size={size === 'compact' ? 48 : 60}
+        />
+        <div className="min-w-0">
+          <p className="text-[13px] leading-[1.35] font-medium">
+            {goals.length === 0
+              ? 'Nothing set yet'
+              : met === goals.length
+                ? 'Every goal met'
+                : `${goals.length - met} still to go`}
+          </p>
+          <p className="mt-0.5 text-[11.5px] text-muted">
+            {goals.length === 1 ? '1 goal' : `${goals.length} goals`}
+          </p>
+        </div>
+      </div>
       <Divide size={size} />
       <div className={cn('flex flex-col', size === 'compact' ? 'gap-1.5' : 'gap-2')}>
         {goals.length === 0 ? (
@@ -836,8 +1008,8 @@ function Tasks({ size }: { size: ModuleSize }): React.JSX.Element {
         <Split
           size={size}
           parts={[
-            { label: 'Done', value: tasks.length - open.length, colour: ACCENT_VAR.success },
-            { label: 'Open', value: open.length, colour: ACCENT_VAR.info }
+            { label: 'Done', value: tasks.length - open.length, colour: 'var(--color-chart-secondary)' },
+            { label: 'Open', value: open.length, colour: 'currentColor' }
           ]}
         />
       </div>
@@ -948,7 +1120,7 @@ export const MODULES = {
     description:
       'What you have been paid this month, what is still owed and what is overdue, with your expenses. Opens Finance.',
     icon: PoundSterling,
-    accent: 'success',
+    tone: 'dark',
     Render: Money
   },
   attention: {
@@ -956,7 +1128,7 @@ export const MODULES = {
     description:
       'How many invoices are late and how many documents expire within 45 days, then lists both. Each one opens where it is dealt with.',
     icon: TriangleAlert,
-    accent: 'warning',
+    tone: 'dark',
     Render: Attention
   },
   today: {
@@ -964,7 +1136,7 @@ export const MODULES = {
     description:
       'How many hours are booked today and how many tasks are due, then both lists with their times. Opens the calendar or the task.',
     icon: CalendarDays,
-    accent: 'info',
+    tone: 'light',
     Render: Today
   },
   time: {
@@ -972,7 +1144,7 @@ export const MODULES = {
     description:
       'Hours tracked since Monday and the value of the billable ones not yet on an invoice. Opens Time.',
     icon: Clock,
-    accent: 'accent',
+    tone: 'dark',
     Render: TimeWeek
   },
   tasks: {
@@ -980,7 +1152,7 @@ export const MODULES = {
     description:
       'How many tasks are open and how many are done, then the open ones with their due dates. Opens Tasks.',
     icon: CircleCheckBig,
-    accent: 'info',
+    tone: 'light',
     Render: Tasks
   },
   projects: {
@@ -988,7 +1160,7 @@ export const MODULES = {
     description:
       'How many projects are active and how many tasks they hold between them, then each project. Opens that project.',
     icon: FolderKanban,
-    accent: 'accent',
+    tone: 'light',
     Render: Projects
   },
   clients: {
@@ -996,7 +1168,7 @@ export const MODULES = {
     description:
       'How many clients are leads, prospects and active — the shape of your pipeline in three numbers. Opens Clients.',
     icon: Users,
-    accent: 'success',
+    tone: 'light',
     Render: Clients
   },
   overdue: {
@@ -1004,7 +1176,7 @@ export const MODULES = {
     description:
       'The total owed on late invoices and how many there are, then each one with its client and amount. Opens Invoices.',
     icon: ReceiptText,
-    accent: 'danger',
+    tone: 'light',
     Render: Overdue
   },
   goals: {
@@ -1012,7 +1184,7 @@ export const MODULES = {
     description:
       'How many goals you have met, then each one with a progress bar. Progress is counted from your records, never typed in. Opens Goals.',
     icon: Target,
-    accent: 'accent',
+    tone: 'dark',
     Render: Goals
   },
   files: {
@@ -1020,7 +1192,7 @@ export const MODULES = {
     description:
       'The files most recently changed in your workspace folder, with the date each was touched. Opens Files.',
     icon: FileText,
-    accent: 'neutral',
+    tone: 'light',
     Render: RecentFiles
   },
   review: {
@@ -1028,7 +1200,7 @@ export const MODULES = {
     description:
       'Three things worth doing this week, worked out from your own records rather than written by a model. Files the full review as a note.',
     icon: NotebookPen,
-    accent: 'accent',
+    tone: 'light',
     feature: 'aireview',
     Render: Review
   },
@@ -1037,7 +1209,7 @@ export const MODULES = {
     description:
       'How many posts are scheduled for today, and which. Opens Marketing.',
     icon: Megaphone,
-    accent: 'warning',
+    tone: 'light',
     feature: 'marketing',
     Render: Marketing
   }

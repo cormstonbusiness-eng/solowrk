@@ -53,6 +53,11 @@
   /* The quieter of two chart series. Charts are otherwise monochrome. */
   --color-chart-secondary: #45454e;
 
+  /* A card that inverts, for the dashboard. See themeVariables(). */
+  --color-invert: #f2f2f4;
+  --color-invert-ink: #0a0a0c;
+  --color-invert-muted: #45454e;
+
   /* ---------------------------------------------------------------
      The sidebar's own ramp.
 
@@ -81,6 +86,15 @@
   --radius-control: 8px;
   --radius-card: 12px;
   --radius-panel: 12px;
+  /**
+   * Dashboard modules, which are rounder than the rest of the app.
+
+   * Deliberately its own value rather than a change to --radius-card: a
+   * module is a tile on a wall of tiles and carries the rounding well,
+   * while a settings panel at the same radius starts to look like a toy.
+   */
+  --radius-module: 20px;
+  --radius-tile: 14px;
 
   /* Spacing scale. Nothing off-scale. */
   --spacing-card: 20px;

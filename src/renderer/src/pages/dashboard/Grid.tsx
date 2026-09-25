@@ -9,13 +9,11 @@ import {
   X,
   type LucideIcon
 } from 'lucide-react'
-import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { useFeature } from '@/lib/features'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
-import { ACCENT_VAR, MODULE_IDS, REGISTRY, type ModuleId } from './modules'
-import type { Accent } from './modules'
+import { MODULE_IDS, REGISTRY, type ModuleId } from './modules'
 import type { Slot } from './layout'
 
 /** How far the pointer must travel before this is a drag and not a click. */
@@ -34,26 +32,17 @@ const DRAG_THRESHOLD = 5
  */
 function IconChip({
   icon: Icon,
-  accent,
   size = 24
 }: {
   icon: LucideIcon
-  accent: Accent
   size?: number
 }): React.JSX.Element {
-  const colour = ACCENT_VAR[accent]
-
   return (
     <span
-      className="grid shrink-0 place-items-center rounded-chip"
-      style={{
-        width: size,
-        height: size,
-        color: colour,
-        backgroundColor: `color-mix(in srgb, ${colour} 14%, transparent)`
-      }}
+      className="grid shrink-0 place-items-center rounded-chip bg-shell text-muted"
+      style={{ width: size, height: size }}
     >
-      <Icon size={Math.round(size * 0.55)} strokeWidth={1.9} />
+      <Icon size={Math.round(size * 0.55)} strokeWidth={1.75} />
     </span>
   )
 }
@@ -254,9 +243,7 @@ export function Grid({
             transform: 'rotate(-1deg) scale(1.02)'
           }}
         >
-          <Card className="shadow-modal">
-            <ModuleBody slot={carried} />
-          </Card>
+          <CarriedCard slot={carried} />
         </div>
       )}
 
@@ -274,6 +261,62 @@ export function Grid({
 }
 
 /** A module's header and contents, shared by the card and the floating copy. */
+/** The card as it looks while being dragged. Same skin, plus a shadow. */
+function CarriedCard({ slot }: { slot: Slot }): React.JSX.Element {
+  const module = REGISTRY[slot.id]
+  const entitled = useFeature(module.feature ?? 'marketing')
+  const locked = module.feature !== undefined && !entitled
+  const skin = moduleSkin(isDark(slot, locked))
+
+  return (
+    <div
+      className={cn('overflow-hidden rounded-module p-5 shadow-modal', skin.className)}
+      style={skin.style}
+    >
+      <ModuleBody slot={slot} />
+    </div>
+  )
+}
+
+/**
+ * The module's skin, as a class list and a set of variable overrides.
+ *
+ * Shared by the card sitting in the grid and the one being dragged, because
+ * a card that changed colour the moment you picked it up would be a strange
+ * thing to watch.
+ *
+ * An inverted module swaps its whole ramp at the root — fill, text, the muted
+ * step, the tray behind its stat tiles — so everything inside follows without
+ * a single child knowing which kind of card it is in. That is the only reason
+ * the same `<Tiles>` markup can come out light on a dark card and quiet on a
+ * pale one.
+ */
+function moduleSkin(dark: boolean): { className: string; style?: React.CSSProperties } {
+  if (!dark) return { className: 'border border-line bg-surface text-ink' }
+
+  return {
+    className: 'bg-invert text-invert-ink',
+    /*
+      Written as plain keys. React passes any property starting `--` straight
+      through as a custom property, and the cast these used to carry was doing
+      nothing but silencing a rule that was right.
+    */
+    style: {
+      '--color-ink': 'var(--color-invert-ink)',
+      '--color-muted': 'var(--color-invert-muted)',
+      '--color-faint': 'var(--color-invert-muted)',
+      '--color-shell': 'rgba(255, 255, 255, 0.09)',
+      '--color-line': 'rgba(255, 255, 255, 0.12)',
+      '--color-raised': 'rgba(255, 255, 255, 0.07)'
+    } as React.CSSProperties
+  }
+}
+
+/** Whether a module inverts. Locked ones never do — see the note below. */
+function isDark(slot: Slot, locked: boolean): boolean {
+  return REGISTRY[slot.id].tone === 'dark' && !locked
+}
+
 function ModuleBody({ slot }: { slot: Slot }): React.JSX.Element {
   const module = REGISTRY[slot.id]
   const Icon = module.icon
@@ -291,7 +334,7 @@ function ModuleBody({ slot }: { slot: Slot }): React.JSX.Element {
     <>
       <div className="mb-3 flex items-center gap-2">
         <GripVertical size={13} strokeWidth={1.75} className="shrink-0 text-faint" />
-        <IconChip icon={Icon} accent={module.accent} size={22} />
+        <IconChip icon={Icon} size={22} />
         <span className="flex-1 truncate text-[12.5px] font-medium text-ink">{module.name}</span>
       </div>
 
@@ -331,6 +374,15 @@ function ModuleCard({
   const locked = module.feature !== undefined && !entitled
 
   /*
+    A locked module never inverts.
+
+    The lock is drawn in `disabled`, a pale grey chosen against a pale card.
+    On a dark fill it would be the one thing on screen nobody can read, which
+    is a poor way to explain that a feature needs Pro.
+  */
+  const skin = moduleSkin(isDark(slot, locked))
+
+  /*
     The space the card came out of, held open at exactly the height it had.
 
     Without the fixed height the grid closes up the instant a card is lifted,
@@ -367,18 +419,24 @@ function ModuleCard({
       transition={transition.layout}
       className={slot.size === 'detailed' ? 'col-span-2' : 'col-span-1'}
     >
-      <Card className="group relative overflow-hidden">
-        {/*
-          A wash of the module's colour bleeding out of the top-left corner.
-          Very faint and very large, so it reads as the card being lit rather
-          than as a shape drawn on it. `overflow-hidden` keeps it inside the
-          rounded corners.
-        */}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute -top-16 -left-16 h-32 w-32 rounded-full opacity-[0.14] blur-2xl"
-          style={{ backgroundColor: ACCENT_VAR[module.accent] }}
-        />
+      {/*
+        Not `Card`, because a module is not one.
+
+        A settings panel is a container for controls and takes the app's card
+        radius; a module is a tile on a wall of tiles and carries a rounder
+        one, which is why `--radius-module` is its own value rather than a
+        change to `--radius-card`.
+
+        An inverted module swaps its whole ramp at the root — fill, text and
+        the muted step — so everything inside it follows without a single
+        child needing to know. `--color-shell` is reassigned too, which is
+        what makes the stat tiles come out light on a dark card and quiet on
+        a pale one from the same markup.
+      */}
+      <div
+        className={cn('group relative overflow-hidden rounded-module p-5', skin.className)}
+        style={skin.style}
+      >
 
         <div className="relative mb-3 flex items-center gap-2">
           {/*
@@ -395,7 +453,7 @@ function ModuleCard({
             <GripVertical size={13} strokeWidth={1.75} />
           </button>
 
-          <IconChip icon={Icon} accent={module.accent} size={22} />
+          <IconChip icon={Icon} size={22} />
           <span className="flex-1 truncate text-[12.5px] font-medium text-ink">{module.name}</span>
 
           <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
@@ -431,7 +489,7 @@ function ModuleCard({
         ) : (
           <Render size={slot.size} />
         )}
-      </Card>
+      </div>
     </motion.div>
   )
 }
@@ -497,7 +555,7 @@ function AddMenu({
                     onClick={() => onAdd(id)}
                     className="flex w-full items-start gap-3 rounded-control px-2.5 py-2.5 text-left transition-colors hover:bg-raised"
                   >
-                    <IconChip icon={Icon} accent={module.accent} size={26} />
+                    <IconChip icon={Icon} size={26} />
                     {/*
                       The description is the thing being read to make the
                       decision, so it is not the dimmest text on the row. The

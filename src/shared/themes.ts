@@ -66,6 +66,23 @@ export interface ThemeTokens {
   chartSecondary?: string
 
   /**
+   * A card that inverts — dark fill, light text — and the text on it.
+   *
+   * Used on the dashboard, where a grid of identical white cards is a grid
+   * with no shape to it: every card has to be read before you know which is
+   * which. A few inverted ones give the eye something to navigate by, and
+   * they do it without introducing colour, which the palette reserves.
+   *
+   * A separate value from `accent` even though both are near-black. They
+   * move for different reasons — accent is what a button is, invert is what
+   * a surface is — and tying them together means a future change to one
+   * silently drags the other.
+   */
+  invert?: string
+  invertInk?: string
+  invertMuted?: string
+
+  /**
    * The sidebar's own ramp.
    *
    * **This is the one place the app carries two palettes at once.** Every
@@ -186,6 +203,11 @@ export const THEMES: Theme[] = [
 
       chartSecondary: '#dcdcd7',
 
+      /* The inverted card, a touch off pure black so it reads as paper. */
+      invert: '#1c1c1a',
+      invertInk: '#ffffff',
+      invertMuted: '#9b9b94',
+
       /*
         The sidebar, light like everything else.
 
@@ -290,6 +312,11 @@ export function themeVariables(theme: Theme): Record<string, string> {
      */
     '--color-shell': tokens.shell ?? tokens.raised,
     '--color-chart-secondary': tokens.chartSecondary ?? mix(tokens.faint, 45, tokens.ground),
+
+    /* The inverted card. Falls back to the ink/ground pair reversed. */
+    '--color-invert': tokens.invert ?? tokens.ink,
+    '--color-invert-ink': tokens.invertInk ?? tokens.ground,
+    '--color-invert-muted': tokens.invertMuted ?? mix(tokens.ground, 62, tokens.ink),
 
     /**
      * The sidebar ramp, defaulting to the content ramp.
