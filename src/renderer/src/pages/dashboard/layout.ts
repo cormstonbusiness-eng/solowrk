@@ -62,15 +62,39 @@ function parse(raw: string | null): Slot[] | null {
 }
 
 export interface LayoutState {
+  /** What to render: the draft while editing, the saved layout otherwise. */
   slots: Slot[]
   /** False until the stored layout has been read, so nothing flashes. */
   ready: boolean
+  /** Whether the dashboard is being rearranged. */
+  editing: boolean
+  /** Whether the draft differs from what is stored. */
+  dirty: boolean
+  edit: () => void
+  save: () => void
+  cancel: () => void
+  /** Changes the draft. Does nothing outside edit mode, by design. */
   setSlots: (next: Slot[]) => void
 }
 
 export function useDashboardLayout(): LayoutState {
-  const [slots, setLocal] = useState<Slot[]>(DEFAULT_LAYOUT)
+  const [saved, setSaved] = useState<Slot[]>(DEFAULT_LAYOUT)
   const [ready, setReady] = useState(false)
+
+  /**
+   * The layout being edited, or null when nobody is editing.
+   *
+   * This replaced saving on every change, and the reason is the whole point of
+   * the rework: every module was draggable all the time, so the gesture that
+   * rearranged your dashboard was the same one you might make by accident while
+   * reaching for something on a card. There was no undo, because there was no
+   * moment at which a change was finished — each one was already written.
+   *
+   * Now a change is only ever made deliberately: the affordances do not exist
+   * until you ask for them, nothing is written until you say so, and leaving
+   * without saving leaves the dashboard exactly as you found it.
+   */
+  const [draft, setDraft] = useState<Slot[] | null>(null)
 
   /*
     Guards the first write. Without it the load itself looks like a change and
@@ -88,7 +112,7 @@ export function useDashboardLayout(): LayoutState {
       .then((raw) => {
         if (cancelled) return
         const stored = parse(raw)
-        if (stored && stored.length > 0) setLocal(stored)
+        if (stored && stored.length > 0) setSaved(stored)
         loaded.current = true
         setReady(true)
       })
@@ -104,21 +128,44 @@ export function useDashboardLayout(): LayoutState {
     }
   }, [])
 
-  /**
-   * Save on every change rather than on a timer.
-   *
-   * Every change here is a deliberate act — adding a module, dragging one,
-   * resizing one — and there is no stream of them to batch. Writing
-   * immediately means closing the app straight after a drag keeps the drag.
-   */
-  const setSlots = useCallback((next: Slot[]) => {
-    setLocal(next)
-    if (!loaded.current) return
-    void window.solo.invoke('state:set', { key: KEY, value: JSON.stringify(next) }).catch(() => {
-      // The dashboard still looks right for this session; it is a layout, not
-      // somebody's invoice.
+  const edit = useCallback(() => setDraft(saved), [saved])
+
+  const cancel = useCallback(() => setDraft(null), [])
+
+  const save = useCallback(() => {
+    setDraft((current) => {
+      if (current) {
+        setSaved(current)
+        if (loaded.current) {
+          void window.solo
+            .invoke('state:set', { key: KEY, value: JSON.stringify(current) })
+            .catch(() => {
+              // The dashboard still looks right for this session; it is a
+              // layout, not somebody's invoice.
+            })
+        }
+      }
+      return null
     })
   }, [])
 
-  return { slots, ready, setSlots }
+  const setSlots = useCallback((next: Slot[]) => {
+    // Only ever the draft. A caller outside edit mode is a bug, and silently
+    // doing nothing is a better answer than writing the layout behind
+    // somebody's back — which is precisely what this rework removed.
+    setDraft((current) => (current === null ? null : next))
+  }, [])
+
+  const slots = draft ?? saved
+
+  return {
+    slots,
+    ready,
+    editing: draft !== null,
+    dirty: draft !== null && JSON.stringify(draft) !== JSON.stringify(saved),
+    edit,
+    save,
+    cancel,
+    setSlots
+  }
 }

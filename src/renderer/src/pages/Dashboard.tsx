@@ -1,7 +1,17 @@
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'motion/react'
-import { Clock, Plus } from 'lucide-react'
+import {
+  Check,
+  Clock,
+  Hourglass,
+  LayoutGrid,
+  Plus,
+  PoundSterling,
+  TriangleAlert,
+  Users,
+  X
+} from 'lucide-react'
 import { dayFromDate } from '@shared/calendar'
 import { rangeFor } from '@shared/taxYear'
 import { Page } from '@/components/Page'
@@ -10,6 +20,7 @@ import { keys } from '@/lib/api'
 import { formatMoney } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { Grid } from './dashboard/Grid'
+import { QuickStats } from './dashboard/QuickStats'
 import { useDashboardLayout } from './dashboard/layout'
 
 /**
@@ -62,7 +73,7 @@ export function Dashboard(): React.JSX.Element {
   const today = dayFromDate(new Date())
   const week = rangeFor('week')
 
-  const { slots, ready, setSlots } = useDashboardLayout()
+  const { slots, ready, editing, dirty, edit, save, cancel, setSlots } = useDashboardLayout()
 
   const { data: summary } = useQuery({
     queryKey: ['finance', 'summary', 'month'],
@@ -77,6 +88,11 @@ export function Dashboard(): React.JSX.Element {
   const { data: dueTasks = [] } = useQuery({
     queryKey: keys.tasks({ dueBefore: today }),
     queryFn: () => window.solo.invoke('tasks:list', { dueBefore: today })
+  })
+
+  const { data: clients = [] } = useQuery({
+    queryKey: keys.clients,
+    queryFn: () => window.solo.invoke('clients:list', {})
   })
 
   const { data: settings } = useQuery({
@@ -127,14 +143,43 @@ export function Dashboard(): React.JSX.Element {
       }
       actions={
         <div data-tour="dashboard-actions" className="flex items-center gap-2">
-          <Button variant="secondary" onClick={() => navigate('/time')}>
-            <Clock size={14} strokeWidth={1.5} />
-            Track time
-          </Button>
-          <Button variant="primary" onClick={() => navigate('/projects?new=1')}>
-            <Plus size={14} strokeWidth={1.75} />
-            New project
-          </Button>
+          {/*
+            Editing replaces the page's actions rather than sitting beside
+            them.
+
+            While the dashboard is being rearranged, "Track time" and "New
+            project" are both invitations to leave — and leaving is exactly
+            the thing that would lose the arrangement. Taking them away for
+            the duration is the cheapest way to make the mode obvious and to
+            stop somebody walking out of it by accident.
+          */}
+          {editing ? (
+            <>
+              <Button variant="secondary" onClick={cancel}>
+                <X size={14} strokeWidth={1.75} />
+                Cancel
+              </Button>
+              <Button variant="primary" onClick={save} disabled={!dirty}>
+                <Check size={14} strokeWidth={2} />
+                Save layout
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button variant="secondary" onClick={edit}>
+                <LayoutGrid size={14} strokeWidth={1.5} />
+                Edit dashboard
+              </Button>
+              <Button variant="secondary" onClick={() => navigate('/time')}>
+                <Clock size={14} strokeWidth={1.5} />
+                Track time
+              </Button>
+              <Button variant="primary" onClick={() => navigate('/projects?new=1')}>
+                <Plus size={14} strokeWidth={1.75} />
+                New project
+              </Button>
+            </>
+          )}
         </div>
       }
     >
@@ -148,7 +193,51 @@ export function Dashboard(): React.JSX.Element {
         contents, and its contents are now this.
       */}
       <div data-tour="dashboard-stats">
-        {ready && <Grid slots={slots} onChange={setSlots} />}
+        {/*
+          The strip above the grid, and deliberately not a module.
+
+          These six are the figures somebody opens the app to see, so they
+          should not be something you can remove by accident or have to go
+          and add. Everything below is arrangeable; this is the one fixed
+          thing, which is also what makes the grid safe to rearrange.
+        */}
+        <QuickStats
+          items={[
+            {
+              icon: PoundSterling,
+              value: formatMoney(summary?.income ?? 0),
+              label: 'Paid this month'
+            },
+            {
+              icon: Hourglass,
+              value: formatMoney(summary?.outstanding ?? 0),
+              label: 'Awaiting payment',
+              lead: true
+            },
+            {
+              icon: TriangleAlert,
+              value: formatMoney(summary?.overdue ?? 0),
+              label: 'Overdue'
+            },
+            {
+              icon: Clock,
+              value: `${Math.round(trackedSeconds / 3600)}h`,
+              label: 'Tracked this week'
+            },
+            {
+              icon: Check,
+              value: String(dueToday.length),
+              label: 'Due today'
+            },
+            {
+              icon: Users,
+              value: String(clients.length),
+              label: 'Clients'
+            }
+          ]}
+        />
+
+        {ready && <Grid slots={slots} onChange={setSlots} editing={editing} />}
       </div>
     </Page>
   )

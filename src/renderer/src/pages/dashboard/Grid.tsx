@@ -94,10 +94,20 @@ interface Drag {
  */
 export function Grid({
   slots,
-  onChange
+  onChange,
+  editing
 }: {
   slots: Slot[]
   onChange: (next: Slot[]) => void
+  /**
+   * Whether the dashboard is being rearranged.
+   *
+   * Everything that changes the layout is gated on this — the drag handle,
+   * the resize and remove buttons, the add tile. Not merely hidden: a card
+   * outside edit mode has no drag handler attached at all, so there is no
+   * gesture that can move it by accident while you are reaching for a row.
+   */
+  editing: boolean
 }): React.JSX.Element {
   const [drag, setDrag] = useState<Drag | null>(null)
   const [adding, setAdding] = useState(false)
@@ -116,6 +126,9 @@ export function Grid({
   }
 
   function startDrag(event: React.PointerEvent, id: ModuleId): void {
+    // Belt as well as braces: the handle is not rendered outside edit mode,
+    // and a drag could not start from anywhere else even if it were.
+    if (!editing) return
     if (event.button !== 0) return
 
     // The card, not the grip that was pressed.
@@ -187,6 +200,7 @@ export function Grid({
             slot={slot}
             index={index}
             drag={drag?.id === slot.id ? drag : null}
+            editing={editing}
             onDragStart={(event) => startDrag(event, slot.id)}
             onResize={() =>
               onChange(
@@ -206,7 +220,7 @@ export function Grid({
           it sits at the end of the modules and reads as "another one of these"
           instead of a page-level control that happens to be nearby.
         */}
-        {available.length > 0 && (
+        {editing && available.length > 0 && (
           <button
             type="button"
             onClick={() => setAdding(true)}
@@ -352,6 +366,7 @@ function ModuleCard({
   slot,
   index,
   drag,
+  editing,
   onDragStart,
   onResize,
   onRemove
@@ -360,6 +375,7 @@ function ModuleCard({
   index: number
   /** Set only on the card being carried; null on every other. */
   drag: Drag | null
+  editing: boolean
   onDragStart: (event: React.PointerEvent) => void
   onResize: () => void
   onRemove: () => void
@@ -450,22 +466,34 @@ function ModuleCard({
         */}
         <div className="relative mb-4 flex items-center gap-2">
           {/*
-            The handle is the only place a drag starts. Dragging from anywhere
-            on the card would mean every list row inside it had to stop the
-            event to stay clickable.
+            The handle is the only place a drag starts, and it exists only
+            while editing.
+
+            It used to appear on hover, which meant the gesture that
+            rearranged the dashboard was available every time the pointer
+            crossed a card — and it sat a few pixels from rows people click.
+            Not rendering it is the difference between an affordance you have
+            to ask for and one you can trip over.
           */}
-          <button
-            type="button"
-            onPointerDown={onDragStart}
-            aria-label={`Move ${module.name}`}
-            className="cursor-grab text-faint opacity-0 transition-opacity group-hover:opacity-100 active:cursor-grabbing"
-          >
-            <GripVertical size={13} strokeWidth={1.75} />
-          </button>
+          {editing && (
+            <button
+              type="button"
+              onPointerDown={onDragStart}
+              aria-label={`Move ${module.name}`}
+              className="cursor-grab text-faint hover:text-ink active:cursor-grabbing"
+            >
+              <GripVertical size={14} strokeWidth={1.75} />
+            </button>
+          )}
 
           <span className="flex-1 truncate text-[15px] font-semibold tracking-[-0.01em] text-ink">{module.name}</span>
 
-          <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+          {/*
+            Shown outright rather than on hover. Inside edit mode these are
+            the point of the screen, and a control you have to discover by
+            waving at a card is a control most people never find.
+          */}
+          <div className={cn('flex shrink-0 items-center gap-1', !editing && 'hidden')}>
             <button
               type="button"
               onClick={onResize}
