@@ -32,7 +32,7 @@ export interface QuickStat {
 
 export function QuickStats({ items }: { items: QuickStat[] }): React.JSX.Element {
   return (
-    <section className="mb-4 flex flex-wrap items-stretch gap-3" aria-label="Quick stats">
+    <section className="mb-3 flex flex-wrap items-stretch gap-3" aria-label="Quick stats">
       {/*
         The title block sits in the row rather than above it, so the strip reads
         as one object. It has no border of its own: giving it the same card
@@ -55,8 +55,8 @@ export function QuickStats({ items }: { items: QuickStat[] }): React.JSX.Element
           <div
             key={item.label}
             className={cn(
-              'flex min-w-[112px] flex-1 flex-col items-center justify-center gap-2.5',
-              'rounded-module px-3 py-5 text-center',
+              'flex min-w-[96px] flex-1 flex-col items-center justify-center gap-2',
+              'rounded-module px-3 py-4 text-center',
               'border border-line bg-surface'
             )}
           >
@@ -67,14 +67,14 @@ export function QuickStats({ items }: { items: QuickStat[] }): React.JSX.Element
             */}
             <span
               className={cn(
-                'grid h-9 w-9 shrink-0 place-items-center rounded-full',
+                'grid h-8 w-8 shrink-0 place-items-center rounded-full',
                 item.lead ? 'bg-invert text-invert-ink' : 'bg-shell text-muted'
               )}
             >
               <Icon size={16} strokeWidth={1.75} />
             </span>
 
-            <span className="block text-[20px] leading-none font-semibold tracking-[-0.02em] text-ink">
+            <span className="block text-[18px] leading-none font-semibold tracking-[-0.02em] text-ink">
               {item.value}
             </span>
 

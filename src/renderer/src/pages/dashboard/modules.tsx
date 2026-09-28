@@ -1325,7 +1325,7 @@ function MonthCalendar(): React.JSX.Element {
   })
 
   const arrow =
-    'grid h-5 w-5 shrink-0 place-items-center rounded text-faint transition-colors hover:bg-raised hover:text-ink'
+    'grid h-4 w-4 shrink-0 place-items-center rounded text-faint transition-colors hover:bg-raised hover:text-ink'
 
   return (
     <div className="flex h-full flex-col">
@@ -1337,7 +1337,7 @@ function MonthCalendar(): React.JSX.Element {
         cheapest way out of wherever you have wandered to, and the reason there is
         no separate Today button taking up a row.
       */}
-      <div className="mb-2 flex shrink-0 items-center gap-0.5">
+      <div className="mb-1.5 flex shrink-0 items-center gap-0.5">
         <button type="button" onClick={() => step(-12)} aria-label="Previous year" className={arrow}>
           <ChevronsLeft size={13} strokeWidth={1.75} />
         </button>
@@ -1349,7 +1349,7 @@ function MonthCalendar(): React.JSX.Element {
           type="button"
           onClick={() => setViewing(today)}
           title="Back to this month"
-          className="min-w-0 flex-1 truncate rounded px-1 py-0.5 text-center text-[11.5px] font-medium transition-colors hover:bg-raised"
+          className="min-w-0 flex-1 truncate rounded px-1 py-0.5 text-center text-[10.5px] font-medium transition-colors hover:bg-raised"
         >
           {label}
         </button>
@@ -1366,7 +1366,7 @@ function MonthCalendar(): React.JSX.Element {
         {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((initial, index) => (
           <span
             key={index}
-            className="text-center text-[9px] font-medium tracking-[0.06em] text-faint uppercase"
+            className="text-center text-[8.5px] font-medium tracking-[0.06em] text-faint uppercase"
           >
             {initial}
           </span>
@@ -1390,7 +1390,7 @@ function MonthCalendar(): React.JSX.Element {
               type="button"
               onClick={() => navigate('/calendar')}
               className={cn(
-                'relative grid place-items-center rounded-full text-[11px] transition-colors',
+                'relative grid place-items-center rounded-full text-[10px] transition-colors',
                 /*
                   Today is filled, in the brand's orange with near-black on it.
 

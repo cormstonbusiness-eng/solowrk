@@ -192,7 +192,13 @@ export function Grid({
   return (
     <>
       {/*
-        Four columns, and every module is one of them or two.
+        Six columns, and every module is one of them or two.
+
+        Four made a square about 265px on a typical window, which is a lot of
+        card for three numbers and turned the dashboard into something you
+        scroll rather than read. Six roughly halves the area and still tiles
+        the default layout exactly — three wide cards fill a row, or two
+        squares and two wides.
 
         `items-start` has gone, which is the whole of the alignment fix. It
         let every card be as tall as its own contents, so a row of three
@@ -201,7 +207,7 @@ export function Grid({
         that row, and a square sitting beside a rectangle shares its height
         by construction.
       */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-6 gap-3">
         {slots.map((slot, index) => (
           <ModuleCard
             key={slot.id}
@@ -283,7 +289,7 @@ function CarriedCard({ slot }: { slot: Slot }): React.JSX.Element {
 
   return (
     <div
-      className={cn('overflow-hidden rounded-module p-5 shadow-modal', skin.className)}
+      className={cn('overflow-hidden rounded-module p-4 shadow-modal', skin.className)}
       style={skin.style}
     >
       <ModuleBody slot={slot} />
@@ -344,9 +350,9 @@ function ModuleBody({ slot }: { slot: Slot }): React.JSX.Element {
 
   return (
     <>
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-3 flex items-center gap-2">
         <GripVertical size={13} strokeWidth={1.75} className="shrink-0 text-faint" />
-        <span className="flex-1 truncate text-[15px] font-semibold tracking-[-0.01em] text-ink">{module.name}</span>
+        <span className="flex-1 truncate text-[13px] font-semibold tracking-[-0.01em] text-ink">{module.name}</span>
       </div>
 
       {locked ? (
@@ -458,7 +464,7 @@ function ModuleCard({
       */}
       <div
         className={cn(
-          'group relative flex h-full flex-col overflow-hidden rounded-module p-5',
+          'group relative flex h-full flex-col overflow-hidden rounded-module p-4',
           skin.className
         )}
         style={skin.style}
@@ -477,7 +483,7 @@ function ModuleCard({
           the thing you scan for; it should not be the same weight as the
           figures beneath it.
         */}
-        <div className="relative mb-4 flex items-center gap-2">
+        <div className="relative mb-3 flex items-center gap-2">
           {/*
             The handle is the only place a drag starts, and it exists only
             while editing.
@@ -499,7 +505,7 @@ function ModuleCard({
             </button>
           )}
 
-          <span className="flex-1 truncate text-[15px] font-semibold tracking-[-0.01em] text-ink">{module.name}</span>
+          <span className="flex-1 truncate text-[13px] font-semibold tracking-[-0.01em] text-ink">{module.name}</span>
 
           {/*
             Shown outright rather than on hover. Inside edit mode these are
