@@ -19,7 +19,7 @@ import {
 } from 'lucide-react'
 import type { Feature } from '@shared/entitlements'
 import { secondsToHours, timeValue } from '@shared/money'
-import { dayFromDate } from '@shared/calendar'
+import { dayFromDate, isSameMonth, monthGrid } from '@shared/calendar'
 import { rangeFor } from '@shared/taxYear'
 import { keys, useInvalidate } from '@/lib/api'
 import { formatDate, formatMoney } from '@/lib/format'
@@ -1230,6 +1230,103 @@ function Pending({ size }: { size: ModuleSize }): React.JSX.Element {
   )
 }
 
+/**
+ * The month, as a grid of days.
+ *
+ * Aligned to weekdays rather than running 1..31 straight across, which is
+ * the one place this departs from the picture it is modelled on. An
+ * unaligned grid is a number pad: circling the 18th tells you today is the
+ * 18th, which the app says in three other places. Aligned, the same grid
+ * also shows you where you are in the week and which days are already busy —
+ * which is the reason to put a calendar on a dashboard at all.
+ *
+ * Five weeks rather than the six `monthGrid` returns. Six is right for the
+ * calendar page, where a grid that changed height between months would make
+ * the whole page jump; here the card is one tile among many and a trailing
+ * row of greyed-out next-month dates is just wasted height.
+ */
+function MonthCalendar({ size }: { size: ModuleSize }): React.JSX.Element {
+  const navigate = useNavigate()
+  const today = dayFromDate(new Date())
+
+  const days = monthGrid(today).slice(0, 35)
+  const from = days[0]!
+  const to = days[days.length - 1]!
+
+  const { data: blocks = [] } = useQuery({
+    queryKey: ['calendar', 'blocks', from, to],
+    queryFn: () => window.solo.invoke('calendar:blocks', { from, to })
+  })
+
+  /* Which days have something on them, as a set of yyyy-mm-dd. */
+  const busy = new Set(blocks.map((block) => block.startsAt.slice(0, 10)))
+
+  const cell = size === 'compact' ? 'h-6 text-[10.5px]' : 'h-8 text-[12px]'
+
+  return (
+    <div>
+      <div className="mb-2 grid grid-cols-7 gap-0.5">
+        {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((initial, index) => (
+          <span
+            key={index}
+            className="text-center text-[9.5px] font-medium tracking-[0.06em] text-faint uppercase"
+          >
+            {initial}
+          </span>
+        ))}
+      </div>
+
+      <div className="grid grid-cols-7 gap-0.5">
+        {days.map((day) => {
+          const isToday = day === today
+          const thisMonth = isSameMonth(day, today)
+
+          return (
+            <button
+              key={day}
+              type="button"
+              onClick={() => navigate('/calendar')}
+              className={cn(
+                'relative grid w-full place-items-center rounded-full transition-colors',
+                cell,
+                /*
+                  A ring on today, not a fill.
+
+                  A filled circle is what a selected day looks like, and
+                  nothing here is selected — the card is showing you the month,
+                  not asking you to pick from it. The outline says "you are
+                  here" without implying a choice has been made.
+                */
+                isToday && 'border border-current font-semibold text-ink',
+                !isToday && thisMonth && 'text-muted hover:bg-raised hover:text-ink',
+                /*
+                  Days either side of the month are drawn faintly rather than
+                  left blank. A gap at the start of the row would make the
+                  first week look like it began on a Thursday.
+                */
+                !thisMonth && 'text-faint/45'
+              )}
+            >
+              <span className="numeric leading-none">{Number(day.slice(8))}</span>
+
+              {/*
+                One dot for "something is on", however many things there are.
+
+                A count would need a legible number inside a 24px circle and
+                would be answering a question nobody asks of a month at a
+                glance. Whether the day is spoken for is the whole of it.
+              */}
+              {busy.has(day) && thisMonth && !isToday && (
+                <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-current opacity-70" />
+              )}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function Review({ size }: { size: ModuleSize }): React.JSX.Element {
   const navigate = useNavigate()
   const invalidate = useInvalidate()
@@ -1305,6 +1402,14 @@ export const MODULES = {
     icon: PoundSterling,
     tone: 'dark',
     Render: Money
+  },
+  month: {
+    name: 'This month',
+    description:
+      'The month as a grid of days, with today ringed and a dot on every day that already has something booked. Opens the calendar.',
+    icon: CalendarDays,
+    tone: 'dark',
+    Render: MonthCalendar
   },
   pending: {
     name: 'Pending payments',
