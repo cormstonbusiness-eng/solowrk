@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { DEFAULT_LAYOUT, MODULE_IDS, type ModuleId, type ModuleSize } from './modules'
+import { DEFAULT_LAYOUT, MODULE_IDS, type ModuleId } from './modules'
 
 /**
  * Which modules are on the dashboard, in what order, at what size.
@@ -15,9 +15,17 @@ import { DEFAULT_LAYOUT, MODULE_IDS, type ModuleId, type ModuleSize } from './mo
  */
 const KEY = 'dashboard.layout'
 
+/**
+ * A slot is now just a module and its position.
+ *
+ * It used to carry a size as well. That was a per-slot choice, which meant
+ * the same module could be useful in one workspace and half-empty in
+ * another — and it left everybody to work out for themselves which cards
+ * wanted which size. A module knows how much it has to say, so the width is
+ * declared with the module and the layout only records the order.
+ */
 export interface Slot {
   id: ModuleId
-  size: ModuleSize
 }
 
 /**
@@ -28,8 +36,12 @@ export interface Slot {
  * that had it on the dashboard, and a dashboard that throws on load because of
  * a module somebody deleted months ago would be a bad way to find that out.
  *
- * Unknown ids are dropped, duplicates are dropped, and an unrecognised size
- * falls back to compact rather than failing.
+ * Unknown ids are dropped and duplicates are dropped.
+ *
+ * Every layout written before this carried a `size` on each entry. It is
+ * read and discarded rather than migrated: the field no longer means
+ * anything, and a workspace opening on a dashboard whose module order it
+ * recognises is the whole of what matters.
  */
 function parse(raw: string | null): Slot[] | null {
   if (!raw) return null
@@ -43,14 +55,14 @@ function parse(raw: string | null): Slot[] | null {
 
     for (const entry of parsed) {
       if (typeof entry !== 'object' || entry === null) continue
-      const { id, size } = entry as { id?: unknown; size?: unknown }
+      const { id } = entry as { id?: unknown }
 
       if (typeof id !== 'string') continue
       if (!MODULE_IDS.includes(id as ModuleId)) continue
       if (seen.has(id)) continue
 
       seen.add(id)
-      slots.push({ id: id as ModuleId, size: size === 'detailed' ? 'detailed' : 'compact' })
+      slots.push({ id: id as ModuleId })
     }
 
     return slots

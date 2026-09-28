@@ -3,8 +3,6 @@ import { AnimatePresence, motion } from 'motion/react'
 import {
   GripVertical,
   Lock,
-  Maximize2,
-  Minimize2,
   Plus,
   X,
   type LucideIcon
@@ -13,7 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { useFeature } from '@/lib/features'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
-import { MODULE_IDS, REGISTRY, type ModuleId } from './modules'
+import { MODULE_IDS, REGISTRY, densityFor, type ModuleId } from './modules'
 import type { Slot } from './layout'
 
 /** How far the pointer must travel before this is a drag and not a click. */
@@ -193,7 +191,17 @@ export function Grid({
 
   return (
     <>
-      <div className="grid grid-cols-3 items-start gap-4">
+      {/*
+        Four columns, and every module is one of them or two.
+
+        `items-start` has gone, which is the whole of the alignment fix. It
+        let every card be as tall as its own contents, so a row of three
+        ended up three different heights and the grid read as a pile rather
+        than a layout. Stretching them means the tallest card in a row sets
+        that row, and a square sitting beside a rectangle shares its height
+        by construction.
+      */}
+      <div className="grid grid-cols-4 gap-4">
         {slots.map((slot, index) => (
           <ModuleCard
             key={slot.id}
@@ -202,15 +210,6 @@ export function Grid({
             drag={drag?.id === slot.id ? drag : null}
             editing={editing}
             onDragStart={(event) => startDrag(event, slot.id)}
-            onResize={() =>
-              onChange(
-                slots.map((entry) =>
-                  entry.id === slot.id
-                    ? { ...entry, size: entry.size === 'compact' ? 'detailed' : 'compact' }
-                    : entry
-                )
-              )
-            }
             onRemove={() => onChange(slots.filter((entry) => entry.id !== slot.id))}
           />
         ))}
@@ -225,7 +224,7 @@ export function Grid({
             type="button"
             onClick={() => setAdding(true)}
             className={cn(
-              'flex min-h-[104px] items-center justify-center gap-2 rounded-card',
+              'flex aspect-square flex-col items-center justify-center gap-2 rounded-module',
               'border border-dashed border-line text-[12.5px] text-faint',
               'transition-colors hover:border-line-strong hover:bg-raised hover:text-muted'
             )}
@@ -266,7 +265,7 @@ export function Grid({
         available={available}
         onClose={() => setAdding(false)}
         onAdd={(id) => {
-          onChange([...slots, { id, size: 'compact' }])
+          onChange([...slots, { id }])
           setAdding(false)
         }}
       />
@@ -356,7 +355,7 @@ function ModuleBody({ slot }: { slot: Slot }): React.JSX.Element {
           Part of SoloWork Pro
         </div>
       ) : (
-        <Render size={slot.size} />
+        <Render size={densityFor(module.width)} />
       )}
     </>
   )
@@ -368,7 +367,6 @@ function ModuleCard({
   drag,
   editing,
   onDragStart,
-  onResize,
   onRemove
 }: {
   slot: Slot
@@ -377,7 +375,6 @@ function ModuleCard({
   drag: Drag | null
   editing: boolean
   onDragStart: (event: React.PointerEvent) => void
-  onResize: () => void
   onRemove: () => void
 }): React.JSX.Element {
   const module = REGISTRY[slot.id]
@@ -408,10 +405,10 @@ function ModuleCard({
         layout
         data-slot-index={index}
         transition={transition.layout}
-        className={slot.size === 'detailed' ? 'col-span-2' : 'col-span-1'}
+        className={module.width === 2 ? 'col-span-2' : 'col-span-1'}
       >
         <div
-          className="rounded-card"
+          className="h-full rounded-module"
           style={{
             height: drag.height,
             // Inline rather than a utility: `ring` has no dashed form, and the
@@ -430,7 +427,20 @@ function ModuleCard({
       layout
       data-slot-index={index}
       transition={transition.layout}
-      className={slot.size === 'detailed' ? 'col-span-2' : 'col-span-1'}
+      className={cn(
+        module.width === 2 ? 'col-span-2' : 'col-span-1',
+        /*
+          A square is square because it says so; a rectangle takes its
+          height from whatever square shares its row.
+
+          Only the one-column card carries an aspect ratio. Giving the
+          two-column one `aspect-[2/1]` would be a hair short — the gap
+          between the two columns it spans is part of its width and not part
+          of any square's — so it stretches to the row instead, which is
+          exact rather than nearly right.
+        */
+        module.width === 1 && 'aspect-square'
+      )}
     >
       {/*
         Not `Card`, because a module is not one.
@@ -447,7 +457,10 @@ function ModuleCard({
         a pale one from the same markup.
       */}
       <div
-        className={cn('group relative overflow-hidden rounded-module p-5', skin.className)}
+        className={cn(
+          'group relative flex h-full flex-col overflow-hidden rounded-module p-5',
+          skin.className
+        )}
         style={skin.style}
       >
 
@@ -496,19 +509,6 @@ function ModuleCard({
           <div className={cn('flex shrink-0 items-center gap-1', !editing && 'hidden')}>
             <button
               type="button"
-              onClick={onResize}
-              aria-label={slot.size === 'compact' ? 'Show more' : 'Show less'}
-              title={slot.size === 'compact' ? 'Detailed' : 'Compact'}
-              className="text-faint hover:text-ink"
-            >
-              {slot.size === 'compact' ? (
-                <Maximize2 size={12} strokeWidth={1.75} />
-              ) : (
-                <Minimize2 size={12} strokeWidth={1.75} />
-              )}
-            </button>
-            <button
-              type="button"
               onClick={onRemove}
               aria-label={`Remove ${module.name}`}
               className="text-faint hover:text-danger"
@@ -524,7 +524,7 @@ function ModuleCard({
             Part of SoloWork Pro
           </div>
         ) : (
-          <Render size={slot.size} />
+          <Render size={densityFor(module.width)} />
         )}
       </div>
     </motion.div>

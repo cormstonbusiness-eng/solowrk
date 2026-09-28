@@ -82,12 +82,39 @@ export interface DashboardModule {
    * means late.
    */
   tone: ModuleTone
+
+  /**
+   * How many columns the module occupies: one, or two.
+   *
+   * **A property of the module, not a choice the user makes.** It used to be
+   * per-slot and resizable, which sounded generous and produced a dashboard
+   * where the same card was useful at one size and half-empty at the other —
+   * and left everybody to discover for themselves which modules wanted
+   * which. A module knows how much it has to say. Only two answers are
+   * offered, so a grid of them always tiles.
+   *
+   * One column is a square. Two is the same height and twice the width, so
+   * the two sizes share a row without either being stretched to fit.
+   */
+  width: 1 | 2
   /** Gated modules are offered but locked, never hidden — see the add menu. */
   feature?: Feature
   Render: (props: { size: ModuleSize }) => React.JSX.Element
 }
 
 export type ModuleTone = 'light' | 'dark'
+
+/**
+ * Density follows width, rather than being set beside it.
+ *
+ * The two were always the same decision wearing different names — a
+ * one-column card has room for the compact treatment and nothing else. This
+ * keeps every module's existing `size` handling working untouched while
+ * there is only one thing left to decide.
+ */
+export function densityFor(width: 1 | 2): ModuleSize {
+  return width === 2 ? 'detailed' : 'compact'
+}
 
 /* ------------------------------------------------------------------ *
  * Density
@@ -1401,6 +1428,7 @@ export const MODULES = {
       'What you have been paid this month, what is still owed and what is overdue, with your expenses. Opens Finance.',
     icon: PoundSterling,
     tone: 'dark',
+    width: 2,
     Render: Money
   },
   month: {
@@ -1409,6 +1437,7 @@ export const MODULES = {
       'The month as a grid of days, with today ringed and a dot on every day that already has something booked. Opens the calendar.',
     icon: CalendarDays,
     tone: 'dark',
+    width: 1,
     Render: MonthCalendar
   },
   pending: {
@@ -1417,6 +1446,7 @@ export const MODULES = {
       'Every invoice you have sent that has not been paid, soonest due first, with who owes it and how much. Marks the ones past their date. Opens Invoices.',
     icon: Hourglass,
     tone: 'light',
+    width: 2,
     Render: Pending
   },
   attention: {
@@ -1425,6 +1455,7 @@ export const MODULES = {
       'How many invoices are late and how many documents expire within 45 days, then lists both. Each one opens where it is dealt with.',
     icon: TriangleAlert,
     tone: 'dark',
+    width: 2,
     Render: Attention
   },
   today: {
@@ -1433,6 +1464,7 @@ export const MODULES = {
       'How many hours are booked today and how many tasks are due, then both lists with their times. Opens the calendar or the task.',
     icon: CalendarDays,
     tone: 'light',
+    width: 2,
     Render: Today
   },
   time: {
@@ -1441,6 +1473,7 @@ export const MODULES = {
       'Hours tracked since Monday and the value of the billable ones not yet on an invoice. Opens Time.',
     icon: Clock,
     tone: 'dark',
+    width: 1,
     Render: TimeWeek
   },
   tasks: {
@@ -1449,6 +1482,7 @@ export const MODULES = {
       'How many tasks are open and how many are done, then the open ones with their due dates. Opens Tasks.',
     icon: CircleCheckBig,
     tone: 'light',
+    width: 2,
     Render: Tasks
   },
   projects: {
@@ -1457,6 +1491,7 @@ export const MODULES = {
       'How many projects are active and how many tasks they hold between them, then each project. Opens that project.',
     icon: FolderKanban,
     tone: 'light',
+    width: 2,
     Render: Projects
   },
   clients: {
@@ -1465,6 +1500,7 @@ export const MODULES = {
       'How many clients are leads, prospects and active — the shape of your pipeline in three numbers. Opens Clients.',
     icon: Users,
     tone: 'light',
+    width: 1,
     Render: Clients
   },
   overdue: {
@@ -1473,6 +1509,7 @@ export const MODULES = {
       'The total owed on late invoices and how many there are, then each one with its client and amount. Opens Invoices.',
     icon: ReceiptText,
     tone: 'light',
+    width: 1,
     Render: Overdue
   },
   goals: {
@@ -1481,6 +1518,7 @@ export const MODULES = {
       'How many goals you have met, then each one with a progress bar. Progress is counted from your records, never typed in. Opens Goals.',
     icon: Target,
     tone: 'dark',
+    width: 1,
     Render: Goals
   },
   files: {
@@ -1489,6 +1527,7 @@ export const MODULES = {
       'The files most recently changed in your workspace folder, with the date each was touched. Opens Files.',
     icon: FileText,
     tone: 'light',
+    width: 1,
     Render: RecentFiles
   },
   review: {
@@ -1497,6 +1536,7 @@ export const MODULES = {
       'Three things worth doing this week, worked out from your own records rather than written by a model. Files the full review as a note.',
     icon: NotebookPen,
     tone: 'light',
+    width: 2,
     feature: 'aireview',
     Render: Review
   },
@@ -1506,6 +1546,7 @@ export const MODULES = {
       'How many posts are scheduled for today, and which. Opens Marketing.',
     icon: Megaphone,
     tone: 'light',
+    width: 2,
     feature: 'marketing',
     Render: Marketing
   }
@@ -1533,12 +1574,20 @@ export const MODULE_IDS = Object.keys(MODULES) as ModuleId[]
  * detailed because a figure that size is worth the room. Everything else is
  * compact — which now costs no information, only height.
  */
-export const DEFAULT_LAYOUT: { id: ModuleId; size: ModuleSize }[] = [
-  { id: 'money', size: 'detailed' },
-  { id: 'pending', size: 'detailed' },
-  { id: 'attention', size: 'compact' },
-  { id: 'today', size: 'detailed' },
-  { id: 'time', size: 'compact' },
-  { id: 'tasks', size: 'compact' },
-  { id: 'projects', size: 'compact' }
+/**
+ * The dashboard a fresh workspace opens on.
+ *
+ * Ordered so the first rows tile exactly: two wide cards fill row one, a
+ * wide and two squares fill row two, and so on. Nothing enforces that —
+ * dragging can leave a gap and should be allowed to — but the layout
+ * somebody is given first ought to demonstrate that the grid works.
+ */
+export const DEFAULT_LAYOUT: { id: ModuleId }[] = [
+  { id: 'money' },
+  { id: 'pending' },
+  { id: 'today' },
+  { id: 'month' },
+  { id: 'time' },
+  { id: 'attention' },
+  { id: 'tasks' }
 ]
