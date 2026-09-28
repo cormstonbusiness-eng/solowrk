@@ -138,6 +138,25 @@ describe('every theme is readable', () => {
   )
 
   it.each(THEMES.map((theme) => [theme.name, theme] as const))(
+    '%s has a readable highlight',
+    (_name, theme) => {
+      /*
+        Today, on the calendar. A filled orange disc with text on it, which is
+        the one pairing in the palette where a colour is the background rather
+        than the foreground — and therefore the one most easily got wrong by
+        picking an orange that looks right next to text rather than under it.
+
+        Both sides fall back the way `themeVariables` does, so a theme stating
+        neither is still measured against what it would actually render.
+      */
+      const fill = theme.tokens.highlight ?? theme.tokens.accent
+      const ink = theme.tokens.highlightInk ?? theme.tokens.accentInk
+
+      expect(contrast(ink, fill)).toBeGreaterThan(4.5)
+    }
+  )
+
+  it.each(THEMES.map((theme) => [theme.name, theme] as const))(
     '%s keeps the accent distinct from danger',
     (_name, theme) => {
       /**

@@ -58,6 +58,10 @@
   --color-invert-ink: #0a0a0c;
   --color-invert-muted: #45454e;
 
+  /* Today on the calendar, and nothing else. See themeVariables(). */
+  --color-highlight: #ff7a2f;
+  --color-highlight-ink: #161614;
+
   /* ---------------------------------------------------------------
      The sidebar's own ramp.
 

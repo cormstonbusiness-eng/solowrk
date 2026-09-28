@@ -83,6 +83,23 @@ export interface ThemeTokens {
   invertMuted?: string
 
   /**
+   * The one place the brand's orange appears, and what sits on it.
+   *
+   * Deliberately not `accent`. The accent is near-black and is what a
+   * primary button is made of; this marks a single point — today, on a
+   * calendar — and there is never more than one of it on screen. Sharing a
+   * token would mean every button in the app turning orange the day this
+   * one is tuned.
+   *
+   * `highlightInk` is stated rather than taken from `ink` because the only
+   * card this currently appears on is an inverted one, where `ink` has been
+   * swapped to white — and white on orange is the one combination this is
+   * meant to avoid.
+   */
+  highlight?: string
+  highlightInk?: string
+
+  /**
    * The sidebar's own ramp.
    *
    * **This is the one place the app carries two palettes at once.** Every
@@ -209,6 +226,15 @@ export const THEMES: Theme[] = [
       invertMuted: '#9b9b94',
 
       /*
+        The brand orange, and the only colour in this palette that is not
+        carrying a status. It marks today on the calendar — one point, once
+        — which is the sort of thing a monochrome design can spend a colour
+        on without the colour losing its meaning elsewhere.
+      */
+      highlight: '#ff7a2f',
+      highlightInk: '#161614',
+
+      /*
         The sidebar, light like everything else.
 
         Stated rather than left to fall back, even though most are close to
@@ -325,6 +351,10 @@ export function themeVariables(theme: Theme): Record<string, string> {
     '--color-invert': tokens.invert ?? tokens.ink,
     '--color-invert-ink': tokens.invertInk ?? tokens.ground,
     '--color-invert-muted': tokens.invertMuted ?? mix(tokens.ground, 62, tokens.ink),
+
+    /* Today, and nothing else so far. Falls back to the accent pair. */
+    '--color-highlight': tokens.highlight ?? tokens.accent,
+    '--color-highlight-ink': tokens.highlightInk ?? tokens.accentInk,
 
     /**
      * The sidebar ramp, defaulting to the content ramp.

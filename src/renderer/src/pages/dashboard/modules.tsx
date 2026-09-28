@@ -1392,13 +1392,20 @@ function MonthCalendar(): React.JSX.Element {
               className={cn(
                 'relative grid place-items-center rounded-full text-[11px] transition-colors',
                 /*
-                  A ring on today, not a fill.
+                  Today is filled, in the brand's orange with near-black on it.
 
-                  A filled circle is what a selected day looks like, and nothing
-                  here is selected — the card is showing you the month, not asking
-                  you to pick from it.
+                  It was a ring, on the reasoning that a filled circle is what a
+                  *selected* day looks like and nothing here is selected. True,
+                  and it lost the argument to the thing a dashboard calendar is
+                  actually for: you glance at it, and a thin outline on a dark
+                  card is not something you glance at. One filled day is
+                  unmistakable, and there is only ever one.
+
+                  The ink is stated rather than inherited. This card is
+                  inverted, so `text-ink` here is white — and white on orange
+                  is precisely the pairing being avoided.
                 */
-                isToday && 'border border-current font-semibold text-ink',
+                isToday && 'bg-highlight font-bold text-highlight-ink',
                 !isToday && thisMonth && 'text-muted hover:bg-raised hover:text-ink',
                 /*
                   Days either side of the month are drawn faintly rather than left
