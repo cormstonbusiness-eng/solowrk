@@ -1406,10 +1406,21 @@ function MonthCalendar(): React.JSX.Element {
                   is precisely the pairing being avoided.
                 */
                 isToday && 'bg-highlight font-bold text-highlight-ink',
-                !isToday && thisMonth && 'text-muted hover:bg-raised hover:text-ink',
                 /*
-                  Days either side of the month are drawn faintly rather than left
-                  blank. A gap at the start of the row would make the first week
+                  Every day of this month at full strength.
+
+                  They were muted, which made a month read as one bright day and
+                  thirty grey ones — the dates you are scanning were the quietest
+                  thing on the card. Today does not need the others dimmed to be
+                  found: it is a solid orange disc, and nothing else is.
+                */
+                !isToday && thisMonth && 'font-bold text-ink hover:bg-raised',
+                /*
+                  Days either side of the month stay faint, and stay light.
+
+                  This is the only weight left doing work: it is what tells you
+                  where the month starts and ends. Drawn rather than left blank
+                  because a gap at the start of the row would make the first week
                   look like it began on a Thursday.
                 */
                 !thisMonth && 'text-faint/40'
