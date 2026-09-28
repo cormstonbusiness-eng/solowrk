@@ -1,7 +1,12 @@
+import { useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   CircleCheckBig,
   Clock,
   FileText,
@@ -19,7 +24,7 @@ import {
 } from 'lucide-react'
 import type { Feature } from '@shared/entitlements'
 import { secondsToHours, timeValue } from '@shared/money'
-import { dayFromDate, isSameMonth, monthGrid } from '@shared/calendar'
+import { addMonths, dayFromDate, isSameMonth, monthGrid } from '@shared/calendar'
 import { rangeFor } from '@shared/taxYear'
 import { keys, useInvalidate } from '@/lib/api'
 import { formatDate, formatMoney } from '@/lib/format'
@@ -1272,11 +1277,37 @@ function Pending({ size }: { size: ModuleSize }): React.JSX.Element {
  * the whole page jump; here the card is one tile among many and a trailing
  * row of greyed-out next-month dates is just wasted height.
  */
-function MonthCalendar({ size }: { size: ModuleSize }): React.JSX.Element {
+/**
+ * The month, as a grid of days that fills its card.
+ *
+ * Aligned to weekdays rather than running 1..31 straight across, which is the
+ * one place this departs from the picture it is modelled on. An unaligned grid
+ * is a number pad: circling the 18th tells you today is the 18th, which the app
+ * says in three other places. Aligned, the same grid also shows where you are in
+ * the week and which days are already busy — which is the reason to put a
+ * calendar on a dashboard at all.
+ *
+ * Six weeks, always. Five is enough for most months and not for all of them, and
+ * a card that grew a row in March would break the row it shares with its
+ * neighbours. The height is fixed by the square either way, so the sixth row
+ * costs nothing but a little more air between the others.
+ */
+function MonthCalendar(): React.JSX.Element {
   const navigate = useNavigate()
   const today = dayFromDate(new Date())
 
-  const days = monthGrid(today).slice(0, 35)
+  /*
+    The month on screen, which is not necessarily this one.
+
+    Held as a day rather than a year and a month so every step is `addMonths`,
+    which already clamps — stepping from the 31st into a 30-day month lands on
+    the 30th instead of rolling into the next one, and a year step from the 29th
+    of February behaves in a leap year.
+  */
+  const [viewing, setViewing] = useState(today)
+  const step = (months: number): void => setViewing((day) => addMonths(day, months))
+
+  const days = monthGrid(viewing)
   const from = days[0]!
   const to = days[days.length - 1]!
 
@@ -1288,25 +1319,70 @@ function MonthCalendar({ size }: { size: ModuleSize }): React.JSX.Element {
   /* Which days have something on them, as a set of yyyy-mm-dd. */
   const busy = new Set(blocks.map((block) => block.startsAt.slice(0, 10)))
 
-  const cell = size === 'compact' ? 'h-6 text-[10.5px]' : 'h-8 text-[12px]'
+  const label = new Date(`${viewing}T00:00:00`).toLocaleDateString('en-GB', {
+    month: 'long',
+    year: 'numeric'
+  })
+
+  const arrow =
+    'grid h-5 w-5 shrink-0 place-items-center rounded text-faint transition-colors hover:bg-raised hover:text-ink'
 
   return (
-    <div>
-      <div className="mb-2 grid grid-cols-7 gap-0.5">
+    <div className="flex h-full flex-col">
+      {/*
+        Double chevrons step a year, single chevrons a month.
+
+        A well-worn pattern, and the only one that fits four controls and a label
+        into the width of a square. The label itself returns to today — the
+        cheapest way out of wherever you have wandered to, and the reason there is
+        no separate Today button taking up a row.
+      */}
+      <div className="mb-2 flex shrink-0 items-center gap-0.5">
+        <button type="button" onClick={() => step(-12)} aria-label="Previous year" className={arrow}>
+          <ChevronsLeft size={13} strokeWidth={1.75} />
+        </button>
+        <button type="button" onClick={() => step(-1)} aria-label="Previous month" className={arrow}>
+          <ChevronLeft size={13} strokeWidth={1.75} />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setViewing(today)}
+          title="Back to this month"
+          className="min-w-0 flex-1 truncate rounded px-1 py-0.5 text-center text-[11.5px] font-medium transition-colors hover:bg-raised"
+        >
+          {label}
+        </button>
+
+        <button type="button" onClick={() => step(1)} aria-label="Next month" className={arrow}>
+          <ChevronRight size={13} strokeWidth={1.75} />
+        </button>
+        <button type="button" onClick={() => step(12)} aria-label="Next year" className={arrow}>
+          <ChevronsRight size={13} strokeWidth={1.75} />
+        </button>
+      </div>
+
+      <div className="mb-1 grid shrink-0 grid-cols-7">
         {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((initial, index) => (
           <span
             key={index}
-            className="text-center text-[9.5px] font-medium tracking-[0.06em] text-faint uppercase"
+            className="text-center text-[9px] font-medium tracking-[0.06em] text-faint uppercase"
           >
             {initial}
           </span>
         ))}
       </div>
 
-      <div className="grid grid-cols-7 gap-0.5">
+      {/*
+        `flex-1` on the grid and `grid-rows-6` inside it: the weeks share whatever
+        height the card has left rather than being sized by their own type. That
+        is what makes the calendar fill the square instead of sitting in the top
+        third of it, at any card size.
+      */}
+      <div className="grid min-h-0 flex-1 grid-cols-7 grid-rows-6">
         {days.map((day) => {
           const isToday = day === today
-          const thisMonth = isSameMonth(day, today)
+          const thisMonth = isSameMonth(day, viewing)
 
           return (
             <button
@@ -1314,37 +1390,33 @@ function MonthCalendar({ size }: { size: ModuleSize }): React.JSX.Element {
               type="button"
               onClick={() => navigate('/calendar')}
               className={cn(
-                'relative grid w-full place-items-center rounded-full transition-colors',
-                cell,
+                'relative grid place-items-center rounded-full text-[11px] transition-colors',
                 /*
                   A ring on today, not a fill.
 
-                  A filled circle is what a selected day looks like, and
-                  nothing here is selected — the card is showing you the month,
-                  not asking you to pick from it. The outline says "you are
-                  here" without implying a choice has been made.
+                  A filled circle is what a selected day looks like, and nothing
+                  here is selected — the card is showing you the month, not asking
+                  you to pick from it.
                 */
                 isToday && 'border border-current font-semibold text-ink',
                 !isToday && thisMonth && 'text-muted hover:bg-raised hover:text-ink',
                 /*
-                  Days either side of the month are drawn faintly rather than
-                  left blank. A gap at the start of the row would make the
-                  first week look like it began on a Thursday.
+                  Days either side of the month are drawn faintly rather than left
+                  blank. A gap at the start of the row would make the first week
+                  look like it began on a Thursday.
                 */
-                !thisMonth && 'text-faint/45'
+                !thisMonth && 'text-faint/40'
               )}
             >
               <span className="numeric leading-none">{Number(day.slice(8))}</span>
 
               {/*
-                One dot for "something is on", however many things there are.
-
-                A count would need a legible number inside a 24px circle and
-                would be answering a question nobody asks of a month at a
-                glance. Whether the day is spoken for is the whole of it.
+                One dot for "something is on", however many things there are. A
+                count would need a legible number inside a small circle to answer
+                a question nobody asks of a month at a glance.
               */}
               {busy.has(day) && thisMonth && !isToday && (
-                <span className="absolute bottom-0.5 h-1 w-1 rounded-full bg-current opacity-70" />
+                <span className="absolute bottom-[3px] h-1 w-1 rounded-full bg-current opacity-70" />
               )}
             </button>
           )
@@ -1432,9 +1504,11 @@ export const MODULES = {
     Render: Money
   },
   month: {
-    name: 'This month',
+    // Not 'This month' any more: you can step away from it, and a card
+    // headed 'This month' while showing next March is a card that lies.
+    name: 'Calendar',
     description:
-      'The month as a grid of days, with today ringed and a dot on every day that already has something booked. Opens the calendar.',
+      'A month at a time, with today ringed and a dot on every day that already has something booked. Step by month or year, or tap the title to come back to today. Opens the calendar.',
     icon: CalendarDays,
     tone: 'dark',
     width: 1,

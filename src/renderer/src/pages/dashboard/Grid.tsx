@@ -518,14 +518,25 @@ function ModuleCard({
           </div>
         </div>
 
-        {locked ? (
-          <div className="flex items-center gap-2 py-2 text-[12px] text-disabled">
-            <Lock size={12} strokeWidth={2} />
-            Part of SoloWork Pro
-          </div>
-        ) : (
-          <Render size={densityFor(module.width)} />
-        )}
+        {/*
+          The body takes the rest of the card.
+
+          `flex-1` so a module that wants the whole square gets it — the
+          calendar stretches its weeks to fill the height rather than sitting
+          in the top third — and `min-h-0` because a flex child defaults to
+          refusing to shrink below its content, which would push a long list
+          out through the bottom of a fixed-height card.
+        */}
+        <div className="min-h-0 flex-1">
+          {locked ? (
+            <div className="flex items-center gap-2 py-2 text-[12px] text-disabled">
+              <Lock size={12} strokeWidth={2} />
+              Part of SoloWork Pro
+            </div>
+          ) : (
+            <Render size={densityFor(module.width)} />
+          )}
+        </div>
       </div>
     </motion.div>
   )
