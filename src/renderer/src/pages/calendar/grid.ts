@@ -1,5 +1,7 @@
 /** Shared geometry and labels for the calendar views. */
 
+import { DEFAULT_LOCALE, formatDateWith, formatMonthLong } from '@shared/dateFormat'
+
 /**
  * Pixels per hour, as the user can set it.
  *
@@ -41,17 +43,16 @@ export function hourLabel(hour: number): string {
   return `${String(hour).padStart(2, '0')}:00`
 }
 
-export function monthLabel(day: string): string {
-  const [year, month] = day.split('-').map(Number) as [number, number]
-  return new Date(year, month - 1, 1).toLocaleDateString('en-GB', {
-    month: 'long',
-    year: 'numeric'
-  })
+export function monthLabel(day: string, locale = DEFAULT_LOCALE): string {
+  return formatMonthLong(`${day.slice(0, 7)}-01`, locale)
 }
 
-export function dayLabel(day: string, options: Intl.DateTimeFormatOptions): string {
-  const [year, month, date] = day.split('-').map(Number) as [number, number, number]
-  return new Date(year, month - 1, date).toLocaleDateString('en-GB', options)
+export function dayLabel(
+  day: string,
+  options: Intl.DateTimeFormatOptions,
+  locale = DEFAULT_LOCALE
+): string {
+  return formatDateWith(day, locale, options)
 }
 
 /** "Mon 16" for a week column header. */

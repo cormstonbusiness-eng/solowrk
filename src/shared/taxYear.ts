@@ -1,14 +1,21 @@
 /**
- * UK tax year arithmetic.
+ * Tax year arithmetic.
  *
- * The UK tax year runs 6 April to 5 April. Getting the boundary wrong puts
- * income in the wrong year on someone's self-assessment, so the rules are
- * isolated here and tested at the boundary rather than inlined into queries.
+ * The boundary is data, not a constant. The UK runs 6 April to 5 April and
+ * writes the year as `2026/27`; Ireland runs the calendar year and writes it
+ * as `2026`. Both shapes are expressed by `TaxYearRules`, which a country
+ * pack supplies.
+ *
+ * Getting the boundary wrong puts income in the wrong year on somebody's tax
+ * return, so the rules are isolated here and tested at the boundary rather
+ * than inlined into queries.
  *
  * Dates are handled as `yyyy-mm-dd` strings throughout. Constructing `Date`
  * objects from them invites timezone shifts — a payment at 00:30 BST on 6 April
  * must not land in the previous tax year because UTC still thinks it is the 5th.
  */
+
+import { DEFAULT_LOCALE, formatMonthLong } from './dateFormat'
 
 export interface TaxYear {
   /** First day, inclusive. */
@@ -26,7 +33,34 @@ export interface TaxYearStart {
   month: number
 }
 
+/**
+ * How a tax year is written down.
+ *
+ * `split` is the HMRC form `2026/27`, for a year that straddles two calendar
+ * years. `calendar` is Ireland's `2026`. The difference is not only
+ * cosmetic: the split form contains a slash, which the year-end pack has to
+ * strip out of a folder name.
+ */
+export type TaxYearLabelStyle = 'split' | 'calendar'
+
+/** A jurisdiction's tax year, as a country pack states it. */
+export interface TaxYearRules {
+  start: TaxYearStart
+  labelStyle: TaxYearLabelStyle
+}
+
 export const UK_TAX_YEAR_START: TaxYearStart = { day: 6, month: 4 }
+
+/**
+ * What every function here falls back to.
+ *
+ * Kept as the default so a workspace that has never been asked where it is
+ * behaves exactly as the app always did.
+ */
+export const UK_TAX_YEAR: TaxYearRules = {
+  start: UK_TAX_YEAR_START,
+  labelStyle: 'split'
+}
 
 function pad(value: number): string {
   return String(value).padStart(2, '0')
@@ -44,19 +78,38 @@ export function today(): string {
  * A date on or after 6 April belongs to the year starting that April; anything
  * earlier belongs to the year that started the previous April.
  */
-export function taxYearFor(date: string, start: TaxYearStart = UK_TAX_YEAR_START): TaxYear {
+/**
+ * Tax-year rules from a settings row.
+ *
+ * Pairs the two loose columns the schema has carried since the beginning with
+ * a label style. Structurally typed rather than importing `Settings`, which
+ * would make this module depend on the whole type surface for two numbers.
+ */
+export function taxYearRulesFrom(
+  settings: { taxYearStartDay: number; taxYearStartMonth: number },
+  labelStyle: TaxYearLabelStyle = 'split'
+): TaxYearRules {
+  return {
+    start: { day: settings.taxYearStartDay, month: settings.taxYearStartMonth },
+    labelStyle
+  }
+}
+
+export function taxYearFor(date: string, rules: TaxYearRules = UK_TAX_YEAR): TaxYear {
   const [year, month, day] = date.split('-').map(Number) as [number, number, number]
+  const { start } = rules
 
   const onOrAfterStart = month > start.month || (month === start.month && day >= start.day)
   const startYear = onOrAfterStart ? year : year - 1
 
-  return taxYearStarting(startYear, start)
+  return taxYearStarting(startYear, rules)
 }
 
 export function taxYearStarting(
   startYear: number,
-  start: TaxYearStart = UK_TAX_YEAR_START
+  rules: TaxYearRules = UK_TAX_YEAR
 ): TaxYear {
+  const { start, labelStyle } = rules
   const startDate = `${startYear}-${pad(start.month)}-${pad(start.day)}`
 
   // The day before the next year's start — computed with a Date so month
@@ -67,13 +120,16 @@ export function taxYearStarting(
   return {
     start: startDate,
     end,
-    label: `${startYear}/${pad((startYear + 1) % 100)}`,
+    label:
+      labelStyle === 'calendar'
+        ? String(startYear)
+        : `${startYear}/${pad((startYear + 1) % 100)}`,
     startYear
   }
 }
 
-export function currentTaxYear(start: TaxYearStart = UK_TAX_YEAR_START): TaxYear {
-  return taxYearFor(today(), start)
+export function currentTaxYear(rules: TaxYearRules = UK_TAX_YEAR): TaxYear {
+  return taxYearFor(today(), rules)
 }
 
 /** Inclusive on both ends. */
@@ -90,7 +146,18 @@ export interface DateRange {
 }
 
 /** Calendar ranges for the finance page's period switcher. */
-export function rangeFor(period: Period, reference: string = today()): DateRange {
+/**
+ * `rules` reaches the `year` case, which until now called `taxYearFor` with no
+ * argument at all — so the switcher showed 6 April to 5 April however the
+ * workspace was configured. Invisible while every user was British; wrong for
+ * the first user who is not.
+ */
+export function rangeFor(
+  period: Period,
+  reference: string = today(),
+  rules: TaxYearRules = UK_TAX_YEAR,
+  locale: string = DEFAULT_LOCALE
+): DateRange {
   const [year, month, day] = reference.split('-').map(Number) as [number, number, number]
 
   switch (period) {
@@ -115,10 +182,7 @@ export function rangeFor(period: Period, reference: string = today()): DateRange
       return {
         from: `${year}-${pad(month)}-01`,
         to: `${year}-${pad(month)}-${pad(last)}`,
-        label: new Date(year, month - 1, 1).toLocaleDateString('en-GB', {
-          month: 'long',
-          year: 'numeric'
-        })
+        label: formatMonthLong(`${year}-${pad(month)}-01`, locale)
       }
     }
 
@@ -133,7 +197,7 @@ export function rangeFor(period: Period, reference: string = today()): DateRange
     }
 
     case 'year': {
-      const taxYear = taxYearFor(reference)
+      const taxYear = taxYearFor(reference, rules)
       return { from: taxYear.start, to: taxYear.end, label: `Tax year ${taxYear.label}` }
     }
   }

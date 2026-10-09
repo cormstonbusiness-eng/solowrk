@@ -25,7 +25,8 @@ import { AnimatedNumber } from '@/components/ui/AnimatedNumber'
 import { Dot, Empty } from '@/components/ui/Empty'
 import { Swap } from '@/components/ui/Swap'
 import { keys, useInvalidate } from '@/lib/api'
-import { formatDate, formatMoney } from '@/lib/format'
+import { moneySymbol } from '@shared/currency'
+import { formatDate, formatMoney, formatNumber } from '@/lib/format'
 import { listItemVariants, listVariants, transition } from '@/lib/motion'
 import { Inspect } from '@/components/detail/Inspect'
 import { Toolbar } from '@/components/list/Toolbar'
@@ -208,7 +209,7 @@ function Overview({ period }: { period: Period }): React.JSX.Element {
                   tick={{ fill: '#5a5a63', fontSize: 10 }}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(value: number) => `£${value}`}
+                  tickFormatter={(value: number) => `${moneySymbol()}${value}`}
                 />
                 <Tooltip
                   contentStyle={{
@@ -219,7 +220,7 @@ function Overview({ period }: { period: Period }): React.JSX.Element {
                   }}
                   labelStyle={{ color: '#8a8a93' }}
                   formatter={(value, name) => [
-                    `£${Number(value).toLocaleString('en-GB')}`,
+                    `${moneySymbol()}${formatNumber(Number(value))}`,
                     name === 'income' ? 'Income' : 'Spending'
                   ]}
                 />

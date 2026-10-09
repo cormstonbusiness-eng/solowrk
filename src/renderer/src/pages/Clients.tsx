@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import type { ClientInput, RelationshipStage } from '@shared/types'
 import { CLIENT_STAGES } from '@shared/types'
+import { DEFAULT_LOCALE } from '@shared/dateFormat'
 import { Page } from '@/components/Page'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -160,7 +161,7 @@ export function Clients(): React.JSX.Element {
         return (Number(right) - Number(left)) * direction
       }
 
-      return String(left).localeCompare(String(right), 'en-GB') * direction
+      return String(left).localeCompare(String(right), DEFAULT_LOCALE) * direction
     })
     /*
       Depended on by value, not by identity, and deliberately so.

@@ -121,8 +121,8 @@ export function setRate(db: Database, patch: MileageRateRow): MileageRateRow[] {
 function taxYearOf(db: Database, date: string): TaxYear {
   const settings = getSettings(db)
   return taxYearFor(date, {
-    day: settings.taxYearStartDay,
-    month: settings.taxYearStartMonth
+    start: { day: settings.taxYearStartDay, month: settings.taxYearStartMonth },
+    labelStyle: 'split'
   })
 }
 

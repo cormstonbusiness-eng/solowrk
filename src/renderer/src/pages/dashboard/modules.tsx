@@ -25,6 +25,7 @@ import {
 import type { Feature } from '@shared/entitlements'
 import { secondsToHours, timeValue } from '@shared/money'
 import { addMonths, dayFromDate, isSameMonth, monthGrid } from '@shared/calendar'
+import { formatMonthLong, formatWeekday } from '@shared/dateFormat'
 import { rangeFor } from '@shared/taxYear'
 import { keys, useInvalidate } from '@/lib/api'
 import { formatDate, formatMoney } from '@/lib/format'
@@ -679,7 +680,7 @@ function TimeWeek({ size }: { size: ModuleSize }): React.JSX.Element {
     date.setDate(date.getDate() + index)
     const key = dayFromDate(date)
     return {
-      label: date.toLocaleDateString('en-GB', { weekday: 'short' }),
+      label: formatWeekday(dayFromDate(date)),
       value: entries
         .filter((entry) => entry.startedAt.slice(0, 10) === key)
         .reduce((sum, entry) => sum + entry.duration, 0)
@@ -1319,10 +1320,7 @@ function MonthCalendar(): React.JSX.Element {
   /* Which days have something on them, as a set of yyyy-mm-dd. */
   const busy = new Set(blocks.map((block) => block.startsAt.slice(0, 10)))
 
-  const label = new Date(`${viewing}T00:00:00`).toLocaleDateString('en-GB', {
-    month: 'long',
-    year: 'numeric'
-  })
+  const label = formatMonthLong(viewing)
 
   const arrow =
     'grid h-4 w-4 shrink-0 place-items-center rounded text-faint transition-colors hover:bg-raised hover:text-ink'

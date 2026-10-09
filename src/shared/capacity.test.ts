@@ -137,9 +137,26 @@ describe('whether a target is reachable', () => {
 })
 
 describe('saying money', () => {
-  it('rounds to the pound', () => {
+  it('rounds to the whole unit', () => {
     expect(money(4_427_500)).toBe('£44,275')
     expect(money(0)).toBe('£0')
-    expect(money(-150_000)).toBe('£-1,500')
+    /*
+      `-£1,500`, not `£-1,500`.
+
+      This assertion changed when the app's nineteen hand-rolled money
+      formatters collapsed into `@shared/currency`. Concatenating a symbol onto
+      a formatted number put the minus sign in the middle, which is not how a
+      negative amount is written in any locale; `Intl` places it correctly. The
+      old string is the one worth *not* preserving — this figure appears in
+      prose about a shortfall, which is exactly where somebody reads twice.
+    */
+    expect(money(-150_000)).toBe('-£1,500')
+  })
+
+  it('says the amount in the currency it is given', () => {
+    // The reason `money` takes a currency at all: this string lands in a
+    // sentence shown to the user, and a euro figure behind a pound sign is
+    // worse than no figure.
+    expect(money(4_427_500, 'EUR')).toBe('€44,275')
   })
 })

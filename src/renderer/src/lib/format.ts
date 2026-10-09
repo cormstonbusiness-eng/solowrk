@@ -1,25 +1,42 @@
-/** Formatting helpers. Money arrives as integer pence and only becomes pounds here. */
+/**
+ * Renderer formatting helpers.
+ *
+ * The money and date functions are thin wrappers over `@shared/currency` and
+ * `@shared/dateFormat`, which main and shared use too — one implementation, so
+ * a figure on screen and the same figure on the invoice PDF cannot disagree.
+ *
+ * Currency and locale are optional parameters rather than required ones so that
+ * the several hundred existing call sites keep working unchanged. They resolve
+ * to sterling and `en-GB`, which is what the app printed before country packs
+ * existed.
+ */
 
-export function formatMoney(pence: number | null, options: { pennies?: boolean } = {}): string {
-  if (pence === null) return '—'
-  const pounds = pence / 100
-  return `£${pounds.toLocaleString('en-GB', {
-    minimumFractionDigits: options.pennies ? 2 : 0,
-    maximumFractionDigits: options.pennies ? 2 : 0
-  })}`
+import { DEFAULT_CURRENCY, formatMoney as money, formatNumber, formatRate as rate } from '@shared/currency'
+import { DEFAULT_LOCALE, formatDateShort } from '@shared/dateFormat'
+
+/** Re-exported so a page needs one import to render a figure of any kind. */
+export { formatNumber }
+
+export function formatMoney(
+  pence: number | null,
+  options: { pennies?: boolean; currency?: string } = {}
+): string {
+  return money(pence, options.currency ?? DEFAULT_CURRENCY, { pennies: options.pennies })
 }
 
-export function formatRate(pence: number | null): string {
-  return pence === null ? '—' : `${formatMoney(pence, { pennies: pence % 100 !== 0 })}/hr`
+export function formatRate(pence: number | null, currency: string = DEFAULT_CURRENCY): string {
+  return rate(pence, currency)
 }
 
-export function formatDate(iso: string | null): string {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric'
-  })
+/**
+ * A stored date, short form.
+ *
+ * Now UTC-pinned, via `@shared/dateFormat`. It was not before, which meant a
+ * bare `yyyy-mm-dd` became midnight UTC and rendered a day early anywhere west
+ * of Greenwich. Identical output in the UK, correct everywhere else.
+ */
+export function formatDate(iso: string | null, locale = DEFAULT_LOCALE): string {
+  return formatDateShort(iso, locale)
 }
 
 /**
@@ -54,7 +71,7 @@ export function formatWhen(stamp: string): string {
     return `${days} day${days === 1 ? '' : 's'} ago`
   }
 
-  return at.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+  return formatDateShort(at.toISOString())
 }
 
 /** Midnight today, as the reference point for "overdue". */

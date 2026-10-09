@@ -17,6 +17,8 @@
  * Money is integer pence; percentages are basis points (5400 = 54%).
  */
 
+import { DEFAULT_CURRENCY, formatMoney } from './currency'
+
 export interface CapacityInput {
   /** Working weeks, after holiday, bank holidays and an allowance for illness. */
   weeksPerYear: number
@@ -212,7 +214,13 @@ function summarise(
   )
 }
 
-/** Whole pounds. This is prose, and pence in a sentence read as noise. */
-export function money(pence: number): string {
-  return `£${Math.round(pence / 100).toLocaleString('en-GB')}`
+/**
+ * Whole units. This is prose, and minor units in a sentence read as noise.
+ *
+ * The currency is a parameter rather than a constant because this text ends
+ * up in a sentence shown to the user, and a euro figure with a pound sign in
+ * front of it is worse than no figure at all.
+ */
+export function money(pence: number, currency: string = DEFAULT_CURRENCY): string {
+  return formatMoney(pence, currency)
 }

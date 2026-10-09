@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'motion/react'
 import type { CalendarBlockWithContext, CalendarSettings, DerivedMarker } from '@shared/types'
+import { moneySymbol } from '@shared/currency'
 import { blockTypeMeta } from '@shared/types'
 import {
   dayOf,
@@ -34,7 +35,7 @@ const MARKER_GLYPH: Record<DerivedMarker['kind'], string> = {
   project: '◆',
   milestone: '◇',
   task: '•',
-  invoice: '£'
+  invoice: moneySymbol()
 }
 
 export function MonthView({

@@ -1,6 +1,7 @@
 import { rm } from 'node:fs/promises'
 import type { BrowserWindow } from 'electron'
 import { addDays, dayOf, nowStamp, timeOf } from '@shared/calendar'
+import { DEFAULT_CURRENCY, formatMoney } from '@shared/currency'
 import { can } from './entitlements'
 import { chaseDedupeKey, dueChasers } from './chasers'
 import { runChasers } from './chaseRun'
@@ -255,7 +256,7 @@ async function runChaseSweep(
   if (due.length === 0) return
 
   const total = due.reduce((sum, chase) => sum + chase.invoice.gross, 0)
-  const amount = `£${(total / 100).toLocaleString('en-GB', { maximumFractionDigits: 0 })}`
+  const amount = formatMoney(total, DEFAULT_CURRENCY)
 
   // Write the notes — and, if the user has asked for it, send them. The
   // dedupe key is taken before this runs, because sending changes chase_step

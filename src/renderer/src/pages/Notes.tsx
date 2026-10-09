@@ -11,6 +11,7 @@ import { Empty } from '@/components/ui/Empty'
 import { Swap } from '@/components/ui/Swap'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
+import { today } from '@shared/taxYear'
 import { formatDate } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { useEntityActions } from '@/hooks/useEntityActions'
@@ -117,7 +118,12 @@ export function Notes(): React.JSX.Element {
     }
   })
 
-  const newNote = (): void => create.mutate(`Note ${new Date().toLocaleDateString('en-GB')}`)
+  /*
+    The title uses the locale's short date rather than a numeric one.
+    `Note 28/09/2026` is ambiguous the moment the app leaves Britain, and this
+    string is *stored* as the note title, so it cannot be reinterpreted later.
+  */
+  const newNote = (): void => create.mutate(`Note ${formatDate(today())}`)
 
   useOpenParam('new', newNote)
 

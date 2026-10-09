@@ -1,6 +1,7 @@
 import type { Database, Row } from '../db'
 import type { CalendarBlockWithContext, DerivedMarker, TaskWithContext } from '@shared/types'
 import { addMinutes, minutesBetween } from '@shared/calendar'
+import { DEFAULT_CURRENCY, formatMoney } from '@shared/currency'
 import { createBlock, getBlock } from './blocks'
 import { getCalendarSettings } from './calendarSettings'
 import { getTask } from './tasks'
@@ -227,7 +228,7 @@ export function derivedMarkers(
       id: row.id,
       day: row.due_date,
       label: row.number || 'Draft invoice',
-      detail: `£${(row.gross / 100).toLocaleString('en-GB', { maximumFractionDigits: 0 })} due`,
+      detail: `${formatMoney(row.gross, DEFAULT_CURRENCY)} due`,
       colour: ''
     })
   }

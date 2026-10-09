@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { animate, useReducedMotion } from 'motion/react'
+import { DEFAULT_CURRENCY, formatMoney } from '@shared/currency'
 import { DURATION, EASE } from '@/lib/motion'
 
 /**
@@ -35,7 +36,12 @@ export function AnimatedNumber({
   return <span className={className}>{format ? format(display) : Math.round(display)}</span>
 }
 
-/** GBP with no pence — the default for headline figures. */
-export function gbp(n: number): string {
-  return `£${Math.round(n).toLocaleString('en-GB')}`
+/**
+ * Whole units, no minor unit — the default for headline figures.
+ *
+ * Takes a *major* unit value, because that is what `AnimatedNumber` counts in
+ * while it animates. It was called `gbp`, which said the quiet part out loud.
+ */
+export function wholeMoney(value: number, currency: string = DEFAULT_CURRENCY): string {
+  return formatMoney(Math.round(value) * 100, currency)
 }

@@ -80,17 +80,61 @@ export function minutesBetween(from: string, to: string): number {
   return daysBetween(dayOf(from), dayOf(to)) * MINUTES_PER_DAY + minutesOf(to) - minutesOf(from)
 }
 
-/** Monday of the week containing `day`. Weeks are Monday-based, as a working week. */
-export function startOfWeek(day: string): string {
+/* ------------------------------------------------------------------ *
+ * Which day a week starts on
+ *
+ * Two conventions meet here, and conflating them is the one mistake in this
+ * file that would corrupt data rather than merely look wrong.
+ *
+ * **Storage** — the `working_days` bitmask has Monday at bit 0, and
+ * `DEFAULT 31` therefore means Monday to Friday. That encoding is in every
+ * existing workspace and must never be reinterpreted: shifting it would
+ * silently rotate every user’s working week.
+ *
+ * **Presentation** — `calendar_settings.week_starts_on` says which column a
+ * grid begins at. It is *also* a Monday-first index (0 = Monday), which the
+ * schema states at its definition. It is deliberately not the JavaScript
+ * `getDay()` convention, where 0 means Sunday.
+ *
+ * So: a week start changes where a grid begins. It changes nothing about
+ * which days are working days.
+ * ------------------------------------------------------------------ */
+
+/** Monday-first index: 0 = Monday … 6 = Sunday. The app’s own convention. */
+export const MONDAY = 0
+
+/**
+ * A JavaScript day number as a Monday-first index.
+ *
+ * The single place the two conventions are allowed to touch. Both the
+ * working-days bitmask and the grid offset go through it, so they cannot
+ * drift apart about which day Sunday is.
+ */
+export function dayIndexToBit(jsDay: number): number {
+  return (jsDay + 6) % 7
+}
+
+/** Where `day` sits in a Monday-first week. */
+function mondayFirstIndex(day: string): number {
   const [year, month, date] = day.split('-').map(Number) as [number, number, number]
-  const offset = (new Date(year, month - 1, date).getDay() + 6) % 7
+  return dayIndexToBit(new Date(year, month - 1, date).getDay())
+}
+
+/**
+ * The first day of the week containing `day`.
+ *
+ * `weekStartsOn` is a Monday-first index, so the default of `MONDAY` keeps
+ * every existing caller on exactly the behaviour it had.
+ */
+export function startOfWeek(day: string, weekStartsOn: number = MONDAY): string {
+  const offset = (mondayFirstIndex(day) - weekStartsOn + 7) % 7
   return addDays(day, -offset)
 }
 
 /** The seven days of the week containing `day`. */
-export function weekDays(day: string): string[] {
-  const monday = startOfWeek(day)
-  return Array.from({ length: 7 }, (_, index) => addDays(monday, index))
+export function weekDays(day: string, weekStartsOn: number = MONDAY): string[] {
+  const first = startOfWeek(day, weekStartsOn)
+  return Array.from({ length: 7 }, (_, index) => addDays(first, index))
 }
 
 export function startOfMonth(day: string): string {
@@ -105,13 +149,13 @@ export function addMonths(day: string, months: number): string {
 }
 
 /**
- * The six-week grid a month view draws: always 42 days, always starting on a
- * Monday, with the leading and trailing days belonging to the neighbouring
- * months. Fixed at six rows on purpose — a grid that changes height between
- * months makes the whole page jump as you page through it.
+ * The six-week grid a month view draws: always 42 days, starting on whichever
+ * day the week starts on, with the leading and trailing days belonging to the
+ * neighbouring months. Fixed at six rows on purpose — a grid that changes
+ * height between months makes the whole page jump as you page through it.
  */
-export function monthGrid(day: string): string[] {
-  const first = startOfWeek(startOfMonth(day))
+export function monthGrid(day: string, weekStartsOn: number = MONDAY): string[] {
+  const first = startOfWeek(startOfMonth(day), weekStartsOn)
   return Array.from({ length: 42 }, (_, index) => addDays(first, index))
 }
 
@@ -272,8 +316,14 @@ function expand<T>(
  */
 export function isWorkingDay(workingDays: number, day: string): boolean {
   const [year, month, date] = day.split('-').map(Number) as [number, number, number]
-  const mondayFirst = (new Date(Date.UTC(year, month - 1, date)).getUTCDay() + 6) % 7
-  return (workingDays & (1 << mondayFirst)) !== 0
+  /*
+    Note the absence of a week-start parameter, which is the point. The bit a
+    day occupies is a fact about the stored mask, not about how the grid is
+    drawn — threading a week start in here is exactly how everyone’s working
+    week would quietly rotate.
+  */
+  const bit = dayIndexToBit(new Date(Date.UTC(year, month - 1, date)).getUTCDay())
+  return (workingDays & (1 << bit)) !== 0
 }
 
 /** Round minutes to the nearest `step`, for drag and resize. */

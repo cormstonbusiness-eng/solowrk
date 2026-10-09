@@ -13,6 +13,7 @@ import { checkoutUrl, type BillingPeriod } from '@shared/site'
 import { dismissLimit, useLimitReached } from '@/lib/limits'
 import { Modal } from './ui/Modal'
 import { Button } from './ui/Button'
+import { DEFAULT_CURRENCY, formatMoney } from '@shared/currency'
 import { cn } from '@/lib/utils'
 
 /**
@@ -226,10 +227,9 @@ function reassuranceFrom(message: string): string {
   return sentences.slice(2).join(' ') || sentences[sentences.length - 1] || message
 }
 
+/** Our own prices. Pennies only when a price has any. */
 function money(pence: number): string {
-  return pence % 100 === 0
-    ? `£${pence / 100}`
-    : `£${(pence / 100).toFixed(2)}`
+  return formatMoney(pence, DEFAULT_CURRENCY, { pennies: pence % 100 !== 0 })
 }
 
 /** What annual saves against twelve months, for the toggle to say so. */

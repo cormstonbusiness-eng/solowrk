@@ -31,7 +31,7 @@ import { Markdown } from '@/components/ui/Markdown'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
 import { ConfirmModal } from '@/components/ui/Modal'
-import { formatDate, formatMoney } from '@/lib/format'
+import { formatDate, formatMoney, formatNumber } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
 import { messageFrom } from '@shared/ipcError'
@@ -473,7 +473,7 @@ function Summary({
       <div className="min-w-0 flex-1">
         <p className="truncate text-[12.5px] text-ink">{plan.name}</p>
         <p className="mt-0.5 text-[11px] text-faint">
-          {words.toLocaleString('en-GB')} words · {sections.length} section
+          {formatNumber(words)} words · {sections.length} section
           {sections.length === 1 ? '' : 's'} · {covered} of {covered + missing} standard sections
           covered
           {plan.readAt && ` · saved ${formatDate(plan.readAt)}`}
@@ -571,7 +571,7 @@ function SectionCard({
 
         {!editing && !empty && (
           <span className="shrink-0 text-[10.5px] text-faint">
-            {wordCount(section.body).toLocaleString('en-GB')} words
+            {formatNumber(wordCount(section.body))} words
           </span>
         )}
 

@@ -21,6 +21,7 @@ import {
   stampFromDate,
   timeOf
 } from '@shared/calendar'
+import { moneySymbol } from '@shared/currency'
 import { cn } from '@/lib/utils'
 import {
   DEFAULT_SCROLL_HOUR,
@@ -77,7 +78,7 @@ const MARKER_GLYPH: Record<DerivedMarker['kind'], string> = {
   project: '◆',
   milestone: '◇',
   task: '•',
-  invoice: '£'
+  invoice: moneySymbol()
 }
 
 export function TimeGrid({

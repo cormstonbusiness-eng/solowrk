@@ -33,6 +33,7 @@ import {
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
+import { formatMoney } from '@/lib/format'
 import { keys, useInvalidate } from '@/lib/api'
 import { useOpenParam } from '@/hooks/useOpenParam'
 import { useUndo } from '@/hooks/useUndo'
@@ -104,12 +105,12 @@ const FALLBACK_SETTINGS: CalendarSettings = {
 }
 
 /** The days a view covers — which is also exactly what it queries for. */
-function daysInView(view: View, anchor: string): string[] {
+function daysInView(view: View, anchor: string, weekStartsOn: number): string[] {
   switch (view) {
     case 'month':
-      return monthGrid(anchor)
+      return monthGrid(anchor, weekStartsOn)
     case 'week':
-      return weekDays(anchor)
+      return weekDays(anchor, weekStartsOn)
     case 'day':
       return [anchor]
     case 'agenda':
@@ -188,10 +189,10 @@ export function Calendar(): React.JSX.Element {
    * Hiding a day somebody works would hide the work on it.
    */
   const days = useMemo(() => {
-    const all = daysInView(view, anchor)
+    const all = daysInView(view, anchor, settings.weekStartsOn)
     if (settings.showWeekends || view === 'month' || view === 'agenda') return all
     return all.filter((day) => isWorkingDay(settings.workingDays, day))
-  }, [view, anchor, settings.showWeekends, settings.workingDays])
+  }, [view, anchor, settings.showWeekends, settings.workingDays, settings.weekStartsOn])
   const from = days[0] ?? anchor
   const to = days.at(-1) ?? anchor
 
@@ -997,8 +998,8 @@ export function Calendar(): React.JSX.Element {
 
             {delta.pence !== 0 && (
               <span className="numeric text-[12.5px] text-muted">
-                {delta.pence > 0 ? '+' : '−'}£
-                {Math.abs(Math.round(delta.pence / 100)).toLocaleString('en-GB')}
+                {delta.pence > 0 ? '+' : '−'}
+                {formatMoney(Math.abs(delta.pence))}
               </span>
             )}
 

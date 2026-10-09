@@ -1,3 +1,4 @@
+import { DEFAULT_CURRENCY, formatMoney } from './currency'
 import type { Pence } from './types'
 
 /**
@@ -109,7 +110,11 @@ export const ACTION_LABELS: Record<AutomationAction, string> = {
  * project with no client should produce "Invoice for" rather than "Invoice for
  * {client}".
  */
-export function fillTokens(text: string, subject: AutomationSubject): string {
+export function fillTokens(
+  text: string,
+  subject: AutomationSubject,
+  currency: string = DEFAULT_CURRENCY
+): string {
   const values: Record<string, string> = {
     name: subject.label,
     client: subject.clientName ?? '',
@@ -117,10 +122,7 @@ export function fillTokens(text: string, subject: AutomationSubject): string {
     amount:
       subject.amount === null
         ? ''
-        : `£${(subject.amount / 100).toLocaleString('en-GB', {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2
-          })}`
+        : formatMoney(subject.amount, currency, { pennies: true })
   }
 
   return text

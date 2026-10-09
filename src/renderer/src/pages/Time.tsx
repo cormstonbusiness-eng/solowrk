@@ -3,6 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { Clock, Play, Plus, Square, Trash2 } from 'lucide-react'
 import { secondsToHours, timeValue } from '@shared/money'
+import { DEFAULT_LOCALE, formatDateWith } from '@shared/dateFormat'
 import { rangeFor, today } from '@shared/taxYear'
 import { Page } from '@/components/Page'
 import { Card } from '@/components/ui/Card'
@@ -212,7 +213,7 @@ export function Time(): React.JSX.Element {
               <div key={day} className="mb-4">
                 <div className="mb-1.5 flex items-baseline justify-between">
                   <p className="text-[11px] tracking-[0.08em] text-faint uppercase">
-                    {new Date(day).toLocaleDateString('en-GB', {
+                    {formatDateWith(day, DEFAULT_LOCALE, {
                       weekday: 'long',
                       day: 'numeric',
                       month: 'short'

@@ -1,3 +1,5 @@
+import { DEFAULT_CURRENCY, formatMoney } from '@shared/currency'
+import { DEFAULT_LOCALE, formatDateLong } from '@shared/dateFormat'
 import type { ClientUpdatePack, Settings } from '@shared/types'
 
 /**
@@ -24,20 +26,12 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;')
 }
 
-function money(pence: number): string {
-  return `£${(pence / 100).toLocaleString('en-GB', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })}`
+function money(pence: number, currency: string = DEFAULT_CURRENCY): string {
+  return formatMoney(pence, currency, { pennies: true })
 }
 
-function formatDate(iso: string): string {
-  return new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC'
-  })
+function formatDate(iso: string, locale = DEFAULT_LOCALE): string {
+  return formatDateLong(iso, locale)
 }
 
 function hours(value: number): string {
@@ -60,7 +54,7 @@ export function renderUpdatePack(
   const greeting = pack.contactName.trim() || pack.clientName
 
   return `<!doctype html>
-<html lang="en-GB">
+<html lang="${DEFAULT_LOCALE}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />

@@ -2,6 +2,7 @@ import type { Dirent } from 'node:fs'
 import { copyFile, mkdir, readdir, rename, stat } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import { shell } from 'electron'
+import { DEFAULT_LOCALE } from '@shared/dateFormat'
 import type { FileEntry } from '@shared/types'
 import { uniqueFileName, uniqueFolderName } from './naming'
 import { APP_DIR, resolveInWorkspace } from './workspace'
@@ -54,7 +55,7 @@ export async function listDirectory(
     .filter((entry): entry is FileEntry => entry !== null)
     .sort((a, b) => {
       if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1
-      return a.name.localeCompare(b.name, 'en-GB', { sensitivity: 'base' })
+      return a.name.localeCompare(b.name, DEFAULT_LOCALE, { sensitivity: 'base' })
     })
 }
 

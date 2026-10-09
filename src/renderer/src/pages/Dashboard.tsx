@@ -13,6 +13,7 @@ import {
   X
 } from 'lucide-react'
 import { dayFromDate } from '@shared/calendar'
+import { DEFAULT_LOCALE, formatDateWith } from '@shared/dateFormat'
 import { rangeFor } from '@shared/taxYear'
 import { Page } from '@/components/Page'
 import { Button } from '@/components/ui/Button'
@@ -115,7 +116,7 @@ export function Dashboard(): React.JSX.Element {
       display
       title={`${greeting()}${settings?.contactName ? `, ${settings.contactName.split(' ')[0]}` : ''}`}
       description={statusLine({
-        date: new Date().toLocaleDateString('en-GB', {
+        date: formatDateWith(today, DEFAULT_LOCALE, {
           weekday: 'long',
           day: 'numeric',
           month: 'long'

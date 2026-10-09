@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react'
+import { DEFAULT_CURRENCY, formatMoney as money } from '@shared/currency'
 import type { AppNotification, NotificationKind } from '@shared/types'
 
 /**
@@ -172,12 +173,9 @@ function celebrations(): { paid: State['paid']; unlocked: string[] } {
   return snapshot
 }
 
-/** Whole pounds, matching how the toast reads aloud. */
-function formatMoney(pence: number): string {
-  return `£${(pence / 100).toLocaleString('en-GB', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })}`
+/** With the minor unit, matching how the toast reads aloud. */
+function formatMoney(pence: number, currency: string = DEFAULT_CURRENCY): string {
+  return money(pence, currency, { pennies: true })
 }
 
 /** Test seam: nothing in the app calls this. */

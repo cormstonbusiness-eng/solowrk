@@ -1,6 +1,7 @@
 import type { CalendarBlockWithContext, CalendarSettings } from '@shared/types'
 import { blockTypeMeta } from '@shared/types'
 import { minutesBetween, segmentOn } from '@shared/calendar'
+import { DEFAULT_CURRENCY, formatMoney } from '@shared/currency'
 import type { Lens } from './keys'
 import { durationLabel } from './grid'
 
@@ -159,8 +160,8 @@ export interface DayReadout {
   fraction: number | null
 }
 
-const money = (pence: number): string =>
-  `£${Math.round(pence / 100).toLocaleString('en-GB')}`
+const money = (pence: number, currency: string = DEFAULT_CURRENCY): string =>
+  formatMoney(pence, currency)
 
 /**
  * What one day says under a given lens.

@@ -2,7 +2,12 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { basename, join } from 'node:path'
 import type { Database, Row } from '../db'
 import type { SummaryLine, YearEndPack, YearSummaryForPdf } from '@shared/types'
-import { currentTaxYear, taxYearStarting, today } from '@shared/taxYear'
+import {
+  currentTaxYear,
+  taxYearRulesFrom,
+  taxYearStarting,
+  today
+} from '@shared/taxYear'
 import { writeDatasetCsv } from './exports'
 import { summary } from './finance'
 import { listInvoices } from './invoices'
@@ -41,13 +46,21 @@ export async function buildYearEndPack(
   workspacePath: string,
   startYear?: number
 ): Promise<YearEndPack> {
-  const taxYear = startYear === undefined ? currentTaxYear() : taxYearStarting(startYear)
+  /*
+    The settings row is read before the tax year rather than after it, because
+    the year is now derived from it. This call site used to take the UK default
+    regardless of what the workspace said, which meant an accountant pack could
+    be scoped to the wrong twelve months.
+  */
+  const settings = getSettings(db)
+  const rules = taxYearRulesFrom(settings)
+  const taxYear =
+    startYear === undefined ? currentTaxYear(rules) : taxYearStarting(startYear, rules)
   const range = { from: taxYear.start, to: taxYear.end, label: `Tax year ${taxYear.label}` }
 
   const folder = join('Exports', folderNameFor(taxYear.label))
   await mkdir(resolveInWorkspace(workspacePath, folder), { recursive: true })
 
-  const settings = getSettings(db)
   const files: string[] = []
 
   // The summary first, so the folder opens on the thing worth reading rather

@@ -33,7 +33,7 @@ import { Field, MoneyInput, NumberInput, TextInput, Toggle } from '@/components/
 import { useUpdates } from '@/hooks/useUpdates'
 import { cn } from '@/lib/utils'
 import { currentTaxYear } from '@shared/taxYear'
-import { formatDate } from '@/lib/format'
+import { formatDate, formatNumber } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useAuthState, useFeature } from '@/lib/features'
@@ -1152,12 +1152,12 @@ function BusinessPlanCard(): React.JSX.Element {
             <p className="mt-0.5 text-[11px] text-faint">
               {plan.truncated ? (
                 <span className="text-warning">
-                  {plan.sentLength.toLocaleString('en-GB')} of{' '}
-                  {plan.length.toLocaleString('en-GB')} characters sent — this document is
+                  {formatNumber(plan.sentLength)} of{' '}
+                  {formatNumber(plan.length)} characters sent — this document is
                   unusually large and had to be cut
                 </span>
               ) : (
-                `All ${plan.length.toLocaleString('en-GB')} characters read`
+                `All ${formatNumber(plan.length)} characters read`
               )}
               {plan.readAt && ` · ${formatDate(plan.readAt)}`}
             </p>

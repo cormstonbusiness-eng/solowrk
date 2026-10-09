@@ -3,6 +3,7 @@ import type { BusinessPlanStatus } from '@shared/types'
 import { composePlan, type Answers, type PrefillKey } from '@shared/planInterview'
 import { figuresFrom, type PlanFigures } from '@shared/planFigures'
 import { classify, parsePlan } from '@shared/plan'
+import { formatMoney } from '@shared/currency'
 import { getSettings, updateSettings } from '../services/settings'
 import { getPlan, listChannels, updatePlan } from '../services/channels'
 import { startPlan, writePlan } from './businessPlan'
@@ -43,12 +44,13 @@ export function prefillAnswers(db: Database): Partial<Record<PrefillKey, string>
       answer with where it came from, which is what makes that honest rather
       than the app putting a number in somebody's business plan.
 
-      Whole pounds: "£65 an hour" is what somebody says out loud, and this
+      Whole units: "£65 an hour" is what somebody says out loud, and this
       answer goes into a sentence rather than a column.
     */
-    const pounds = settings.defaultHourlyRate / 100
-    const shown = Number.isInteger(pounds) ? String(pounds) : pounds.toFixed(2)
-    prefill.rate = `£${shown} an hour`
+    const whole = settings.defaultHourlyRate % 100 === 0
+    prefill.rate = `${formatMoney(settings.defaultHourlyRate, settings.currency, {
+      pennies: !whole
+    })} an hour`
   }
 
   const channels = listChannels(db).map((channel) => channel.name)

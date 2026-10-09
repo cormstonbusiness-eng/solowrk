@@ -1,6 +1,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { extname, join } from 'node:path'
 import { BrowserWindow } from 'electron'
+import { DEFAULT_CURRENCY, formatMoney } from '@shared/currency'
+import { DEFAULT_LOCALE, formatDateLong } from '@shared/dateFormat'
 import type {
   DocumentForPdf,
   LineItemDocument,
@@ -62,27 +64,20 @@ function escapeHtml(value: string): string {
     .replace(/"/g, '&quot;')
 }
 
-function money(pence: number): string {
-  return `£${(pence / 100).toLocaleString('en-GB', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })}`
+function money(pence: number, currency: string = DEFAULT_CURRENCY): string {
+  return formatMoney(pence, currency, { pennies: true })
 }
 
 /**
  * Dates are `yyyy-mm-dd` strings and are formatted as UTC.
  *
- * Without the timeZone, `new Date('2026-06-01')` is midnight UTC and renders as
- * 31 May anywhere west of Greenwich — an invoice dated a day before it was
- * raised, on the one document that leaves the app.
+ * The UTC pin lives in `@shared/dateFormat` now, for the reason that made it
+ * necessary here first: without it, `new Date('2026-06-01')` renders as 31 May
+ * anywhere west of Greenwich — an invoice dated a day before it was raised, on
+ * the one document that leaves the app.
  */
-function formatDate(iso: string): string {
-  return new Date(`${iso.slice(0, 10)}T00:00:00Z`).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC'
-  })
+function formatDate(iso: string, locale = DEFAULT_LOCALE): string {
+  return formatDateLong(iso, locale)
 }
 
 const STYLES = `
@@ -487,7 +482,7 @@ export function renderHtml(
   branded = true
 ): string {
   return `<!doctype html>
-<html lang="en-GB">
+<html lang="${DEFAULT_LOCALE}">
 <head>
 <meta charset="utf-8" />
 <style>${STYLES}</style>

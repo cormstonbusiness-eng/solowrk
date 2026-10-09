@@ -1,6 +1,8 @@
 import type { Database } from '../db'
 import type { DueChase, Settings } from '@shared/types'
 import { parseChaseDays } from '@shared/chasing'
+import { formatMoney } from '@shared/currency'
+import { formatDateLong } from '@shared/dateFormat'
 import { today } from '@shared/taxYear'
 import { getClient } from './clients'
 import { getInvoice, overdueInvoices } from './invoices'
@@ -137,16 +139,8 @@ export function draftChaser(
   const client = invoice.clientId ? getClient(db, invoice.clientId) : null
 
   const daysLate = Math.max(0, daysBetween(invoice.dueDate, today()))
-  const amount = `£${(invoice.gross / 100).toLocaleString('en-GB', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })}`
-  const dueDate = new Date(`${invoice.dueDate}T00:00:00Z`).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-    timeZone: 'UTC'
-  })
+  const amount = formatMoney(invoice.gross, settings.currency, { pennies: true })
+  const dueDate = formatDateLong(invoice.dueDate)
   const greeting = `Hi ${client?.contactName || client?.name || 'there'},`
   const signOff = ['Many thanks,', settings.contactName || settings.businessName]
 

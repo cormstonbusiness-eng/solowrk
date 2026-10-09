@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { addDays, addMonths, isInTaxYear, rangeFor, taxYearFor, taxYearStarting } from './taxYear'
+import {
+  addDays,
+  addMonths,
+  isInTaxYear,
+  rangeFor,
+  taxYearFor,
+  taxYearRulesFrom,
+  taxYearStarting,
+  type TaxYearRules
+} from './taxYear'
 
 describe('taxYearFor', () => {
   it('puts 6 April in the tax year starting that day', () => {
@@ -101,5 +110,76 @@ describe('date arithmetic', () => {
 
   it('adds months across a leap February', () => {
     expect(addMonths('2028-01-31', 1)).toBe('2028-02-29')
+  })
+})
+
+/* ------------------------------------------------------------------ *
+ * Jurisdictions other than the UK
+ *
+ * Ireland runs the calendar year and writes it as a single number. Both of
+ * those were hard-coded until the boundary became data, and the `rangeFor`
+ * case below is the one that was silently wrong: it called `taxYearFor` with
+ * no argument, so the finance page's "year" period showed 6 April to 5 April
+ * however the workspace was configured.
+ * ------------------------------------------------------------------ */
+
+const IRELAND: TaxYearRules = { start: { day: 1, month: 1 }, labelStyle: 'calendar' }
+
+describe('a calendar tax year', () => {
+  it('runs 1 January to 31 December', () => {
+    const year = taxYearFor('2026-08-16', IRELAND)
+    expect(year.start).toBe('2026-01-01')
+    expect(year.end).toBe('2026-12-31')
+  })
+
+  it('keeps 1 January in the year that starts on it', () => {
+    // The boundary case. Under UK rules this date belongs to the *previous*
+    // tax year, so getting it wrong moves a January invoice by twelve months.
+    expect(taxYearFor('2026-01-01', IRELAND).startYear).toBe(2026)
+    expect(taxYearFor('2025-12-31', IRELAND).startYear).toBe(2025)
+  })
+
+  it('writes the label as one year rather than two', () => {
+    expect(taxYearFor('2026-08-16', IRELAND).label).toBe('2026')
+    expect(taxYearStarting(2026, IRELAND).label).toBe('2026')
+  })
+
+  it('leaves the UK label alone', () => {
+    // The split form, with the slash the year-end pack has to strip.
+    expect(taxYearStarting(2026).label).toBe('2026/27')
+  })
+})
+
+describe('rangeFor honours the tax year it is given', () => {
+  it('scopes a year range to the configured boundary', () => {
+    /*
+      The bug this parameter exists for. Before it, a calendar-year workspace
+      asking for "this year" got 6 April to 5 April — the wrong twelve months
+      of income, on the page people read to decide what to set aside.
+    */
+    const range = rangeFor('year', '2026-08-16', IRELAND)
+    expect(range.from).toBe('2026-01-01')
+    expect(range.to).toBe('2026-12-31')
+    expect(range.label).toBe('Tax year 2026')
+  })
+
+  it('still defaults to the UK boundary', () => {
+    const range = rangeFor('year', '2026-08-16')
+    expect(range.from).toBe('2026-04-06')
+    expect(range.label).toBe('Tax year 2026/27')
+  })
+})
+
+describe('taxYearRulesFrom', () => {
+  it('builds rules from the two settings columns', () => {
+    // The columns have existed since the first migration and were read by
+    // exactly one consumer. This is the bridge that makes them mean something.
+    const rules = taxYearRulesFrom({ taxYearStartDay: 1, taxYearStartMonth: 1 }, 'calendar')
+    expect(taxYearFor('2026-02-01', rules).start).toBe('2026-01-01')
+  })
+
+  it('defaults to the split label, as the UK writes it', () => {
+    const rules = taxYearRulesFrom({ taxYearStartDay: 6, taxYearStartMonth: 4 })
+    expect(taxYearFor('2026-08-16', rules).label).toBe('2026/27')
   })
 })

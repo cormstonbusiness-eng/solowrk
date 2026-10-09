@@ -1,5 +1,6 @@
 import type { Database, Row } from '../db'
 import type { DashboardTrends, TrendPoint } from '@shared/types'
+import { DEFAULT_LOCALE, formatMonthShort } from '@shared/dateFormat'
 import { addDays, today } from '@shared/taxYear'
 
 /**
@@ -34,11 +35,8 @@ function monthEnd(start: string): string {
   return new Date(Date.UTC(year, month, 0)).toISOString().slice(0, 10)
 }
 
-function shortMonth(start: string): string {
-  return new Date(`${start}T00:00:00Z`).toLocaleDateString('en-GB', {
-    month: 'short',
-    timeZone: 'UTC'
-  })
+function shortMonth(start: string, locale = DEFAULT_LOCALE): string {
+  return formatMonthShort(start, locale)
 }
 
 /** Monday of the week containing `day`. */

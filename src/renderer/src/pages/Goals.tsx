@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'motion/react'
 import { Check, Pencil, Plus, Target, Trash2 } from 'lucide-react'
 import type { GoalInput, GoalKind, GoalPeriod, GoalProgress } from '@shared/types'
 import { GOAL_KINDS, GOAL_PERIODS } from '@shared/types'
+import { moneySymbol } from '@shared/currency'
 import { Page } from '@/components/Page'
 import { Card } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
@@ -325,7 +326,7 @@ function GoalModal({
               autoFocus
               value={draft.name ?? ''}
               onChange={(event) => set('name', event.target.value)}
-              placeholder="£60k this tax year"
+              placeholder={`${moneySymbol()}60k this tax year`}
             />
           </Field>
 

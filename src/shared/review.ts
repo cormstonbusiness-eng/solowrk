@@ -19,6 +19,8 @@
  * and a paragraph is a thing you read. The point is to be read on a Monday.
  */
 
+import { DEFAULT_CURRENCY, formatMoney } from './currency'
+
 export interface ReviewFacts {
   /** The week being reviewed — Monday to Sunday, inclusive. */
   from: string
@@ -68,9 +70,8 @@ export interface Review {
  * Saying numbers like a person
  * ------------------------------------------------------------------ */
 
-export function pounds(pence: number): string {
-  const value = Math.round(pence / 100)
-  return `£${value.toLocaleString('en-GB')}`
+export function pounds(pence: number, currency: string = DEFAULT_CURRENCY): string {
+  return formatMoney(pence, currency)
 }
 
 function hours(value: number): string {

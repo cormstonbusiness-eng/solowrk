@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  addDays,
   addMinutes,
   addMonths,
+  dayIndexToBit,
   daysBetween,
   daysCovered,
   describeSpan,
+  isWorkingDay,
   minutesBetween,
   minutesOf,
   monthGrid,
@@ -306,5 +309,74 @@ describe('snapMinutes', () => {
   it('honours a different step', () => {
     expect(snapMinutes(547, 30)).toBe(540)
     expect(snapMinutes(556, 30)).toBe(570)
+  })
+})
+
+/* ------------------------------------------------------------------ *
+ * Week start, and the bitmask that must not move with it
+ * ------------------------------------------------------------------ */
+
+describe('startOfWeek', () => {
+  it('defaults to Monday, as it always did', () => {
+    // 2026-08-16 is a Sunday; 2026-08-12 a Wednesday.
+    expect(startOfWeek('2026-08-16')).toBe('2026-08-10')
+    expect(startOfWeek('2026-08-12')).toBe('2026-08-10')
+    expect(startOfWeek('2026-08-10')).toBe('2026-08-10')
+  })
+
+  it('starts on Sunday when asked to', () => {
+    // 6 is Sunday in the app's Monday-first convention, not 0 as in JavaScript.
+    expect(startOfWeek('2026-08-12', 6)).toBe('2026-08-09')
+    expect(startOfWeek('2026-08-09', 6)).toBe('2026-08-09')
+    expect(startOfWeek('2026-08-10', 6)).toBe('2026-08-09')
+  })
+
+  it('gives a week of seven consecutive days from whichever start', () => {
+    for (const weekStartsOn of [0, 3, 6]) {
+      const days = weekDays('2026-08-12', weekStartsOn)
+      expect(days).toHaveLength(7)
+      expect(days[0]).toBe(startOfWeek('2026-08-12', weekStartsOn))
+      for (let index = 1; index < 7; index += 1) {
+        expect(addDays(days[index - 1]!, 1)).toBe(days[index])
+      }
+    }
+  })
+
+  it('always gives a 42-day month grid starting on the week start', () => {
+    for (const weekStartsOn of [0, 6]) {
+      const grid = monthGrid('2026-08-12', weekStartsOn)
+      expect(grid).toHaveLength(42)
+      expect(grid[0]).toBe(startOfWeek('2026-08-01', weekStartsOn))
+    }
+  })
+})
+
+describe('the working-days bitmask is independent of the week start', () => {
+  it('reads 31 as Monday to Friday, whatever the grid starts on', () => {
+    /*
+      The invariant that protects existing data.
+
+      `working_days` has Monday at bit 0 and ships as 31 — Monday to Friday.
+      That encoding is in every workspace already. If a week start were ever
+      threaded into `isWorkingDay`, a user who moved their calendar to Sunday
+      would find their working week had silently rotated, their capacity maths
+      wrong, and the weekend shaded on the wrong days. So `isWorkingDay` takes
+      no week start at all, and this test exists to keep it that way.
+    */
+    const MON_TO_FRI = 31
+
+    expect(isWorkingDay(MON_TO_FRI, '2026-08-10')).toBe(true) // Monday
+    expect(isWorkingDay(MON_TO_FRI, '2026-08-14')).toBe(true) // Friday
+    expect(isWorkingDay(MON_TO_FRI, '2026-08-15')).toBe(false) // Saturday
+    expect(isWorkingDay(MON_TO_FRI, '2026-08-16')).toBe(false) // Sunday
+  })
+
+  it('maps JavaScript day numbers to Monday-first bits', () => {
+    // Sunday is 0 in JavaScript and 6 here. Getting this backwards is the
+    // whole failure mode, so it is asserted directly rather than implied.
+    expect(dayIndexToBit(1)).toBe(0) // Monday
+    expect(dayIndexToBit(5)).toBe(4) // Friday
+    expect(dayIndexToBit(6)).toBe(5) // Saturday
+    expect(dayIndexToBit(0)).toBe(6) // Sunday
   })
 })

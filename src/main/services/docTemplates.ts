@@ -1,3 +1,5 @@
+import { DEFAULT_CURRENCY, formatMoney } from '@shared/currency'
+import { DEFAULT_LOCALE, formatDateLong } from '@shared/dateFormat'
 import type { Database, Row } from '../db'
 import type {
   DocumentKind,
@@ -178,23 +180,18 @@ export function restoreDocTemplate(db: Database, id: number): DocumentTemplate {
  * The data a template merges against
  * ------------------------------------------------------------------ */
 
-function money(pence: number | null | undefined): string {
+function money(
+  pence: number | null | undefined,
+  currency: string = DEFAULT_CURRENCY
+): string {
   if (pence === null || pence === undefined) return ''
-  return `£${(pence / 100).toLocaleString('en-GB', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  })}`
+  return formatMoney(pence, currency, { pennies: true })
 }
 
 /** `2026-04-01` → `1 April 2026`, which is what a contract should read. */
-function longDate(date: string | null | undefined): string {
+function longDate(date: string | null | undefined, locale = DEFAULT_LOCALE): string {
   if (!date) return ''
-  const [year, month, day] = date.split('-').map(Number) as [number, number, number]
-  return new Date(year, month - 1, day).toLocaleDateString('en-GB', {
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric'
-  })
+  return formatDateLong(date, locale)
 }
 
 /**
