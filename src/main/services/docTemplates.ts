@@ -10,7 +10,8 @@ import type {
   GeneratedDocument
 } from '@shared/types'
 import { merge, type MergeContext } from '@shared/merge'
-import { STARTER_TEMPLATES } from '@shared/starterTemplates'
+import { starterTemplatesFor } from '@shared/starterTemplates'
+import { countryPack } from '@shared/countries'
 import { currentTaxYear, today } from '@shared/taxYear'
 import { getClient } from './clients'
 import { getDocument } from './documents'
@@ -62,6 +63,17 @@ function toTemplate(row: TemplateRow): DocumentTemplate {
  * on purpose stays deleted and one they renamed is left alone. Called on every
  * workspace open, which is what makes a template added in a later release
  * appear without anybody running anything.
+ *
+ * The set depends on the workspace’s country, because these name statute. An
+ * Irish workspace must never be seeded with a contract citing the Late Payment
+ * of Commercial Debts (Interest) Act 1998 — a document naming the wrong Act is
+ * worse than one naming none, since it reads as though somebody checked.
+ *
+ * Matching on name means changing country later does *not* swap the prose of a
+ * template already seeded. That is deliberate — silently rewriting documents
+ * somebody may have edited and sent would be indefensible — so Settings says
+ * so, and `restoreDocTemplate` is the way to pull the current country’s
+ * version in.
  */
 export function seedStarterTemplates(db: Database): number {
   const seeded = new Set(
@@ -71,7 +83,9 @@ export function seedStarterTemplates(db: Database): number {
   )
 
   let added = 0
-  for (const starter of STARTER_TEMPLATES) {
+  const pack = countryPack(getSettings(db).countryCode)
+
+  for (const starter of starterTemplatesFor(pack.templatePack)) {
     if (seeded.has(starter.name)) continue
     db.run(
       `INSERT INTO document_templates (name, kind, summary, body, builtin, created_at, updated_at)
@@ -161,10 +175,19 @@ export function deleteDocTemplate(db: Database, id: number): void {
   db.run('UPDATE document_templates SET archived = 1 WHERE id = ?', [id])
 }
 
-/** Put a shipped template back the way it came. */
+/**
+ * Put a shipped template back the way it came.
+ *
+ * "The way it came" means the current country’s version, not the one this
+ * workspace happened to be seeded with. That makes this the supported route
+ * for somebody who has changed country and wants the right statute named.
+ */
 export function restoreDocTemplate(db: Database, id: number): DocumentTemplate {
   const current = getDocTemplate(db, id)
-  const original = STARTER_TEMPLATES.find((one) => one.name === current.name)
+  const pack = countryPack(getSettings(db).countryCode)
+  const original = starterTemplatesFor(pack.templatePack).find(
+    (one) => one.name === current.name
+  )
   if (!original) throw new Error(`${current.name} did not ship with the app`)
 
   db.run(

@@ -271,9 +271,10 @@ export interface DueChase {
 }
 
 export type WorkspaceStatus =
-  | { state: 'unconfigured'; suggestedPath: string }
+  /** `suggestedCountry` pre-selects the wizard's dropdown — a hint, never a decision. */
+  | { state: 'unconfigured'; suggestedPath: string; suggestedCountry: string }
   /** Configured, but the folder or database has gone (moved drive, deleted). */
-  | { state: 'missing'; path: string; suggestedPath: string }
+  | { state: 'missing'; path: string; suggestedPath: string; suggestedCountry: string }
   | { state: 'ready'; path: string }
 
 /**

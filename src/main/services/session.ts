@@ -3,6 +3,7 @@ import { Database } from '../db'
 import type { BusinessSettings, Settings, WorkspaceSetup, WorkspaceStatus } from '@shared/types'
 import { countryPack, type CountryPack } from '@shared/countries'
 import { readConfig, suggestedWorkspacePath, updateConfig } from './config'
+import { suggestedCountry } from './suggestCountry'
 import { rememberWorkspace, requireRoomForWorkspace } from './workspaces'
 import { backupDatabase, backupIsDue } from './backup'
 import { databasePath, isWorkspace, scaffoldWorkspace } from './workspace'
@@ -81,7 +82,11 @@ class Session {
     const config = await readConfig()
 
     if (!config.workspacePath) {
-      return { state: 'unconfigured', suggestedPath: suggestedWorkspacePath() }
+      return {
+        state: 'unconfigured',
+        suggestedPath: suggestedWorkspacePath(),
+        suggestedCountry: suggestedCountry()
+      }
     }
 
     if (!(await isWorkspace(config.workspacePath))) {
@@ -89,7 +94,8 @@ class Session {
       return {
         state: 'missing',
         path: config.workspacePath,
-        suggestedPath: suggestedWorkspacePath()
+        suggestedPath: suggestedWorkspacePath(),
+        suggestedCountry: suggestedCountry()
       }
     }
 

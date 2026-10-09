@@ -1,5 +1,6 @@
 import type { TaxRules } from '../tax'
 import { GB } from './gb'
+import { IE } from './ie'
 import { DEFAULT_COUNTRY, type CountryCode, type CountryPack } from './types'
 
 export * from './types'
@@ -12,7 +13,8 @@ export * from './types'
  * should have been a fact in the pack has been written into code instead.
  */
 export const COUNTRY_PACKS: Record<CountryCode, CountryPack> = {
-  GB
+  GB,
+  IE
 }
 
 /**

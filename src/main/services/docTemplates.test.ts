@@ -20,7 +20,12 @@ const {
   setDocumentStatus,
   updateDocTemplate
 } = await import('./docTemplates')
-const { STARTER_TEMPLATES } = await import('@shared/starterTemplates')
+const { starterTemplatesFor, TEMPLATE_PACK_KEYS } = await import(
+  '@shared/starterTemplates'
+)
+
+/* A fresh workspace is GB, so this is what seeding puts in. */
+const STARTER_TEMPLATES = starterTemplatesFor('uk')
 const { unknownFields } = await import('@shared/merge')
 
 /**
@@ -84,17 +89,59 @@ describe('the starter library', () => {
 
   it('ships templates whose merge fields all exist', () => {
     // A typo in a shipped template is only discovered by a user generating a
-    // contract for a client who is waiting.
-    for (const template of STARTER_TEMPLATES) {
-      expect(unknownFields(template.body), template.name).toEqual([])
+    // contract for a client who is waiting — so every jurisdiction is swept,
+    // not just the one a default workspace seeds.
+    for (const pack of TEMPLATE_PACK_KEYS) {
+      for (const template of starterTemplatesFor(pack)) {
+        expect(unknownFields(template.body), `${pack}: ${template.name}`).toEqual([])
+      }
     }
   })
 
   it('ships templates that say what they are for', () => {
-    for (const template of STARTER_TEMPLATES) {
-      expect(template.summary, template.name).not.toBe('')
-      expect(template.body.length, template.name).toBeGreaterThan(400)
+    for (const pack of TEMPLATE_PACK_KEYS) {
+      for (const template of starterTemplatesFor(pack)) {
+        expect(template.summary, template.name).not.toBe('')
+        expect(template.body.length, template.name).toBeGreaterThan(400)
+      }
     }
+  })
+
+  it('names each jurisdiction’s own statute and no other', () => {
+    /*
+      The reason the templates are per country at all.
+
+      A contract naming the wrong Act is worse than one naming none, because
+      it reads as though somebody checked. Asserted in both directions: the
+      Irish set must cite S.I. 580/2012 and must not mention England, and the
+      UK set the reverse.
+    */
+    const uk = starterTemplatesFor('uk')
+      .map((one) => one.body)
+      .join('')
+    const ie = starterTemplatesFor('ie')
+      .map((one) => one.body)
+      .join('')
+
+    expect(uk).toContain('Late Payment of Commercial Debts (Interest) Act 1998')
+    expect(uk).toContain('England and Wales')
+    expect(uk).not.toContain('S.I. No. 580/2012')
+
+    expect(ie).toContain('S.I. No. 580/2012')
+    expect(ie).toContain('courts of Ireland')
+    expect(ie).not.toContain('England')
+    expect(ie).not.toContain('Act 1998')
+  })
+
+  it('states money in each jurisdiction’s own currency', () => {
+    // Fixed late-payment compensation is a statutory amount, so an Irish
+      // contract quoting £40 would be quoting a sum that does not apply.
+    const ie = starterTemplatesFor('ie')
+      .map((one) => one.body)
+      .join('')
+
+    expect(ie).toContain('€40')
+    expect(ie).not.toContain('£')
   })
 })
 

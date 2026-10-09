@@ -30,9 +30,11 @@ import { Automations } from './settings/Automations'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { Field, MoneyInput, NumberInput, TextInput, Toggle } from '@/components/ui/Field'
+import { Select } from '@/components/ui/Select'
 import { useUpdates } from '@/hooks/useUpdates'
 import { cn } from '@/lib/utils'
 import { currentTaxYear } from '@shared/taxYear'
+import { COUNTRY_CODES, COUNTRY_PACKS, countryPack } from '@shared/countries'
 import { formatDate, formatNumber } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { useWorkspace } from '@/hooks/useWorkspace'
@@ -97,6 +99,9 @@ export function Settings(): React.JSX.Element {
     setDraft({ ...draft, [key]: value })
 
   const dirty = settings ? JSON.stringify(settings) !== JSON.stringify(draft) : false
+
+  /** The pack for whatever the draft currently says, so hints track the picker. */
+  const pack = countryPack(draft.countryCode)
 
   return (
     <Page
@@ -208,6 +213,42 @@ export function Settings(): React.JSX.Element {
           </div>
         </Card>
         <Card>
+          <CardHeader title="Where you trade" />
+          <div className="grid grid-cols-2 gap-3">
+            <Field
+              label="Country"
+              hint={`${pack.currency} · ${pack.salesTax.label} at ${pack.salesTax.defaultRate / 100}% · tax year from ${pack.taxYear.start.day}/${pack.taxYear.start.month}`}
+            >
+              <Select
+                value={draft.countryCode}
+                onChange={(value) => value && set('countryCode', value)}
+                options={COUNTRY_CODES.map((code) => ({
+                  value: code,
+                  label: COUNTRY_PACKS[code].name
+                }))}
+              />
+            </Field>
+          </div>
+          {/*
+            Changing this does not rewrite the columns it seeded.
+
+            The country picks the defaults when a workspace is created; after
+            that the currency, VAT rate and tax-year start are the user's own
+            settings and are edited below. Silently overwriting a VAT rate
+            somebody had deliberately changed would be worse than making them
+            change two things.
+          */}
+          {draft.countryCode !== settings?.countryCode && (
+            <p className="type-meta mt-3 leading-relaxed text-warning">
+              Saving this changes which tax rates the estimate uses. It does not change your
+              currency, {pack.salesTax.label} rate or tax-year start — those stay as you set them,
+              under Invoicing &amp; tax. Templates already in your library keep their current
+              wording, including which late-payment law they name; use Restore on a template to
+              take this country&rsquo;s version.
+            </p>
+          )}
+        </Card>
+        <Card>
           <CardHeader title="Address" />
           <div className="flex flex-col gap-3.5">
             <Field label="Address line 1">
@@ -226,13 +267,22 @@ export function Settings(): React.JSX.Element {
               <Field label="Town or city">
                 <TextInput value={draft.city} onChange={(e) => set('city', e.target.value)} />
               </Field>
-              <Field label="Postcode">
+              {/* 'Postcode' in Britain, 'Eircode' in Ireland — the pack names it. */}
+              <Field label={pack.address.postcodeLabel}>
                 <TextInput
                   value={draft.postcode}
                   onChange={(e) => set('postcode', e.target.value)}
                 />
               </Field>
-              <Field label="Country">
+              {/*
+                Free text, and distinct from the country picker above.
+
+                This is the line printed in the address block on an invoice, so
+                it stays whatever the user typed — "UK", "Scotland", "Ireland".
+                The picker decides how the app behaves; this decides what a
+                client reads.
+              */}
+              <Field label="Country on invoices">
                 <TextInput value={draft.country} onChange={(e) => set('country', e.target.value)} />
               </Field>
             </div>

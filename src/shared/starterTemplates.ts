@@ -18,6 +18,7 @@
  */
 
 import type { DocumentKind } from './types'
+import type { TemplatePack } from './countries/types'
 
 export interface StarterTemplate {
   name: string
@@ -31,7 +32,92 @@ export interface StarterTemplate {
 export const LEGAL_NOTE =
   'A starting point, not legal advice. Read it, change what does not fit, and take proper advice for anything unusual or high-value.'
 
-export const STARTER_TEMPLATES: StarterTemplate[] = [
+/**
+ * The clauses that cannot be shared between countries.
+ *
+ * Everything else in these templates — scope, deliverables, revisions,
+ * intellectual property, cancellation — is the same advice wherever you
+ * trade. These nine are not: they name statute, courts and fixed sums, and a
+ * contract citing the wrong Act is worse than one citing none, because it
+ * reads as though somebody checked.
+ *
+ * Both sets still need a solicitor over them. The point of this table is
+ * that an Irish user is not silently handed English law.
+ */
+interface Jurisdiction {
+  /** The instrument giving a right to interest on an overdue commercial debt. */
+  latePaymentAct: string
+  /** Governing law and courts, as a whole sentence. */
+  governingLaw: string
+  /** The same thing as a bare name, for the terms document’s own one-line clause. */
+  lawName: string
+  /** What statutory interest runs above. */
+  referenceRate: string
+  /** The three fixed-compensation bands, formatted for prose. */
+  compensation: string
+  /** The data protection regime by name. */
+  dataProtection: string
+  /**
+   * A round figure above which a deposit is worth asking for.
+   *
+   * The freelancer's own policy rather than anything statutory, and editable
+   * like the rest of the template — but it has to be stated in the currency
+   * they actually invoice in.
+   */
+  depositThreshold: string
+}
+
+const JURISDICTIONS: Record<TemplatePack, Jurisdiction> = {
+  uk: {
+    latePaymentAct: 'the Late Payment of Commercial Debts (Interest) Act 1998',
+    governingLaw:
+      'This agreement is governed by the law of England and Wales, and the courts of ' +
+      'England and Wales have exclusive jurisdiction.',
+    lawName: 'England and Wales',
+    referenceRate: '8% above the Bank of England base rate',
+    compensation:
+      '£40 on a debt under £1,000, £70 between £1,000 and £9,999.99, and £100 on ' +
+      '£10,000 or more',
+    dataProtection: 'UK GDPR',
+    depositThreshold: '£1,000'
+  },
+  ie: {
+    /*
+      Ireland transposed the EU Late Payment Directive as S.I. No. 580/2012.
+      The structure mirrors the UK’s closely — interest over a central bank
+      reference rate, and the same three compensation bands — which is why one
+      table serves both. The numbers are in euro and the rate is the ECB’s.
+    */
+    latePaymentAct:
+      'the European Communities (Late Payment in Commercial Transactions) ' +
+      'Regulations 2012 (S.I. No. 580/2012)',
+    governingLaw:
+      'This agreement is governed by the law of Ireland, and the courts of Ireland ' +
+      'have exclusive jurisdiction.',
+    lawName: 'Ireland',
+    referenceRate: '8% above the European Central Bank main refinancing rate',
+    compensation:
+      '€40 on a debt under €1,000, €70 between €1,000 and €9,999.99, and €100 on ' +
+      '€10,000 or more',
+    dataProtection: 'the GDPR',
+    depositThreshold: '€1,000'
+  }
+}
+
+/**
+ * The starter library for a jurisdiction.
+ *
+ * A function rather than a constant because the prose varies. Seeding reads
+ * the workspace’s country, so a workspace set to Ireland is never seeded with
+ * templates citing English statute.
+ */
+/** Every jurisdiction with a template set, so tests can sweep all of them. */
+export const TEMPLATE_PACK_KEYS = Object.keys(JURISDICTIONS) as TemplatePack[]
+
+export function starterTemplatesFor(pack: TemplatePack): StarterTemplate[] {
+  const j = JURISDICTIONS[pack]
+
+  return [
   {
     name: 'Freelance contract',
     kind: 'contract',
@@ -60,7 +146,7 @@ Expenses agreed in advance are charged at cost.
 
 Invoices are payable within **{{user.payment_terms}}** of the invoice date.
 
-The Supplier may suspend work on any overdue account, and may charge interest and compensation under the Late Payment of Commercial Debts (Interest) Act 1998.
+The Supplier may suspend work on any overdue account, and may charge interest and compensation under ${j.latePaymentAct}.
 
 ## 4. Timescale
 
@@ -93,7 +179,7 @@ Nothing here limits liability for death or personal injury caused by negligence,
 
 ## 9. Law
 
-This agreement is governed by the law of England and Wales, and the courts of England and Wales have exclusive jurisdiction.
+${j.governingLaw}
 
 ---
 
@@ -232,11 +318,11 @@ Instructing the work in writing, or paying a deposit, accepts these terms.
 
 Invoices are payable within {{user.payment_terms}} of the invoice date, by bank transfer.
 
-Accounts overdue by more than 30 days may be suspended. Interest and fixed compensation may be charged under the Late Payment of Commercial Debts (Interest) Act 1998.
+Accounts overdue by more than 30 days may be suspended. Interest and fixed compensation may be charged under ${j.latePaymentAct}.
 
 ## 4. Deposits
 
-Work over £1,000 may require a deposit of up to 50% before it begins. Deposits are non-refundable once work has started.
+Work over ${j.depositThreshold} may require a deposit of up to 50% before it begins. Deposits are non-refundable once work has started.
 
 ## 5. Client responsibilities
 
@@ -254,7 +340,7 @@ Each party keeps the other's non-public information confidential and uses it onl
 
 ## 8. Data protection
 
-Personal data is processed only as needed for the work, in line with UK GDPR, and is not shared with anyone else without instruction.
+Personal data is processed only as needed for the work, in line with ${j.dataProtection}, and is not shared with anyone else without instruction.
 
 ## 9. Liability
 
@@ -266,7 +352,7 @@ Either party may cancel in writing. The Client pays for work done and commitment
 
 ## 11. Law
 
-England and Wales.
+${j.lawName}.
 `
   },
 
@@ -288,10 +374,10 @@ Our invoice remains unpaid and is now past its due date. I have written previous
 
 ## Statutory rights
 
-Under the Late Payment of Commercial Debts (Interest) Act 1998 I am entitled to charge, on a commercial debt that is overdue:
+Under ${j.latePaymentAct} I am entitled to charge, on a commercial debt that is overdue:
 
-- **Statutory interest** at 8% above the Bank of England base rate, running from the day after the due date; and
-- **Fixed compensation** for the cost of recovering the debt — £40 on a debt under £1,000, £70 between £1,000 and £9,999.99, and £100 on £10,000 or more.
+- **Statutory interest** at ${j.referenceRate}, running from the day after the due date; and
+- **Fixed compensation** for the cost of recovering the debt — ${j.compensation}.
 
 I would much rather not add either. Paying within 7 days settles the matter on the original amount.
 
@@ -353,4 +439,5 @@ Reply confirming this variation and I will carry it out and invoice it with the 
 {{user.email}}
 `
   }
-]
+  ]
+}

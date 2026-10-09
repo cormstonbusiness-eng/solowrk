@@ -26,6 +26,7 @@ import { Dot, Empty } from '@/components/ui/Empty'
 import { Swap } from '@/components/ui/Swap'
 import { keys, useInvalidate } from '@/lib/api'
 import { moneySymbol } from '@shared/currency'
+import { countryPack } from '@shared/countries'
 import { formatDate, formatMoney, formatNumber } from '@/lib/format'
 import { listItemVariants, listVariants, transition } from '@/lib/motion'
 import { Inspect } from '@/components/detail/Inspect'
@@ -51,6 +52,27 @@ type Tab = 'overview' | 'expenses' | 'mileage' | 'debtors' | 'bank'
 export function Finance(): React.JSX.Element {
   const [period, setPeriod] = useState<Period>('month')
   const [tab, setTab] = useState<Tab>('overview')
+
+  const { data: settings } = useQuery({
+    queryKey: ['settings'],
+    queryFn: () => window.solo.invoke('settings:get')
+  })
+
+  /*
+    Mileage appears only where the country has a scheme.
+
+    Not every jurisdiction has an equivalent of HMRC's flat approved rates.
+    Ireland's civil service motor rates are banded by engine size and
+    cumulative distance and are what an employer may reimburse an employee at,
+    not an allowance a sole trader claims — so an Irish workspace showing a
+    "45p a mile" rate editor would be inviting somebody to put a wrong figure
+    on their tax return. Hiding the tab is the honest answer; expenses are the
+    right route there.
+  */
+  const hasMileage = countryPack(settings?.countryCode).mileage !== null
+  const tabs: Tab[] = hasMileage
+    ? ['overview', 'expenses', 'mileage', 'debtors', 'bank']
+    : ['overview', 'expenses', 'debtors', 'bank']
 
   return (
     <Page
@@ -86,7 +108,7 @@ export function Finance(): React.JSX.Element {
       }
     >
       <div className="mb-4 flex items-center gap-2 border-b border-line">
-        {(['overview', 'expenses', 'mileage', 'debtors', 'bank'] as Tab[]).map((name) => (
+        {tabs.map((name) => (
           <button
             key={name}
             type="button"
@@ -108,7 +130,7 @@ export function Finance(): React.JSX.Element {
       {tab === 'overview' && <Overview period={period} />}
       {tab === 'expenses' && <Expenses period={period} />}
       {/* Mileage takes no period: it is valued a tax year at a time. */}
-      {tab === 'mileage' && <Mileage />}
+      {tab === 'mileage' && hasMileage && <Mileage />}
       {/* Debt is a fact about now, not about the period above. */}
       {tab === 'debtors' && <Debtors />}
       {tab === 'bank' && <Bank />}

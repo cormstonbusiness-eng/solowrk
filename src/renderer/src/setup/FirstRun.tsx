@@ -12,7 +12,9 @@ import {
 } from 'lucide-react'
 import type { FolderInspection, WorkspaceSetup, WorkspaceStatus } from '@shared/types'
 import { DEFAULT_BUSINESS } from '@shared/types'
+import { COUNTRY_CODES, COUNTRY_PACKS, countryPack } from '@shared/countries'
 import { Button } from '@/components/ui/Button'
+import { Select } from '@/components/ui/Select'
 import { Mark } from '@/setup/Mark'
 import { Field, MoneyInput, NumberInput, TextInput, Toggle } from '@/components/ui/Field'
 import { EASE, transition } from '@/lib/motion'
@@ -66,7 +68,19 @@ export function FirstRun({
   const [direction, setDirection] = useState(1)
   const [path, setPath] = useState(status.suggestedPath)
   const [inspection, setInspection] = useState<FolderInspection | null>(null)
-  const [business, setBusiness] = useState<WorkspaceSetup['business']>(DEFAULT_BUSINESS)
+  /*
+    Seeded with the country main guessed from the OS locale.
+
+    A suggestion, and the dropdown is right there — but offering one matters:
+    without it an Irish user has to notice a field they would reasonably skip,
+    and then find out later that their workspace is in sterling on a 6 April
+    tax year. `status.suggestedCountry` is derived fresh from the machine and
+    never stored, so it cannot go stale.
+  */
+  const [business, setBusiness] = useState<WorkspaceSetup['business']>({
+    ...DEFAULT_BUSINESS,
+    countryCode: status.suggestedCountry
+  })
   const [error, setError] = useState<string | null>(null)
 
   const inspect = useCallback(async (candidate: string) => {
@@ -389,6 +403,9 @@ function BusinessStep({
     value: WorkspaceSetup['business'][K]
   ): void => onChange({ ...business, [key]: value })
 
+  /** Tracks the picker, so every hint below it re-reads as it changes. */
+  const pack = countryPack(business.countryCode)
+
   return (
     <div>
       <h1 className="text-[22px] leading-tight font-semibold tracking-[-0.02em] text-ink">
@@ -430,6 +447,32 @@ function BusinessStep({
           </Button>
         </div>
 
+        {/*
+          Asked before the rate and the sales tax, because it decides what both
+          of those mean. A hundred in the rate box is a hundred pounds or a
+          hundred euro depending on this answer, and the tax below is 20% or
+          23%. Answering it afterwards would mean re-reading fields already
+          filled in.
+
+          Not a wizard step of its own: a full screen and a progress segment
+          for one dropdown is a worse wizard, and it would push the thing
+          people came here to do — name their business — behind a question most
+          of them will not need to change.
+        */}
+        <Field
+          label="Where you trade"
+          hint={`${pack.currency}, ${pack.salesTax.label} at ${pack.salesTax.defaultRate / 100}%, tax year from ${pack.taxYear.start.day}/${pack.taxYear.start.month}. Changeable later.`}
+        >
+          <Select
+            value={business.countryCode}
+            onChange={(value) => value && set('countryCode', value)}
+            options={COUNTRY_CODES.map((code) => ({
+              value: code,
+              label: COUNTRY_PACKS[code].name
+            }))}
+          />
+        </Field>
+
         <Field label="Trading name">
           <TextInput
             autoFocus
@@ -458,6 +501,7 @@ function BusinessStep({
         <div className="grid grid-cols-2 gap-3">
           <Field label="Default hourly rate" hint="Used for new projects and time tracking.">
             <MoneyInput
+              currency={pack.currency}
               pence={business.defaultHourlyRate}
               onChangePence={(pence) => set('defaultHourlyRate', pence)}
             />
@@ -476,8 +520,8 @@ function BusinessStep({
           <Toggle
             checked={business.vatRegistered}
             onChange={(checked) => set('vatRegistered', checked)}
-            label="VAT registered"
-            hint="Adds a VAT line to invoices at 20%."
+            label={`${pack.salesTax.label} registered`}
+            hint={`Adds a ${pack.salesTax.label} line to invoices at ${pack.salesTax.defaultRate / 100}%.`}
           />
           <AnimatePresence initial={false}>
             {business.vatRegistered && (
@@ -489,9 +533,9 @@ function BusinessStep({
                 className="overflow-hidden"
               >
                 <div className="pt-3.5">
-                  <Field label="VAT number">
+                  <Field label={pack.salesTax.numberLabel}>
                     <TextInput
-                      placeholder="GB123456789"
+                      placeholder={pack.code === 'IE' ? 'IE1234567FA' : 'GB123456789'}
                       value={business.vatNumber}
                       onChange={(e) => set('vatNumber', e.target.value)}
                     />

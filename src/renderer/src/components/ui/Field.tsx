@@ -1,6 +1,12 @@
 import { forwardRef, useId } from 'react'
 import { motion } from 'motion/react'
 import { transition } from '@/lib/motion'
+import {
+  DEFAULT_CURRENCY,
+  currencyInfo,
+  moneySymbol,
+  symbolLeads
+} from '@shared/currency'
 import { cn } from '@/lib/utils'
 
 const inputStyles = [
@@ -37,32 +43,55 @@ export const TextInput = forwardRef<HTMLInputElement, React.ComponentPropsWithou
 )
 
 /**
- * Money is stored as integer pence everywhere, so this edits pounds on screen
- * and hands back pence — the conversion lives here rather than in every caller.
+ * Money is stored as integer minor units everywhere, so this edits major units
+ * on screen and hands back minor — the conversion lives here rather than in
+ * every caller.
+ *
+ * One of only two places in the app allowed to divide by a currency's minor
+ * unit; the other is `@shared/currency`. A test enforces that.
  */
 export function MoneyInput({
   pence,
   onChangePence,
+  currency = DEFAULT_CURRENCY,
   ...props
 }: {
   pence: number
   onChangePence: (pence: number) => void
+  /** Defaults to sterling, which is what the app assumed before it travelled. */
+  currency?: string
 } & Omit<React.ComponentPropsWithoutRef<'input'>, 'value' | 'onChange' | 'type'>): React.JSX.Element {
+  const info = currencyInfo(currency)
+  const divisor = 10 ** info.minorUnits
+  const symbol = moneySymbol(currency)
+  /*
+    Several locales put the symbol after the number. Neither sterling nor the
+    euro does, so this is leaning forward rather than solving a problem the app
+    has — but the alternative is a euro input with the symbol on the wrong side
+    the day a country that suffixes is added.
+  */
+  const leads = symbolLeads(currency)
+
   return (
     <div className="relative">
-      <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-[13px] text-faint">
-        £
+      <span
+        className={cn(
+          'pointer-events-none absolute top-1/2 -translate-y-1/2 text-[13px] text-faint',
+          leads ? 'left-3' : 'right-3'
+        )}
+      >
+        {symbol}
       </span>
       <input
         type="number"
         min={0}
-        step="0.01"
-        value={pence === 0 ? '' : (pence / 100).toString()}
+        step={info.minorUnits === 0 ? '1' : '0.01'}
+        value={pence === 0 ? '' : (pence / divisor).toString()}
         onChange={(event) => {
-          const pounds = Number.parseFloat(event.target.value)
-          onChangePence(Number.isFinite(pounds) ? Math.round(pounds * 100) : 0)
+          const major = Number.parseFloat(event.target.value)
+          onChangePence(Number.isFinite(major) ? Math.round(major * divisor) : 0)
         }}
-        className={cn(inputStyles, 'numeric pl-7')}
+        className={cn(inputStyles, 'numeric', leads ? 'pl-7' : 'pr-7')}
         {...props}
       />
     </div>

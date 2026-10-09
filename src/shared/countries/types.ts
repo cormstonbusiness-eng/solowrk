@@ -140,12 +140,13 @@ export interface MileageScheme {
 /**
  * The countries this build actually supports.
  *
- * Ireland is deliberately absent until its pack and tax tables exist. A code
- * listed here appears in the country picker and is written to a workspace, so
- * advertising one that quietly falls back to the UK would hand somebody a
- * sterling workspace on a 6 April tax year and let them find out later.
+ * A code listed here appears in the country picker and gets written to a
+ * workspace, so it may only be added once a real pack with real tax tables
+ * exists behind it. Advertising one that quietly fell back to the UK would
+ * hand somebody a sterling workspace on a 6 April tax year and leave them to
+ * find out — which a test caught when `IE` was briefly aliased to `GB`.
  */
-export const COUNTRY_CODES = ['GB'] as const
+export const COUNTRY_CODES = ['GB', 'IE'] as const
 export type CountryCode = (typeof COUNTRY_CODES)[number]
 
 export const TEMPLATE_PACKS = ['uk', 'ie'] as const
