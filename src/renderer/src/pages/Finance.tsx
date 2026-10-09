@@ -717,16 +717,71 @@ function TaxCard(): React.JSX.Element | null {
         <CardHeader
           title={`Tax set-aside · ${tax.taxYearLabel}`}
           action={
-            <span className="type-meta text-faint">{tax.rulesLabel} rates</span>
+            /*
+              Which rates produced this, and when they were last checked.
+
+              Tax tables ship inside the app, so somebody on an old build gets
+              last year's rates applied to this year's profit — and the figure
+              looks exactly as authoritative either way. `rulesStale` is the
+              app admitting it, which is the difference between an estimate
+              and a misrepresentation.
+            */
+            tax.rulesStale ? (
+              <span className="type-meta flex items-center gap-1.5 text-warning">
+                <TriangleAlert size={12} strokeWidth={1.75} />
+                {tax.rulesCountry} {tax.rulesLabel} rates — update SoloWork
+              </span>
+            ) : (
+              <span className="type-meta text-faint">
+                {tax.rulesCountry} {tax.rulesLabel} rates
+              </span>
+            )
           }
         />
 
-        <div className="grid grid-cols-4 gap-4">
+        {/*
+          One column per charge, from the country's own table. The UK shows
+          income tax and Class 4 NI; Ireland shows income tax, USC and PRSI.
+          Neither is named here — a component that knew would be a component
+          to edit for every country added.
+        */}
+        <div
+          className="grid gap-4"
+          style={{ gridTemplateColumns: `repeat(${tax.charges.length + 2}, minmax(0, 1fr))` }}
+        >
           <Figure label="Profit so far" value={formatMoney(tax.profit)} />
-          <Figure label="Income tax" value={formatMoney(tax.incomeTax)} />
-          <Figure label="Class 4 NI" value={formatMoney(tax.nationalInsurance)} />
+          {tax.charges.map((charge) => (
+            <Figure
+              key={charge.id}
+              label={charge.label}
+              value={formatMoney(charge.amount)}
+              hint={
+                charge.exempt
+                  ? 'Exempt at this profit'
+                  : charge.atMinimum
+                    ? 'At the annual minimum'
+                    : undefined
+              }
+            />
+          ))}
           <Figure label="Estimated bill" value={formatMoney(tax.total)} strong />
         </div>
+
+        {/*
+          Allowances and credits are not the same instrument and must not be
+          labelled as though they were — so both come from the table, which
+          names its own. The UK shows "Personal allowance"; Ireland shows its
+          credits.
+        */}
+        {tax.reliefs.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1">
+            {tax.reliefs.map((relief) => (
+              <span key={relief.id} className="type-meta text-faint">
+                {relief.label} <span className="numeric">{formatMoney(relief.amount)}</span>
+              </span>
+            ))}
+          </div>
+        )}
 
         <div className="mt-4 border-t border-line pt-3.5">
           {tax.enough ? (
@@ -745,11 +800,25 @@ function TaxCard(): React.JSX.Element | null {
             </p>
           )}
 
+          {/*
+            A cliff, where one more unit of profit costs a step rather than a
+            rate. Ireland's USC exemption and PRSI minimum both do this, and
+            somebody near one wants telling in money, not in percentages — a
+            "3,000% marginal rate" is true and useless.
+          */}
+          {tax.cliffAhead && (
+            <p className="mt-2 text-[12.5px] text-warning">
+              {tax.cliffAhead.chargeLabel} starts at{' '}
+              <span className="numeric">{formatMoney(tax.cliffAhead.at)}</span> of profit, and
+              crossing it costs about{' '}
+              <span className="numeric font-semibold">{formatMoney(tax.cliffAhead.cost)}</span>.
+            </p>
+          )}
+
           <p className="type-meta mt-2 leading-relaxed text-faint">
-            The next pound of profit is taxed at {Math.round(tax.marginalPercent)}%. An estimate
-            of income tax and Class 4 National Insurance on trading profit only — no employment
-            income, dividends, student loan or payments on account. For deciding what to move
-            into savings, not for filing.
+            The next pound of profit is taxed at {Math.round(tax.marginalPercent)}%. {tax.note} For
+            deciding what to move into savings, not for filing. Rates last checked{' '}
+            {formatDate(tax.rulesVerifiedOn)}.
           </p>
         </div>
       </Card>
@@ -760,11 +829,20 @@ function TaxCard(): React.JSX.Element | null {
 function Figure({
   label,
   value,
-  strong
+  strong,
+  hint
 }: {
   label: string
   value: string
   strong?: boolean
+  /**
+   * Why this figure is what it is, where the number alone would mislead.
+   *
+   * A charge showing zero because of an exemption, or a flat amount because
+   * of an annual minimum, looks like a charge that simply does not apply.
+   * Both are a cliff somebody is standing next to.
+   */
+  hint?: string
 }): React.JSX.Element {
   return (
     <div>
@@ -772,6 +850,7 @@ function Figure({
       <p className={strong ? 'numeric text-[19px] font-semibold text-ink' : 'numeric text-[19px] text-muted'}>
         {value}
       </p>
+      {hint && <p className="type-meta mt-0.5 text-faint">{hint}</p>}
     </div>
   )
 }

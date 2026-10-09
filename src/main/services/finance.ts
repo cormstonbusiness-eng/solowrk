@@ -1,9 +1,10 @@
 import type { Database, Row } from '../db'
 import type { ClientTotal, FinancePoint, FinanceSummary, Pence } from '@shared/types'
 import { secondsToHours, taxSetAside, timeValue } from '@shared/money'
-import { UK_BANDS_2025_26, estimateTax, setAsideShortfall } from '@shared/tax'
+import { estimateTax, setAsideShortfall, type TaxRules } from '@shared/tax'
+import { countryPack, rulesFor } from '@shared/countries'
 import { mileageValueIn } from './mileage'
-import { currentTaxYear } from '@shared/taxYear'
+import { currentTaxYear, taxYearRulesFrom } from '@shared/taxYear'
 import type { ClientProfitability, TaxPosition } from '@shared/types'
 import { today } from '@shared/taxYear'
 import { getSettings } from './settings'
@@ -211,7 +212,7 @@ export function projectProfitability(db: Database): {
 }
 
 /**
- * Where the user stands with HMRC, this tax year.
+ * Where the user stands with the tax authority, this tax year.
  *
  * Deliberately its own call rather than part of `summary`: the estimate only
  * means anything over a whole tax year, and the summary answers for whatever
@@ -221,9 +222,18 @@ export function projectProfitability(db: Database): {
  * Profit is measured on the cash basis, matching how the app counts income
  * everywhere else — what was received, not what was invoiced.
  */
-export function taxPosition(db: Database, rules = UK_BANDS_2025_26): TaxPosition {
+/**
+ * `rules` stays overridable for tests, and now has a real default rather
+ * than a hard-coded UK table. Nothing passed it before, which meant the
+ * parameter was documentation for an intention nobody had implemented.
+ */
+export function taxPosition(db: Database, override?: TaxRules): TaxPosition {
   const settings = getSettings(db)
-  const year = currentTaxYear()
+  const pack = countryPack(settings.countryCode)
+  const year = currentTaxYear(taxYearRulesFrom(settings, pack.taxYear.labelStyle))
+
+  const lookup = rulesFor(settings.countryCode, year.startYear)
+  const rules = override ?? lookup.rules
 
   const totals = summary(db, { from: year.start, to: year.end, label: year.label })
   const estimate = estimateTax(totals.profit, rules)
@@ -232,17 +242,30 @@ export function taxPosition(db: Database, rules = UK_BANDS_2025_26): TaxPosition
   return {
     taxYearLabel: year.label,
     rulesLabel: rules.label,
+    rulesCountry: pack.name,
+    rulesVerifiedOn: rules.verifiedOn,
+    /*
+      Stale when the table is not the one published for this tax year. An
+      explicit override is never called stale — a test or an accountant
+      passing their own figures has said what they want.
+    */
+    rulesStale: override ? false : lookup.stale,
+    note: rules.note,
     profit: totals.profit,
     allowance: estimate.allowance,
-    incomeTax: estimate.incomeTax,
-    nationalInsurance: estimate.nationalInsurance,
+    credits: estimate.credits,
+    reliefs: estimate.reliefs,
+    charges: estimate.charges,
     total: estimate.total,
     recommendedPercent: estimate.recommendedPercent,
     marginalPercent: estimate.marginalPercent,
+    ...(estimate.cliffAhead ? { cliffAhead: estimate.cliffAhead } : {}),
     currentPercent: settings.taxSetAsidePercent,
     held,
     shortfall,
-    enough
+    enough,
+    incomeTax: estimate.incomeTax,
+    nationalInsurance: estimate.nationalInsurance
   }
 }
 

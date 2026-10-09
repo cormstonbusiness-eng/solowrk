@@ -9,6 +9,7 @@
 
 import type { Platform } from './social'
 import type { Vehicle } from './mileage'
+import type { ChargeAmount, ReliefAmount } from './tax'
 import { DEFAULT_COUNTRY } from './countries/types'
 import type { DebtBucket, DebtHeat } from './debtors'
 import type { Match } from './bankMatch'
@@ -1784,24 +1785,50 @@ export interface ClientUpdatePack {
  * so does the card that shows it.
  */
 export interface TaxPosition {
-  /** The tax year being estimated, as HMRC writes it. */
+  /** The tax year being estimated, as the jurisdiction writes it. */
   taxYearLabel: string
   /** Which year's rates were used, so a stale table is visible. */
   rulesLabel: string
+  /** The country those rates belong to: 'United Kingdom', 'Ireland'. */
+  rulesCountry: string
+  /** When a human last checked those rates against the statute. */
+  rulesVerifiedOn: string
+  /**
+   * True when no table exists for this tax year, so an older one is in use.
+   *
+   * The app must say this out loud. A figure computed at last year's rates
+   * looks exactly as authoritative as one computed at this year's, and
+   * somebody is going to act on it.
+   */
+  rulesStale: boolean
+  /** The per-country footnote naming what the estimate excludes. */
+  note: string
   profit: Pence
   allowance: Pence
-  incomeTax: Pence
-  nationalInsurance: Pence
+  /** Credit-style reliefs actually used. Zero in the UK, which has none. */
+  credits: Pence
+  reliefs: ReliefAmount[]
+  /** Every charge, in display order — income tax, NI, USC, PRSI. */
+  charges: ChargeAmount[]
   total: Pence
   /** What the app thinks should be held back, rounded up. */
   recommendedPercent: number
-  /** What the next pound of profit would cost, both taxes together. */
+  /** What the next pound of profit would cost, across every charge. */
   marginalPercent: number
+  /** A nearby threshold where the bill jumps rather than rises. */
+  cliffAhead?: { chargeLabel: string; at: Pence; cost: Pence }
   /** What the user has actually set the rate to. */
   currentPercent: number
   held: Pence
   shortfall: Pence
   enough: boolean
+  /**
+   * The UK's two charges by name, for callers not yet reading `charges`.
+   *
+   * Zero where a country has no such charge.
+   */
+  incomeTax: Pence
+  nationalInsurance: Pence
 }
 
 /**
