@@ -41,6 +41,61 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.2.0',
+    date: '2026-10-09',
+    headline: 'SoloWork works in Ireland, and the dashboard is yours to arrange.',
+    changes: [
+      {
+        kind: 'added',
+        text: 'Tell SoloWork where you trade',
+        detail:
+          'The United Kingdom or Ireland, asked when you set up and changeable in Settings. It sets your currency, your tax year, your VAT rate and the contract templates you start from — so an Irish business gets euro, a tax year running January to December, VAT at 23%, and terms citing Irish law rather than English.'
+      },
+      {
+        kind: 'added',
+        text: 'The tax estimate knows which country you are in',
+        detail:
+          'It works the real bands either way: income tax and Class 4 National Insurance in Britain, income tax, USC and PRSI in Ireland. It also tells you when a cliff is coming — Ireland charges no USC below €13,000 of income and then charges it on everything, which is worth knowing before you take one more small job in December.'
+      },
+      {
+        kind: 'added',
+        text: 'Arrange your dashboard',
+        detail:
+          'Press Edit dashboard to move modules, add ones you want and remove ones you do not, then save. Nothing moves until you say so, so you can no longer drag something out of place by accident.'
+      },
+      {
+        kind: 'added',
+        text: 'Quick stats, pending payments and a month calendar',
+        detail:
+          'A strip of headline figures across the top that is always there, a module listing every outstanding invoice with the client beside it, and a month view you can page through without leaving the dashboard.'
+      },
+      {
+        kind: 'improved',
+        text: 'The dashboard modules are half the size',
+        detail:
+          'Two sizes now — a square and a rectangle twice as wide — and each module takes the one that suits what it has to say. More of your business fits on the screen at once.'
+      },
+      {
+        kind: 'improved',
+        text: 'The tax card says how old its rates are',
+        detail:
+          'Which country and which tax year the figures come from, and when they were last checked against the published rates. If SoloWork is working from a table older than the tax year you are in, it now says so rather than quietly showing you last year’s numbers.'
+      },
+      {
+        kind: 'fixed',
+        text: 'The Finance year period follows your tax year',
+        detail:
+          'Choosing "Year" always showed 6 April to 5 April, whatever your tax-year setting said. It now uses the one you have set — which matters the moment your tax year is not the British one.'
+      },
+      {
+        kind: 'fixed',
+        text: 'Negative amounts read properly',
+        detail:
+          'A credit or a shortfall now shows as -£1,500 rather than £-1,500, with the sign where it belongs.'
+      }
+    ]
+  },
+  {
     version: '0.1.29',
     date: '2026-09-24',
     headline: 'The page you are on is easier to spot in the sidebar.',
