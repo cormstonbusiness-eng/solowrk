@@ -34,7 +34,12 @@ import { Select } from '@/components/ui/Select'
 import { useUpdates } from '@/hooks/useUpdates'
 import { cn } from '@/lib/utils'
 import { currentTaxYear } from '@shared/taxYear'
-import { COUNTRY_CODES, COUNTRY_PACKS, countryPack } from '@shared/countries'
+import {
+  COUNTRY_CODES,
+  COUNTRY_PACKS,
+  countryPack,
+  taxYearStartLabel
+} from '@shared/countries'
 import { formatDate, formatNumber } from '@/lib/format'
 import { transition } from '@/lib/motion'
 import { useWorkspace } from '@/hooks/useWorkspace'
@@ -217,7 +222,7 @@ export function Settings(): React.JSX.Element {
           <div className="grid grid-cols-2 gap-3">
             <Field
               label="Country"
-              hint={`${pack.currency} · ${pack.salesTax.label} at ${pack.salesTax.defaultRate / 100}% · tax year from ${pack.taxYear.start.day}/${pack.taxYear.start.month}`}
+              hint={`${pack.currency} · ${pack.salesTax.label} at ${pack.salesTax.defaultRate / 100}% · tax year from ${taxYearStartLabel(pack)}`}
             >
               <Select
                 value={draft.countryCode}

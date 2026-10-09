@@ -12,7 +12,12 @@ import {
 } from 'lucide-react'
 import type { FolderInspection, WorkspaceSetup, WorkspaceStatus } from '@shared/types'
 import { DEFAULT_BUSINESS } from '@shared/types'
-import { COUNTRY_CODES, COUNTRY_PACKS, countryPack } from '@shared/countries'
+import {
+  COUNTRY_CODES,
+  COUNTRY_PACKS,
+  countryPack,
+  taxYearStartLabel
+} from '@shared/countries'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
 import { Mark } from '@/setup/Mark'
@@ -461,7 +466,7 @@ function BusinessStep({
         */}
         <Field
           label="Where you trade"
-          hint={`${pack.currency}, ${pack.salesTax.label} at ${pack.salesTax.defaultRate / 100}%, tax year from ${pack.taxYear.start.day}/${pack.taxYear.start.month}. Changeable later.`}
+          hint={`${pack.currency}, ${pack.salesTax.label} at ${pack.salesTax.defaultRate / 100}%, tax year from ${taxYearStartLabel(pack)}. Changeable later.`}
         >
           <Select
             value={business.countryCode}

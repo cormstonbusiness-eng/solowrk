@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { COUNTRY_CODES, COUNTRY_PACKS, countryPack, isCountryCode, rulesFor } from './index'
+import {
+  COUNTRY_CODES,
+  COUNTRY_PACKS,
+  countryPack,
+  isCountryCode,
+  rulesFor,
+  taxYearStartLabel
+} from './index'
 import { GB } from './gb'
 import { IE } from './ie'
 import { estimateTax } from '../tax'
@@ -287,6 +294,27 @@ describe('what an Irish sole trader owes overall', () => {
       const estimate = estimateTax(profit, ieRules)
       expect(estimate.recommendedPercent, String(profit)).toBeLessThanOrEqual(100)
       expect(estimate.recommendedPercent, String(profit)).toBeGreaterThanOrEqual(0)
+    }
+  })
+})
+
+
+describe('taxYearStartLabel', () => {
+  it('spells the month out', () => {
+    /*
+      "6/4" means the sixth of April to a British reader and the fourth of
+      June to an American one — and this string appears in the one place the
+      app asks somebody which of those two worlds they live in. A country
+      picker that explains itself ambiguously is worse than one that says
+      nothing at all.
+    */
+    expect(taxYearStartLabel(GB)).toBe('6 April')
+    expect(taxYearStartLabel(IE)).toBe('1 January')
+  })
+
+  it('never renders a bare numeric date', () => {
+    for (const code of COUNTRY_CODES) {
+      expect(taxYearStartLabel(COUNTRY_PACKS[code]), code).not.toMatch(/\d+\s*\/\s*\d+/)
     }
   })
 })

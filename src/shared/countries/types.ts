@@ -149,6 +149,21 @@ export interface MileageScheme {
 export const COUNTRY_CODES = ['GB', 'IE'] as const
 export type CountryCode = (typeof COUNTRY_CODES)[number]
 
+/**
+ * When a pack's tax year starts, written out: "6 April", "1 January".
+ *
+ * Spelled rather than numeric, and not negotiable. "6/4" means the sixth of
+ * April to a British reader and the fourth of June to an American one, and
+ * this string appears in the one place the app is asking somebody which of
+ * those two worlds they live in. A country picker that explains itself
+ * ambiguously is worse than one that says nothing.
+ */
+export function taxYearStartLabel(pack: CountryPack): string {
+  const month = new Date(Date.UTC(2026, pack.taxYear.start.month - 1, 1))
+  const name = new Intl.DateTimeFormat('en-GB', { month: 'long', timeZone: 'UTC' }).format(month)
+  return `${pack.taxYear.start.day} ${name}`
+}
+
 export const TEMPLATE_PACKS = ['uk', 'ie'] as const
 export type TemplatePack = (typeof TEMPLATE_PACKS)[number]
 
