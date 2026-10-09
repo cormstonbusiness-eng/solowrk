@@ -16,6 +16,7 @@ interface SettingsRow extends Row {
   city: string
   postcode: string
   country: string
+  country_code: string
   vat_registered: number
   vat_number: string
   vat_rate: number
@@ -59,6 +60,7 @@ function toSettings(row: SettingsRow): Settings {
     city: row.city,
     postcode: row.postcode,
     country: row.country,
+    countryCode: row.country_code,
     vatRegistered: row.vat_registered === 1,
     vatNumber: row.vat_number,
     vatRate: row.vat_rate,
@@ -103,6 +105,7 @@ const COLUMNS: {
   city: { column: 'city', toDb: String },
   postcode: { column: 'postcode', toDb: String },
   country: { column: 'country', toDb: String },
+  countryCode: { column: 'country_code', toDb: String },
   vatRegistered: { column: 'vat_registered', toDb: (v) => (v ? 1 : 0) },
   vatNumber: { column: 'vat_number', toDb: String },
   vatRate: { column: 'vat_rate', toDb: Number },

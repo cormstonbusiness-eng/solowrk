@@ -29,6 +29,24 @@ export interface TaxBand {
 export interface TaxRules {
   /** Which year these were published for, so the app can say so. */
   label: string
+  /**
+   * The calendar year the tax year starts in, so lookup is mechanical.
+   *
+   * Matches `TaxYear.startYear`, which means finding the right table is an
+   * equality check rather than parsing a label that differs by country.
+   */
+  startYear: number
+  /**
+   * When a human last checked these figures against the statute.
+   *
+   * The app shows this, and warns when it is old. Rates are published once a
+   * year and the code around them does not change, so a table can be silently
+   * wrong for a long time — which is the failure mode worth designing against
+   * when somebody may act on the number.
+   */
+  verifiedOn: string
+  /** Where the figures came from, so they can be checked again. */
+  sourceUrl: string
   /** Tax-free, before tapering. */
   personalAllowance: Pence
   /**
@@ -52,6 +70,9 @@ export interface TaxRules {
  */
 export const UK_BANDS_2025_26: TaxRules = {
   label: '2025/26',
+  startYear: 2025,
+  verifiedOn: '2025-04-06',
+  sourceUrl: 'https://www.gov.uk/income-tax-rates',
   personalAllowance: 12_570_00,
   taperFrom: 100_000_00,
   incomeTax: [

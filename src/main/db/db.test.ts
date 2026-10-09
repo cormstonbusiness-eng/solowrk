@@ -25,6 +25,15 @@ describe('Database', () => {
     expect(settings.vatRate).toBe(2000)
     expect(settings.taxYearStartDay).toBe(6)
     expect(settings.taxYearStartMonth).toBe(4)
+    /*
+      Migration 34's whole job.
+
+      Every workspace in existence was created by a build that hard-coded the
+      United Kingdom, so GB is not a guess about them — it is what they are.
+      An existing workspace must come through the migration with nothing
+      changed, and this is the assertion that says so.
+    */
+    expect(settings.countryCode).toBe('GB')
     expect(db.all('SELECT id FROM settings')).toHaveLength(1)
   })
 

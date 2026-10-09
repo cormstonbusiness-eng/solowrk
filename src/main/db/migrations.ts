@@ -2124,5 +2124,27 @@ export const migrations: Migration[] = [
       -- about it every month.
       ALTER TABLE settings ADD COLUMN quiet_period_weeks INTEGER NOT NULL DEFAULT 4;
     `
+  },
+  {
+    id: 34,
+    name: 'country_code',
+    sql: `
+      -- Which country this business is in, as ISO 3166-1 alpha-2.
+      --
+      -- A new column rather than a reinterpretation of 'country', which is
+      -- printed in the invoice address block and may hold anything a user has
+      -- typed there — "UK", "Scotland", "England". That text is theirs and is
+      -- not safe to parse; this is the app's own answer to the same question.
+      --
+      -- Defaults to GB because every workspace that exists was created by a
+      -- build that hard-coded the United Kingdom. Nothing changes for them.
+      --
+      -- The country drives the currency, the sales-tax rate and label, the tax
+      -- year, the week start, the mileage scheme and which starter contracts
+      -- are seeded. Those all remain their own columns: this one says where
+      -- their defaults came from, not what they currently are, so a user who
+      -- changes their VAT rate by hand keeps it.
+      ALTER TABLE settings ADD COLUMN country_code TEXT NOT NULL DEFAULT 'GB';
+    `
   }
 ]

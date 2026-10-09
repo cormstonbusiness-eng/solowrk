@@ -1,6 +1,7 @@
 import { basename } from 'node:path'
 import { Database } from '../db'
-import type { Settings, WorkspaceSetup, WorkspaceStatus } from '@shared/types'
+import type { BusinessSettings, Settings, WorkspaceSetup, WorkspaceStatus } from '@shared/types'
+import { countryPack, type CountryPack } from '@shared/countries'
 import { readConfig, suggestedWorkspacePath, updateConfig } from './config'
 import { rememberWorkspace, requireRoomForWorkspace } from './workspaces'
 import { backupDatabase, backupIsDue } from './backup'
@@ -11,6 +12,29 @@ import { migrateLeadsToClients } from './leadMigration'
 import { runRecurringInvoices } from './invoices'
 import { drainOutbox } from './chaseRun'
 import { checkQuietPeriod } from './quietPeriod'
+
+/**
+ * The columns a country decides, as a patch.
+ *
+ * Kept here rather than in the pack because it is a mapping *into this
+ * schema* — the pack knows about countries, not about which columns this app
+ * happens to have.
+ *
+ * Each of these stays its own column afterwards, so somebody who edits their
+ * VAT rate or tax-year start keeps the edit. The pack supplies defaults; it
+ * does not own the row.
+ */
+function settingsFromPack(pack: CountryPack): Partial<BusinessSettings> {
+  return {
+    countryCode: pack.code,
+    country: pack.name,
+    currency: pack.currency,
+    vatRate: pack.salesTax.defaultRate,
+    taxYearStartDay: pack.taxYear.start.day,
+    taxYearStartMonth: pack.taxYear.start.month,
+    taxSetAsidePercent: pack.defaultSetAsidePercent
+  }
+}
 
 /**
  * Owns the currently open workspace: its path and its database connection.
@@ -99,9 +123,17 @@ class Session {
        * it, and Settings is one click away.
        */
       businessName: setup.business.businessName.trim() || basename(setup.path),
-      // A UK sole trader is the default shape; both are editable in Settings.
-      country: 'United Kingdom',
-      currency: 'GBP'
+      /*
+        The country expands into the columns it decides.
+
+        This is the only place that happens. It used to read `country:
+        'United Kingdom', currency: 'GBP'` with a comment calling a UK sole
+        trader "the default shape", which was true of the only shape the app
+        could hold. Each of these stays its own column afterwards, so
+        somebody who edits their VAT rate or tax-year start keeps the edit —
+        the pack supplies defaults, it does not own the row.
+      */
+      ...settingsFromPack(countryPack(setup.business.countryCode))
     })
 
     return { state: 'ready', path: setup.path }

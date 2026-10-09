@@ -54,6 +54,19 @@ const ALLOWED = new Set([
   'main/db/migrations.ts'
 ])
 
+/**
+ * Directories where naming a locale or a currency is the entire job.
+ *
+ * A prefix rather than a list of files, so adding a country is writing a pack
+ * and nothing else. Needing to edit a guard in order to add a country would
+ * make the guard an obstacle to the thing it exists to enable.
+ */
+const ALLOWED_DIRS = ['shared/countries/']
+
+function isAllowed(relative: string): boolean {
+  return ALLOWED.has(relative) || ALLOWED_DIRS.some((dir) => relative.startsWith(dir))
+}
+
 function sources(dir: string, found: string[] = []): string[] {
   for (const entry of readdirSync(dir)) {
     if (entry === 'node_modules' || entry === 'out' || entry === 'dist') continue
@@ -80,7 +93,7 @@ function offenders(pattern: RegExp): string[] {
 
   for (const path of sources(ROOT)) {
     const relative = path.slice(ROOT.length + 1).split('\\').join('/')
-    if (ALLOWED.has(relative)) continue
+    if (isAllowed(relative)) continue
 
     const code = stripComments(readFileSync(path, 'utf8'))
     for (const [index, line] of code.split('\n').entries()) {

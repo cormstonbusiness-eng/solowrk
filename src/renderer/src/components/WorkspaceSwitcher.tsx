@@ -2,7 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AnimatePresence, motion } from 'motion/react'
 import { Check, ChevronsUpDown, FolderPlus, TriangleAlert, X } from 'lucide-react'
-import type { KnownWorkspace } from '@shared/types'
+import type { KnownWorkspace, Settings } from '@shared/types'
+import { DEFAULT_BUSINESS } from '@shared/types'
+import { keys } from '@/lib/api'
 import { raiseLimit } from '@/lib/limits'
 import { transition } from '@/lib/motion'
 import { cn } from '@/lib/utils'
@@ -76,6 +78,19 @@ export function WorkspaceSwitcher(): React.JSX.Element {
           addressLine2: '',
           city: '',
           postcode: '',
+          /*
+            The one field not left blank, because blank is not neutral here.
+
+            Somebody adding a second business is almost certainly in the same
+            country as their first, and the country decides the currency, the
+            sales-tax rate and the tax year. Defaulting to GB would hand an
+            Irish user a sterling workspace on a 6 April tax year and leave
+            them to find out. Inherited from the open workspace, falling back
+            only when nothing is loaded.
+          */
+          countryCode:
+            queryClient.getQueryData<Settings>(keys.settings)?.countryCode ??
+            DEFAULT_BUSINESS.countryCode,
           vatRegistered: false,
           vatNumber: '',
           defaultHourlyRate: 0,

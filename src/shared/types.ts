@@ -9,6 +9,7 @@
 
 import type { Platform } from './social'
 import type { Vehicle } from './mileage'
+import { DEFAULT_COUNTRY } from './countries/types'
 import type { DebtBucket, DebtHeat } from './debtors'
 import type { Match } from './bankMatch'
 import type { Review } from './review'
@@ -122,7 +123,16 @@ export interface BusinessSettings {
   addressLine2: string
   city: string
   postcode: string
+  /** Free text, printed on invoices. The user's own wording. */
   country: string
+  /**
+   * ISO 3166-1 alpha-2, and the app's own answer to where this business is.
+   *
+   * Separate from `country` on purpose — see migration 34. This is what
+   * selects the country pack, which supplies the currency, the sales-tax
+   * label and rate, the tax year, the week start and the template pack.
+   */
+  countryCode: string
 
   /** VAT registration drives whether invoices show a VAT line at all. */
   vatRegistered: boolean
@@ -236,6 +246,7 @@ export interface WorkspaceSetup {
     | 'addressLine2'
     | 'city'
     | 'postcode'
+    | 'countryCode'
     | 'vatRegistered'
     | 'vatNumber'
     | 'defaultHourlyRate'
@@ -2428,6 +2439,8 @@ export const DEFAULT_BUSINESS: WorkspaceSetup['business'] = {
   addressLine2: '',
   city: '',
   postcode: '',
+  // Every workspace until now was created by a build that hard-coded this.
+  countryCode: DEFAULT_COUNTRY,
   vatRegistered: false,
   vatNumber: '',
   defaultHourlyRate: 5000,
