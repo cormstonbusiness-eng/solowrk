@@ -41,6 +41,19 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.2.1',
+    date: '2026-10-10',
+    headline: 'The theme picker is back, under Settings → Appearance.',
+    changes: [
+      {
+        kind: 'added',
+        text: 'Choose your theme again',
+        detail:
+          'Settings has an Appearance tab once more. There is one theme in it today — Editorial, the one you are looking at — and more are on the way. Your choice is kept with the workspace, so it travels with it to another machine.'
+      }
+    ]
+  },
+  {
     version: '0.2.0',
     date: '2026-10-09',
     headline: 'SoloWork works in Ireland, and the dashboard is yours to arrange.',
