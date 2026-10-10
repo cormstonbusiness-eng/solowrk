@@ -41,6 +41,25 @@ export interface Release {
 
 export const changelog: Release[] = [
   {
+    version: '0.2.2',
+    date: '2026-10-10',
+    headline: 'A dark theme.',
+    changes: [
+      {
+        kind: 'added',
+        text: 'Editorial Dark',
+        detail:
+          'The same design after dark — a warm near-black rather than a blue-black, the same monospaced figures, and colour still only where it means something. Pick it under Settings → Appearance; the switch is instant and nothing needs reloading.'
+      },
+      {
+        kind: 'changed',
+        text: 'The original theme is now called Editorial Light',
+        detail:
+          'Only the name has changed. It looks exactly as it did, and if it was already your theme it still is.'
+      }
+    ]
+  },
+  {
     version: '0.2.1',
     date: '2026-10-10',
     headline: 'The theme picker is back, under Settings → Appearance.',
