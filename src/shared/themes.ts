@@ -181,9 +181,17 @@ export const THEMES: Theme[] = [
    * place you are.
    */
   {
+    /*
+      The id stays `editorial` though the name is now Editorial Light.
+
+      It is a storage key, written into `app_state` on every workspace that
+      has ever chosen a theme. The name is what a person reads; the id is what
+      the app matches on, and renaming it to match would be churn with a
+      migration attached for no gain anyone can see.
+    */
     id: 'editorial',
-    name: 'Editorial',
-    description: 'The default. Warm off-white, monospaced figures, and colour only where it means something.',
+    name: 'Editorial Light',
+    description: 'Warm off-white, monospaced figures, and colour only where it means something.',
     light: true,
     fontSans: INTER,
     fontMono: MONO,
@@ -266,6 +274,142 @@ export const THEMES: Theme[] = [
       sidebarInk: '#1c1c1a',
       sidebarMuted: '#6b6b64',
       sidebarSection: '#a3a39c'
+    }
+  },
+
+  /**
+   * Editorial Dark — the same design after dark.
+   *
+   * Not an inversion. Flipping a light palette produces grey text on grey
+   * cards and an accent that glows; every value here is chosen for its own
+   * surface, and the only things carried across unchanged are the ones that
+   * mean something — the status colours and the brand orange.
+   *
+   * **Still warm.** #141412 rather than #0a0a0c: red and green a touch above
+   * blue, which is the same couple of points of hue that make the light theme
+   * read as paper rather than as a spreadsheet. A cold near-black would be a
+   * different design wearing the same name.
+   *
+   * **The accent inverts to near-white**, which is the one decision worth
+   * explaining. Editorial's primary button is near-black because the palette
+   * carries meaning through weight rather than hue, and a coloured button
+   * would compete with the only thing colour is allowed to say. That argument
+   * does not change in the dark — it just means the firmest possible neutral
+   * is now the lightest one. So a primary action is a near-white slab with
+   * near-black on it, and colour still belongs to status alone.
+   *
+   * The active navigation item inverts with it: a light slab on the dark
+   * column, deliberately a shade *darker* than `accent` (#e2e2dd against
+   * #f2f2ee) so the button still reads as the firmer of the two. One says
+   * "you are here", the other says "press me", exactly as in the light theme.
+   *
+   * Status colours are lifted rather than reused. #dc2626 on a near-black card
+   * is a bruise; #f87171 is a warning you can read.
+   */
+  {
+    id: 'editorial-dark',
+    name: 'Editorial Dark',
+    description:
+      'The same design after dark. Warm near-black, the same monospaced figures, and colour still only where it means something.',
+    light: false,
+    fontSans: INTER,
+    fontMono: MONO,
+    radius: 12,
+    tokens: {
+      /* Warm near-black, not a blue-black. See the note above. */
+      ground: '#141412',
+      groundEnd: '#141412',
+      /*
+        A card is lighter than the page here, mirroring white-on-off-white in
+        the light theme — the same layering, read from the other end.
+
+        #1c1c1a is also exactly the light theme's `invert`: the dark card it
+        uses for a dashboard module is this theme's ordinary card, which is
+        what makes the two feel like one design rather than two.
+      */
+      surface: '#1c1c1a',
+      surfaceHover: '#212120',
+      /* The tray a card sits in — recessed, so darker than the card. */
+      shell: '#161614',
+      /* A tinted block inside a card: a progress track, a chip. */
+      raised: '#252523',
+      overlay: '#1c1c1a',
+      hover: '#2c2c29',
+      line: '#2b2b28',
+      lineStrong: '#3d3d39',
+      ink: '#f2f2ee',
+      muted: '#a8a8a0',
+      faint: '#6f6f68',
+      disabled: '#454541',
+
+      /* Near-white, not a hue. See the note above. */
+      accent: '#f2f2ee',
+      accentHover: '#ffffff',
+      accentPress: '#dededa',
+      accentInk: '#161614',
+
+      /*
+        Lifted for a dark surface. The light theme's values are correct there
+        and unreadable here, which is why these are chosen rather than shared.
+      */
+      success: '#4ade80',
+      warning: '#fbbf24',
+      danger: '#f87171',
+      info: '#9ca3af',
+
+      chartSecondary: '#3a3a36',
+
+      /*
+        The emphasised card — and the one token here that is deliberately not
+        an inversion, despite the name.
+
+        Taken literally, `invert` on a dark theme is near-white, and that was
+        tried first. It is wrong, and visibly so: the dashboard puts four of
+        these next to three ordinary cards, and four near-white panels on a
+        near-black page is glare rather than emphasis. The light theme gets
+        away with the same arrangement because dark-on-white *recedes* while
+        light-on-dark *shouts* — the arrangement mirrors, the perceptual
+        weight does not.
+
+        So the emphasis is made by lifting instead: twice the luminance of an
+        ordinary card, which reads as a distinct group at a glance and as part
+        of the same surface up close. The one thing lost is the quick-stats
+        lead badge, which is subtler here than its light-theme counterpart —
+        a fair price for a dashboard that reads as one object.
+      */
+      invert: '#2b2b28',
+      invertInk: '#f7f7f4',
+      invertMuted: '#9b9b93',
+
+      /*
+        The brand orange, unchanged, with the same near-black on it. It marks
+        today on the calendar and nothing else — the one colour in the palette
+        not carrying a status, and it survives the change of background
+        without adjustment, which is most of why it works as a brand mark.
+      */
+      highlight: '#ff7a2f',
+      highlightInk: '#161614',
+
+      /*
+        The sidebar sits a shade *lighter* than the page, as it does in the
+        light theme, so the frame still reads as raised rather than as a hole.
+      */
+      sidebar: '#1a1a18',
+      sidebarRaised: '#222220',
+      sidebarActive: '#e2e2dd',
+      sidebarActiveBorder: '#e2e2dd',
+      sidebarActiveInk: '#161614',
+      sidebarLine: '#2b2b28',
+      /*
+        The same value as `invert` above, deliberately — the light theme keeps
+        the same rule for the same reason. A menu label and the fill of an
+        inverted module are the two extremes the eye sees side by side most
+        often, and two near-whites that are nearly but not quite equal read as
+        a mistake rather than as a choice. If one of them moves, move the other.
+      */
+      sidebarInk: '#f2f2ee',
+      sidebarMuted: '#a8a8a0',
+      sidebarSection: '#6f6f68'
     }
   }
 ]
