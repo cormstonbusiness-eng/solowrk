@@ -45,15 +45,18 @@ import { transition } from '@/lib/motion'
 import { useWorkspace } from '@/hooks/useWorkspace'
 import { useAuthState, useFeature } from '@/lib/features'
 import { LIMIT_LABELS, TIER_NAMES } from '@shared/entitlements'
+import { useTheme } from '@/hooks/useTheme'
+import { THEMES } from '@shared/themes'
 import { useTour } from '@/tour/TourProvider'
 import { messageFrom } from '@shared/ipcError'
 
-type Tab = 'business' | 'money' | 'automations' | 'account' | 'plan' | 'app'
+type Tab = 'business' | 'money' | 'automations' | 'appearance' | 'account' | 'plan' | 'app'
 
 const TABS: { value: Tab; label: string }[] = [
   { value: 'business', label: 'Business' },
   { value: 'money', label: 'Invoicing & tax' },
   { value: 'automations', label: 'Automations' },
+  { value: 'appearance', label: 'Appearance' },
   { value: 'account', label: 'Account' },
   { value: 'plan', label: 'Business plan' },
   { value: 'app', label: 'App' }
@@ -382,6 +385,8 @@ export function Settings(): React.JSX.Element {
             </>}
 
           {tab === 'automations' && <Automations />}
+
+          {tab === 'appearance' && <ThemeCard />}
 
           {tab === 'account' && <AccountCard />}
 
@@ -1384,6 +1389,138 @@ function UpdatesCard(): React.JSX.Element {
         Installed version {version ?? '—'} · Nothing installs itself — an update
         waits until you restart.
       </p>
+    </Card>
+  )
+}
+
+/**
+ * Pick a theme.
+ *
+ * Every colour, corner and typeface in the app comes from a token, so a theme
+ * is just a different set of values for those — which is why the swatch below
+ * can be a real miniature of the app rather than an approximation of one, and
+ * why switching is instant with nothing to reload.
+ *
+ * The preview is built from the theme's own tokens rather than a screenshot,
+ * so a theme added later gets an accurate one for free and cannot ship a
+ * picture that disagrees with what it actually looks like.
+ */
+function ThemeCard(): React.JSX.Element {
+  const { themeId, setThemeId } = useTheme()
+  const only = THEMES.length === 1
+
+  return (
+    <Card>
+      <CardHeader title="Theme" />
+      <p className="mb-3 text-[12px] leading-relaxed text-muted">
+        Changes colours, corners and the typeface across the whole app. Your choice is kept with
+        the workspace, so it travels with it.
+      </p>
+
+      <div className="grid grid-cols-3 gap-2.5">
+        {THEMES.map((theme) => {
+          const active = theme.id === themeId
+
+          return (
+            <button
+              key={theme.id}
+              type="button"
+              onClick={() => setThemeId(theme.id)}
+              className={cn(
+                'overflow-hidden rounded-card border text-left transition-colors',
+                active ? 'border-accent' : 'border-line hover:border-line-strong'
+              )}
+            >
+              {/* A miniature of the app itself, painted in that theme's tokens —
+                  a row of hex swatches would not tell you what it feels like. */}
+              <div
+                style={{ backgroundColor: theme.tokens.ground }}
+                className="flex h-[74px] gap-1.5 p-2"
+              >
+                <div
+                  style={{ backgroundColor: theme.tokens.surface, borderRadius: theme.radius / 2 }}
+                  className="flex w-[26%] flex-col gap-1 p-1.5"
+                >
+                  <span
+                    style={{ backgroundColor: theme.tokens.accent, borderRadius: 2 }}
+                    className="h-1.5 w-full"
+                  />
+                  <span
+                    style={{ backgroundColor: theme.tokens.line, borderRadius: 2 }}
+                    className="h-1.5 w-3/4"
+                  />
+                  <span
+                    style={{ backgroundColor: theme.tokens.line, borderRadius: 2 }}
+                    className="h-1.5 w-2/3"
+                  />
+                </div>
+
+                <div className="flex flex-1 flex-col gap-1.5">
+                  <div
+                    style={{
+                      backgroundColor: theme.tokens.surface,
+                      borderColor: theme.tokens.line,
+                      borderRadius: theme.radius / 2
+                    }}
+                    className="flex flex-1 items-center gap-1.5 border p-1.5"
+                  >
+                    <span
+                      style={{ backgroundColor: theme.tokens.ink, borderRadius: 2 }}
+                      className="h-1.5 w-1/3 opacity-80"
+                    />
+                    <span
+                      style={{ backgroundColor: theme.tokens.muted, borderRadius: 2 }}
+                      className="h-1.5 w-1/4 opacity-70"
+                    />
+                  </div>
+                  <div className="flex gap-1.5">
+                    <span
+                      style={{
+                        backgroundColor: theme.tokens.accent,
+                        borderRadius: Math.max(2, theme.radius - 4)
+                      }}
+                      className="h-4 w-12"
+                    />
+                    <span
+                      style={{
+                        backgroundColor: theme.tokens.raised,
+                        borderRadius: Math.max(2, theme.radius - 4)
+                      }}
+                      className="h-4 w-8"
+                    />
+                    <span
+                      style={{ backgroundColor: theme.tokens.success, borderRadius: 99 }}
+                      className="h-4 w-4"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2 border-t border-line p-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[12.5px] font-medium text-ink">{theme.name}</p>
+                  <p className="mt-0.5 text-[11px] leading-snug text-faint">{theme.description}</p>
+                </div>
+                {active && (
+                  <Check size={14} strokeWidth={2.5} className="mt-0.5 shrink-0 text-accent" />
+                )}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/*
+        Said plainly while there is one theme, because a picker with a single
+        option reads as something broken rather than as something with one
+        answer. It disappears on its own the moment a second theme exists.
+      */}
+      {only && (
+        <p className="mt-3 text-[11px] leading-relaxed text-faint">
+          The only theme so far. More will appear here as they are added — your choice is already
+          stored, so a new one is a click away when it arrives.
+        </p>
+      )}
     </Card>
   )
 }
